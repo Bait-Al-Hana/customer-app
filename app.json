@@ -7,7 +7,13 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
+    "icon": "./assets/logo.jpeg",
     "assetBundlePatterns": ["**/*"],
+    "splash": {
+      "image": "./assets/logo.jpeg",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.baitalhana.customer"
@@ -15,7 +21,8 @@
     "android": {
       "package": "com.baitalhana.customer",
       "adaptiveIcon": {
-        "backgroundColor": "#0E0F13"
+        "foregroundImage": "./assets/logo.jpeg",
+        "backgroundColor": "#FFFFFF"
       }
     },
     "extra": {

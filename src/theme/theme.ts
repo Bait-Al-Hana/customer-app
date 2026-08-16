@@ -18,9 +18,13 @@ export interface Theme {
     border: string;
     text: string;
     textMuted: string;
-    /** Brand accent — a warm saffron, evoking food without copying any brand. */
+    /** Brand primary — the Bait Al Hana magenta from the logo. */
     primary: string;
     onPrimary: string;
+    /** Brand secondary — the warm orange of the shawarma / citrus. */
+    secondary: string;
+    /** Brand accent — the blue of the "for fast food" tagline. */
+    accent: string;
     success: string;
     danger: string;
     warning: string;
@@ -28,47 +32,58 @@ export interface Theme {
     skeleton: string;
     skeletonHighlight: string;
     backdrop: string;
+    /** Fixed brand background for the launch screen (theme-independent). */
+    launch: string;
   };
   radius: { sm: number; md: number; lg: number; xl: number; pill: number };
   spacing: (n: number) => number;
 }
 
-const PRIMARY = '#E8A33D';
+// Sampled from the logo.
+const MAGENTA = '#E5178B';
+const ORANGE = '#F47C20';
+const BLUE = '#2E63A6';
 
 const light: Theme['colors'] = {
-  background: '#FBF8F3',
+  background: '#FCF7FA',
   surface: '#FFFFFF',
-  surfaceAlt: '#F3EEE6',
-  border: '#E7E0D5',
-  text: '#1C1B18',
-  textMuted: '#6C665C',
-  primary: PRIMARY,
-  onPrimary: '#1C1206',
+  surfaceAlt: '#F6EEF3',
+  border: '#EBDCE5',
+  text: '#1E1A1C',
+  textMuted: '#6E6167',
+  primary: MAGENTA,
+  onPrimary: '#FFFFFF',
+  secondary: ORANGE,
+  accent: BLUE,
   success: '#2E9E5B',
   danger: '#D6453B',
-  warning: '#E08A1E',
-  progress: '#E8A33D',
-  skeleton: '#ECE6DC',
-  skeletonHighlight: '#F6F1E8',
-  backdrop: 'rgba(20,18,14,0.45)',
+  warning: ORANGE,
+  progress: MAGENTA,
+  skeleton: '#EFE6EC',
+  skeletonHighlight: '#F8F1F5',
+  backdrop: 'rgba(30,20,26,0.45)',
+  launch: '#FFFFFF',
 };
 
 const dark: Theme['colors'] = {
-  background: '#0E0F13',
-  surface: '#181A20',
-  surfaceAlt: '#212430',
-  border: '#2C3040',
-  text: '#F4F3F0',
-  textMuted: '#9A9DA8',
-  primary: PRIMARY,
-  onPrimary: '#1C1206',
+  background: '#121016',
+  surface: '#1B1820',
+  surfaceAlt: '#262230',
+  border: '#342D3C',
+  text: '#F5F1F3',
+  textMuted: '#A79CA6',
+  primary: '#F23BA0',
+  onPrimary: '#FFFFFF',
+  secondary: '#F78F3D',
+  accent: '#5C8BD6',
   success: '#3CC06E',
   danger: '#F0655B',
-  warning: '#F0A93C',
-  progress: '#E8A33D',
-  skeleton: '#20232C',
-  skeletonHighlight: '#2A2E39',
+  warning: '#F78F3D',
+  progress: '#F23BA0',
+  skeleton: '#262230',
+  skeletonHighlight: '#302B3A',
   backdrop: 'rgba(0,0,0,0.6)',
+  launch: '#FFFFFF',
 };
 
 const BASE = {

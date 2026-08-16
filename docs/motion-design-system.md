@@ -61,6 +61,21 @@ These are standard interaction curves, not any brand's proprietary set. The
 same tuples feed React Native's `Easing.bezier(...)` here and CSS
 `cubic-bezier(...)` in the web apps, so the feel matches everywhere.
 
+### Brand colours
+
+Sampled from the Bait Al Hana logo and held in
+[`src/theme/theme.ts`](../src/theme/theme.ts):
+
+| Role | Light | Note |
+| --- | --- | --- |
+| `primary` | `#E5178B` | The logo magenta — buttons, active states, the cart badge. |
+| `secondary` | `#F47C20` | The shawarma/citrus orange — secondary accents. |
+| `accent` | `#2E63A6` | The "for fast food" tagline blue. |
+
+`onPrimary` is white. The dark theme brightens each brand colour slightly for
+contrast on dark surfaces. The launch screen uses a fixed white background (the
+logo artwork is on white) so it reads cleanly in both themes.
+
 ### Spring (Reanimated `withSpring`)
 
 | Token | damping / stiffness / mass | Use |

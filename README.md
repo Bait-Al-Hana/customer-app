@@ -8,8 +8,9 @@ tracking, invoices, coupons, loyalty and notifications. It talks only to the
 rules and never computes a payable amount itself.
 
 > **Current state:** project foundation + the **Motion & Animation Design
-> System**. The motion language, its reusable components, and the two hero
-> stateful components (`OrderStatusTracker`, `PaymentStateView`) are built,
+> System**, themed to the Bait Al Hana brand. The motion language, its reusable
+> components, the two hero stateful components (`OrderStatusTracker`,
+> `PaymentStateView`), and the animated brand **launch screen** are built,
 > documented and tested. Product screens (auth, menu, cart, checkout, tracking)
 > build on this foundation next.
 
