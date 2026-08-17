@@ -1,6 +1,19 @@
 import { OrderType, PaymentMethod } from '../types/backend';
 import { ApiClient } from './http';
-import { AuthTokens, Branch, Menu, Order, Payment, PriceQuote } from './types';
+import { Address, AuthTokens, Branch, DeliveryTracking, Menu, Order, Payment, PriceQuote } from './types';
+
+export interface AddressInput {
+  label?: string;
+  line1: string;
+  line2?: string;
+  district?: string;
+  city: string;
+  postalCode?: string;
+  latitude?: number;
+  longitude?: number;
+  notes?: string;
+  isDefault?: boolean;
+}
 
 /** Cart item as the quote/order endpoints expect it. */
 export interface OrderItemInput {
@@ -65,6 +78,24 @@ export class Api {
 
   cancelOrder(id: string, reason?: string): Promise<Order> {
     return this.http.request(`/customer/orders/${id}/cancel`, { method: 'POST', body: { reason } });
+  }
+
+  // --- Addresses (authenticated) --------------------------------------------
+  listAddresses(): Promise<Address[]> {
+    return this.http.request('/customer/addresses');
+  }
+
+  createAddress(input: AddressInput): Promise<Address> {
+    return this.http.request('/customer/addresses', { method: 'POST', body: input });
+  }
+
+  deleteAddress(id: string): Promise<{ id: string; deleted: boolean }> {
+    return this.http.request(`/customer/addresses/${id}`, { method: 'DELETE' });
+  }
+
+  // --- Delivery tracking (authenticated) ------------------------------------
+  trackDelivery(orderId: string): Promise<DeliveryTracking> {
+    return this.http.request(`/customer/orders/${orderId}/delivery`);
   }
 
   // --- Payment (authenticated) ----------------------------------------------

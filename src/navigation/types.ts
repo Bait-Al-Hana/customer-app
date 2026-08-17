@@ -10,6 +10,7 @@ export type RootStackParamList = {
   Menu: { branchId: string; branchName: string };
   Cart: undefined;
   Checkout: { type: OrderType };
+  AddAddress: undefined;
   PaymentProcessing: { orderId: string };
   OrderTracking: { orderId: string };
   Orders: undefined;

@@ -6,8 +6,10 @@ import { useAuth } from '../auth/AuthProvider';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import { OrderStatusTracker } from '../features/order/OrderStatusTracker';
 import { useAsync } from '../hooks/useAsync';
+import { AppMap, DEFAULT_REGION, MapMarker } from '../maps/AppMap';
 import { ErrorState, Skeleton } from '../motion';
-import { ORDER_STATUS, OrderStatus } from '../types/backend';
+import { ORDER_STATUS, ORDER_TYPE, OrderStatus } from '../types/backend';
+import type { DeliveryTracking } from '../api/types';
 import { RootStackParamList } from '../navigation/types';
 import { formatSar } from '../util/money';
 import { useTheme } from '../theme/theme';
@@ -33,6 +35,12 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
   const { data: order, loading, error, reload } = useAsync(() => api.order(orderId), [orderId]);
   const [tick, setTick] = useState(0);
 
+  // Live delivery tracking (driver location) for delivery orders only.
+  const tracking = useAsync<DeliveryTracking | null>(
+    () => (order?.type === ORDER_TYPE.DELIVERY ? api.trackDelivery(orderId) : Promise.resolve(null)),
+    [order?.type, tick],
+  );
+
   // Poll while the order is still moving. `tick` drives useAsync's reload via deps.
   useEffect(() => {
     if (!order || !ACTIVE.includes(order.status)) {
@@ -57,6 +65,34 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
         <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
           <Text style={{ color: theme.colors.textMuted }}>Order {order.orderNumber}</Text>
           <OrderStatusTracker status={order.status} type={order.type} />
+
+          {(() => {
+            const d = tracking.data;
+            const driverLat = d?.driver?.currentLatitude ?? null;
+            const driverLng = d?.driver?.currentLongitude ?? null;
+            const addrLat = d?.addressSnapshot?.latitude ?? null;
+            const addrLng = d?.addressSnapshot?.longitude ?? null;
+            if (order.type !== ORDER_TYPE.DELIVERY || (driverLat === null && addrLat === null)) {
+              return null;
+            }
+            const markers: MapMarker[] = [];
+            if (driverLat !== null && driverLng !== null) {
+              markers.push({ id: 'driver', latitude: driverLat, longitude: driverLng, kind: 'driver', title: d?.driver?.user.fullName ?? 'Driver' });
+            }
+            if (addrLat !== null && addrLng !== null) {
+              markers.push({ id: 'dest', latitude: addrLat, longitude: addrLng, kind: 'customer', title: 'Delivery address' });
+            }
+            const focus = markers[0];
+            return (
+              <View style={{ height: 220, borderRadius: theme.radius.lg, overflow: 'hidden' }}>
+                <AppMap
+                  scrollEnabled={false}
+                  region={focus ? { latitude: focus.latitude, longitude: focus.longitude, latitudeDelta: 0.02, longitudeDelta: 0.02 } : DEFAULT_REGION}
+                  markers={markers}
+                />
+              </View>
+            );
+          })()}
 
           <Card>
             {order.items.map((item) => (

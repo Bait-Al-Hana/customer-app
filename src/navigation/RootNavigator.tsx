@@ -11,6 +11,7 @@ import { CheckoutScreen } from '../screens/CheckoutScreen';
 import { MenuScreen } from '../screens/MenuScreen';
 import { OrderTrackingScreen } from '../screens/OrderTrackingScreen';
 import { OrdersScreen } from '../screens/OrdersScreen';
+import { AddAddressScreen } from '../screens/AddAddressScreen';
 import { OtpScreen } from '../screens/OtpScreen';
 import { PaymentProcessingScreen } from '../screens/PaymentProcessingScreen';
 import { PhoneScreen } from '../screens/PhoneScreen';
@@ -61,6 +62,7 @@ export function RootNavigator(): React.JSX.Element {
             <Stack.Screen name="Menu" component={MenuScreen} />
             <Stack.Screen name="Cart" component={CartScreen} options={{ animation: reduceMotion ? 'none' : 'slide_from_bottom' }} />
             <Stack.Screen name="Checkout" component={CheckoutScreen} />
+            <Stack.Screen name="AddAddress" component={AddAddressScreen} options={{ animation: reduceMotion ? 'none' : 'slide_from_bottom' }} />
             <Stack.Screen
               name="PaymentProcessing"
               component={PaymentProcessingScreen}

@@ -17,9 +17,14 @@ export function BranchesScreen({ navigation }: NativeStackScreenProps<RootStackP
   const { data, loading, error, reload } = useAsync(() => api.listBranches(), []);
 
   const signOutButton = (
-    <PressableScale accessibilityRole="button" accessibilityLabel="Sign out" onPress={() => signOut()}>
-      <Text style={{ color: theme.colors.accent, fontWeight: '600' }}>Sign out</Text>
-    </PressableScale>
+    <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
+      <PressableScale accessibilityRole="button" accessibilityLabel="My orders" onPress={() => navigation.navigate('Orders')}>
+        <Text style={{ color: theme.colors.accent, fontWeight: '600' }}>Orders</Text>
+      </PressableScale>
+      <PressableScale accessibilityRole="button" accessibilityLabel="Sign out" onPress={() => signOut()}>
+        <Text style={{ color: theme.colors.textMuted, fontWeight: '600' }}>Sign out</Text>
+      </PressableScale>
+    </View>
   );
 
   return (

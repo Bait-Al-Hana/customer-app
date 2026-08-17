@@ -116,3 +116,37 @@ export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
 }
+
+export interface Address {
+  id: string;
+  label: string | null;
+  line1: string;
+  line2: string | null;
+  district: string | null;
+  city: string;
+  postalCode: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  notes: string | null;
+  isDefault: boolean;
+}
+
+export interface DeliveryTracking {
+  id: string;
+  orderId: string;
+  status: string;
+  addressSnapshot: {
+    line1?: string;
+    city?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+  } | null;
+  driver: {
+    id: string;
+    vehicleType: string;
+    currentLatitude: number | null;
+    currentLongitude: number | null;
+    lastLocationAt: string | null;
+    user: { fullName: string };
+  } | null;
+}

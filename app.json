@@ -23,11 +23,24 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.jpeg",
         "backgroundColor": "#FFFFFF"
+      },
+      "config": {
+        "googleMaps": {
+          "//": "Supply your Google Maps Android API key here (or via EAS secret). Never commit a real key.",
+          "apiKey": ""
+        }
       }
     },
+    "plugins": [
+      [
+        "expo-location",
+        { "locationWhenInUsePermission": "Allow Bait Al Hana to use your location to set your delivery address." }
+      ]
+    ],
     "extra": {
       "//": "API base URL is injected per environment; never hard-code secrets.",
-      "apiBaseUrl": "http://localhost:3000/api/v1"
+      "apiBaseUrl": "http://localhost:3000/api/v1",
+      "googleMapsApiKey": ""
     }
   }
 }
