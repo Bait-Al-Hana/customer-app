@@ -7,12 +7,13 @@ tracking, invoices, coupons, loyalty and notifications. It talks only to the
 [backend](https://github.com/Bait-Al-Hana/backend) API — it holds no business
 rules and never computes a payable amount itself.
 
-> **Current state:** project foundation + the **Motion & Animation Design
-> System**, themed to the Bait Al Hana brand. The motion language, its reusable
-> components, the two hero stateful components (`OrderStatusTracker`,
-> `PaymentStateView`), and the animated brand **launch screen** are built,
-> documented and tested. Product screens (auth, menu, cart, checkout, tracking)
-> build on this foundation next.
+> **Current state:** working end-to-end ordering flow on the **Motion &
+> Animation Design System**, themed to the Bait Al Hana brand. OTP login →
+> branches → menu → cart → checkout → payment → live order tracking, wired to
+> the backend API, with the two hero components (`OrderStatusTracker`,
+> `PaymentStateView`) and the animated launch screen. Delivery addresses (needs
+> the backend customer-address feature) and product add-on selection are the
+> next additions; today checkout is pickup with a single tap-to-add menu.
 
 ---
 

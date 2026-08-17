@@ -47,3 +47,13 @@ export const ORDER_TYPE = {
 } as const;
 
 export type OrderType = (typeof ORDER_TYPE)[keyof typeof ORDER_TYPE];
+
+export const PAYMENT_METHOD = {
+  CARD: 'CARD',
+  MADA: 'MADA',
+  APPLE_PAY: 'APPLE_PAY',
+  GOOGLE_PAY: 'GOOGLE_PAY',
+  CASH_ON_DELIVERY: 'CASH_ON_DELIVERY',
+} as const;
+
+export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];
