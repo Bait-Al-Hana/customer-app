@@ -12,15 +12,24 @@
  */
 
 export interface CartLine {
-  /** Stable key for the line: product + sorted addon ids. */
+  /** Stable key for the line: product + chosen variant + sorted addon ids. */
   key: string;
   productId: string;
   productName: string;
-  /** Per-unit display price in minor units, from the menu (product + addons). */
+  /** Per-unit display price in minor units, from the menu (variant + addons). */
   unitPriceMinor: number;
   quantity: number;
   addonIds: string[];
   addonNames: string[];
+  /**
+   * The chosen variant (size), for display and to keep different sizes as
+   * separate lines. NOTE: the backend order/quote API accepts only
+   * productId+quantity+addonIds today, so the variant is not sent — the server
+   * prices its own default. It is preview/UX only until the backend adds a
+   * variant field. See `docs/customer-ui-ux.md`.
+   */
+  variantId?: string;
+  variantName?: string;
 }
 
 export interface Cart {
@@ -36,9 +45,17 @@ export type CartAction =
   | { type: 'REMOVE'; key: string }
   | { type: 'CLEAR' };
 
-/** A stable line key so the same product+addons stacks instead of duplicating. */
-export function lineKey(productId: string, addonIds: readonly string[]): string {
-  return [productId, ...[...addonIds].sort()].join('|');
+/**
+ * A stable line key so the same product+variant+addons stacks instead of
+ * duplicating. `variantId` is optional and, when omitted, the key is exactly the
+ * previous product+addons form (kept backward compatible on purpose).
+ */
+export function lineKey(productId: string, addonIds: readonly string[], variantId?: string): string {
+  const parts = [productId, ...[...addonIds].sort()];
+  if (variantId) {
+    parts.push(`v:${variantId}`);
+  }
+  return parts.join('|');
 }
 
 export function cartReducer(state: Cart, action: CartAction): Cart {
@@ -47,7 +64,7 @@ export function cartReducer(state: Cart, action: CartAction): Cart {
       // Adding from a different branch replaces the cart — an order is always
       // for one branch, and mixing would be meaningless.
       const base = state.branchId === action.branchId ? state : { branchId: action.branchId, lines: [] };
-      const key = lineKey(action.line.productId, action.line.addonIds);
+      const key = lineKey(action.line.productId, action.line.addonIds, action.line.variantId);
       const qty = Math.max(1, action.quantity ?? 1);
       const existing = base.lines.find((l) => l.key === key);
       const lines = existing
