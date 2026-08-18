@@ -29,6 +29,6 @@ SMS, push, maps or printing.** Short version:
 ## Money rules
 
 App displays totals; the backend prices. No total is ever computed here.
-Product variants: the backend `OrderItemInput` does not yet carry
-`variantId` — size choices are shown but the server prices its default. Log
-this as a follow-up when the backend adds it.
+Product variants are sent as `productVariantId` on each `OrderItemInput`;
+when set, the variant's price replaces the product's base price at
+server-side pricing time.

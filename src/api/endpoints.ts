@@ -18,6 +18,8 @@ export interface AddressInput {
 /** Cart item as the quote/order endpoints expect it. */
 export interface OrderItemInput {
   productId: string;
+  /** Chosen size/variant. When set, the variant's price replaces the product's base. */
+  productVariantId?: string;
   quantity: number;
   addonIds?: string[];
 }

@@ -22,11 +22,10 @@ export interface CartLine {
   addonIds: string[];
   addonNames: string[];
   /**
-   * The chosen variant (size), for display and to keep different sizes as
-   * separate lines. NOTE: the backend order/quote API accepts only
-   * productId+quantity+addonIds today, so the variant is not sent — the server
-   * prices its own default. It is preview/UX only until the backend adds a
-   * variant field. See `docs/customer-ui-ux.md`.
+   * The chosen variant (size). The backend accepts `productVariantId` on
+   * `OrderItemInput`; when set, the variant's price replaces the product's
+   * base price. Kept optional — a menu item with no variants is priced
+   * from its base.
    */
   variantId?: string;
   variantName?: string;
@@ -105,7 +104,14 @@ export function estimatedTotalMinor(cart: Cart): number {
   return cart.lines.reduce((sum, l) => sum + l.unitPriceMinor * l.quantity, 0);
 }
 
-/** The cart as the order/quote API expects it: product ids, quantities, addons. */
-export function toOrderItems(cart: Cart): { productId: string; quantity: number; addonIds: string[] }[] {
-  return cart.lines.map((l) => ({ productId: l.productId, quantity: l.quantity, addonIds: l.addonIds }));
+/** The cart as the order/quote API expects it: product ids, quantities, addons, chosen variant. */
+export function toOrderItems(
+  cart: Cart,
+): { productId: string; productVariantId?: string; quantity: number; addonIds: string[] }[] {
+  return cart.lines.map((l) => ({
+    productId: l.productId,
+    ...(l.variantId ? { productVariantId: l.variantId } : {}),
+    quantity: l.quantity,
+    addonIds: l.addonIds,
+  }));
 }

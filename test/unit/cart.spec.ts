@@ -98,12 +98,23 @@ describe('cart reducer', () => {
     expect(cart.lines).toHaveLength(2);
   });
 
-  it('does not send the variant to the backend (order items stay productId+qty+addonIds)', () => {
+  it('sends the chosen variant to the backend as productVariantId', () => {
     let cart: Cart = EMPTY_CART;
     cart = cartReducer(
       cart,
       addBurger({ line: { productId: 'p1', productName: 'Burger (Large)', unitPriceMinor: 3500, addonIds: ['a1'], addonNames: ['Cheese'], variantId: 'v-lg', variantName: 'Large' } }),
     );
-    expect(toOrderItems(cart)).toEqual([{ productId: 'p1', quantity: 1, addonIds: ['a1'] }]);
+    expect(toOrderItems(cart)).toEqual([
+      { productId: 'p1', productVariantId: 'v-lg', quantity: 1, addonIds: ['a1'] },
+    ]);
+  });
+
+  it('omits productVariantId when a line has no variant, so the base price applies server-side', () => {
+    let cart: Cart = EMPTY_CART;
+    cart = cartReducer(
+      cart,
+      addBurger({ line: { productId: 'p1', productName: 'Fries', unitPriceMinor: 1200, addonIds: [], addonNames: [] } }),
+    );
+    expect(toOrderItems(cart)).toEqual([{ productId: 'p1', quantity: 1, addonIds: [] }]);
   });
 });
