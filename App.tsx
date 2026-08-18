@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from './src/auth/AuthProvider';
 import { CartProvider } from './src/cart/CartProvider';
+import { FavoritesProvider } from './src/favorites/FavoritesProvider';
 import { MotionProvider } from './src/motion';
 import { LaunchScreen } from './src/launch/LaunchScreen';
 import { RootNavigator } from './src/navigation/RootNavigator';
@@ -28,9 +29,11 @@ export default function App(): React.JSX.Element {
         <MotionProvider>
           <AuthProvider>
             <CartProvider>
-              <StatusBar style="auto" />
-              <RootNavigator />
-              {!launched ? <LaunchScreen onFinish={() => setLaunched(true)} /> : null}
+              <FavoritesProvider>
+                <StatusBar style="auto" />
+                <RootNavigator />
+                {!launched ? <LaunchScreen onFinish={() => setLaunched(true)} /> : null}
+              </FavoritesProvider>
             </CartProvider>
           </AuthProvider>
         </MotionProvider>

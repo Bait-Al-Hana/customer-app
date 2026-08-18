@@ -7,13 +7,16 @@ tracking, invoices, coupons, loyalty and notifications. It talks only to the
 [backend](https://github.com/Bait-Al-Hana/backend) API — it holds no business
 rules and never computes a payable amount itself.
 
-> **Current state:** working end-to-end ordering flow on the **Motion &
-> Animation Design System**, themed to the Bait Al Hana brand. OTP login →
-> branches → menu → cart → checkout → payment → live order tracking, wired to
-> the backend API, with the two hero components (`OrderStatusTracker`,
-> `PaymentStateView`) and the animated launch screen. Delivery addresses (needs
-> the backend customer-address feature) and product add-on selection are the
-> next additions; today checkout is pickup with a single tap-to-add menu.
+> **Current state:** a full customer experience on a shared design system,
+> themed to the Bait Al Hana brand. Bottom-tab navigation (Home · Search ·
+> Orders · Offers · Account) with the ordering flow pushing above it:
+> **Home → Menu → Product (size/add-ons/notes) → Cart (coupon, notes) →
+> Checkout → Payment → Order success → Live tracking**, plus Loyalty, Favorites,
+> saved Addresses and an Account area. Branches, menu, pricing, orders, payment,
+> tracking and addresses are wired to the backend API; content the backend does
+> not yet expose to this app (promos, offers, loyalty, ratings) is isolated,
+> typed mock data ready to swap for real endpoints. See
+> [`docs/customer-ui-ux.md`](./docs/customer-ui-ux.md).
 
 ---
 
@@ -27,10 +30,11 @@ npm start          # Expo dev server — open in Expo Go or a simulator
 # or: npm run ios / npm run android
 ```
 
-The app currently renders the **motion demo** (`src/demo/MotionDemoScreen.tsx`)
-— a living catalogue of every motion component and both hero components, with
-controls to exercise their states. Toggle the OS "reduce motion" setting to see
-the accessible, motion-free form of everything.
+The app boots into the ordering experience (`App.tsx → RootNavigator`): the OTP
+login when signed out, the bottom-tab home when signed in. A living catalogue of
+the motion system also exists at `src/demo/MotionDemoScreen.tsx` for design
+review. Toggle the OS "reduce motion" setting to see the accessible, motion-free
+form of everything.
 
 ### Scripts
 
@@ -55,14 +59,23 @@ src/
     transitions.ts   #   screen-transition presets
     components/      #   PressableScale, FadeIn, Stagger, Skeleton, BottomSheet,
                      #   CartBadge, QuantityStepper, Toast, EmptyState, ErrorState
+  theme/theme.ts     # visual design tokens — colour, typography, spacing, radius
+  components/        # the UI kit — AppText, Button, cards, chips, icons, states…
+  screens/           # Home, Search, Menu, Product, Cart, Checkout, Payment,
+                     #   OrderSuccess, OrderTracking, Orders, Offers, Loyalty,
+                     #   Account, Addresses, Favorites, Phone/Otp
+  navigation/        # RootNavigator + bottom-tab MainTabs + custom TabBar
   features/
     order/           # OrderStatusTracker + its pure, tested model
     payment/         # PaymentStateView + its pure, tested model
-  theme/             # minimal design tokens (colours, spacing, radii)
+  data/              # isolated frontend mock data (promos, offers, loyalty,
+                     #   ratings) + menu-shaping helpers — swappable for real APIs
+  favorites/         # in-memory favourites provider
+  cart/ auth/ api/   # cart reducer, auth session, typed API client
   types/backend.ts   # backend enums, mirrored (kept in sync with the API)
-  demo/              # the motion catalogue screen
 docs/
-  motion-design-system.md   # the full design system
+  customer-ui-ux.md         # the customer-app UI/UX design system
+  motion-design-system.md   # the shared motion system
 ```
 
 ### The "no crashes" approach
@@ -96,5 +109,5 @@ payment secrets stay on the backend.
 ## Stack
 
 Expo SDK 51 · React Native 0.74 · TypeScript · React Native Reanimated 3
-(UI-thread animation) · react-native-svg · React Navigation · Jest (ts-jest +
-jest-expo).
+(UI-thread animation) · react-native-svg · React Navigation (native-stack +
+bottom-tabs) · Jest (ts-jest + jest-expo).

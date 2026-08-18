@@ -6,11 +6,11 @@ import { ApiError } from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
 import { PrimaryButton, Screen, TextField } from '../components/ui';
 import { Toast } from '../motion';
-import { RootStackParamList } from '../navigation/types';
+import { AuthStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
 
 /** Step 1 of OTP login: enter phone, request a code. */
-export function PhoneScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'Phone'>): React.JSX.Element {
+export function PhoneScreen({ navigation }: NativeStackScreenProps<AuthStackParamList, 'Phone'>): React.JSX.Element {
   const theme = useTheme();
   const { api } = useAuth();
   const [phone, setPhone] = useState('+9665');
