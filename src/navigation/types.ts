@@ -38,4 +38,6 @@ export type RootStackParamList = {
   OrderSuccess: { orderId: string; orderNumber: string; method: PaymentMethod };
   PaymentProcessing: { orderId: string; orderNumber: string; method: PaymentMethod };
   OrderTracking: { orderId: string };
+  Notifications: undefined;
+  Profile: undefined;
 };
