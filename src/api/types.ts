@@ -117,6 +117,37 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
+export interface LoyaltyEntry {
+  id: string;
+  type: string;
+  points: number;
+  orderId: string | null;
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface LoyaltyLedger {
+  balance: number;
+  data: LoyaltyEntry[];
+}
+
+export interface NotificationItem {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  orderId: string | null;
+  createdAt: string;
+}
+
+export interface CustomerProfile {
+  id: string;
+  fullName: string | null;
+  phone: string;
+  email: string | null;
+  createdAt: string;
+}
+
 export interface Address {
   id: string;
   label: string | null;

@@ -13,12 +13,14 @@ import { CheckoutScreen } from '../screens/CheckoutScreen';
 import { FavoritesScreen } from '../screens/FavoritesScreen';
 import { LoyaltyScreen } from '../screens/LoyaltyScreen';
 import { MenuScreen } from '../screens/MenuScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { OrderSuccessScreen } from '../screens/OrderSuccessScreen';
 import { OrderTrackingScreen } from '../screens/OrderTrackingScreen';
 import { OtpScreen } from '../screens/OtpScreen';
 import { PaymentProcessingScreen } from '../screens/PaymentProcessingScreen';
 import { PhoneScreen } from '../screens/PhoneScreen';
 import { ProductScreen } from '../screens/ProductScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 import { useTheme } from '../theme/theme';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -76,6 +78,8 @@ export function RootNavigator(): React.JSX.Element {
           <RootStack.Screen name="OrderSuccess" component={OrderSuccessScreen} options={{ animation: modal, gestureEnabled: false }} />
           <RootStack.Screen name="PaymentProcessing" component={PaymentProcessingScreen} options={{ animation: reduceMotion ? 'none' : 'fade', gestureEnabled: false }} />
           <RootStack.Screen name="OrderTracking" component={OrderTrackingScreen} />
+          <RootStack.Screen name="Notifications" component={NotificationsScreen} />
+          <RootStack.Screen name="Profile" component={ProfileScreen} />
         </RootStack.Navigator>
       )}
     </NavigationContainer>
