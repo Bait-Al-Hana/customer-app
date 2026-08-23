@@ -44,7 +44,7 @@
     ],
     "extra": {
       "//": "API base URL is injected per environment; never hard-code secrets.",
-      "apiBaseUrl": "http://localhost:3000/api/v1",
+      "apiBaseUrl": "https://bah-api-5nhjrpuu3a-ww.a.run.app/api/v1",
       "googleMapsApiKey": ""
     }
   }
