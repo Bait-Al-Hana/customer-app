@@ -141,6 +141,10 @@ export interface DeliveryTracking {
     latitude?: number | null;
     longitude?: number | null;
   } | null;
+  /** Periodic ETA snapshot from the backend routing policy. Null until first refresh. */
+  etaMinutes: number | null;
+  distanceRemainingMeters: number | null;
+  etaUpdatedAt: string | null;
   driver: {
     id: string;
     vehicleType: string;

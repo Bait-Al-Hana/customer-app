@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import { OrderStatusTracker } from '../features/order/OrderStatusTracker';
 import { useAsync } from '../hooks/useAsync';
+import { useDriverLocation } from '../hooks/useDriverLocation';
 import { AppMap, DEFAULT_REGION, MapMarker } from '../maps/AppMap';
 import { ErrorState, Skeleton } from '../motion';
 import { ORDER_STATUS, ORDER_TYPE, OrderStatus } from '../types/backend';
@@ -25,7 +26,18 @@ const ACTIVE: OrderStatus[] = [
   ORDER_STATUS.OUT_FOR_DELIVERY,
 ];
 
-const POLL_MS = 8000;
+/**
+ * Polling backstop. Realtime carries the driver's live moves (see
+ * `useDriverLocation`), so this poll only needs to catch order-status
+ * transitions and the periodic ETA refresh — 20 s is more than enough and
+ * saves battery + backend load compared to the old 8 s cadence.
+ */
+const POLL_MS = 20_000;
+/** Delivery statuses where the driver is actually on the road with our order. */
+const LIVE_DRIVER_STATUSES = new Set<OrderStatus>([
+  ORDER_STATUS.PICKED_UP,
+  ORDER_STATUS.OUT_FOR_DELIVERY,
+]);
 
 /** Live order tracking via the shared OrderStatusTracker, polling while active. */
 export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'OrderTracking'>): React.JSX.Element {
@@ -40,6 +52,16 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
     () => (order?.type === ORDER_TYPE.DELIVERY ? api.trackDelivery(orderId) : Promise.resolve(null)),
     [order?.type, tick],
   );
+
+  // Realtime driver marker — used only while the driver is on the road with
+  // our order. The socket handles smooth updates between polls; the poll
+  // still runs at a low cadence to catch status transitions and refreshed
+  // ETAs. `useDriverLocation` unsubscribes automatically once `enabled`
+  // flips off (delivered / cancelled), matching the backend rule that emits
+  // stop after DELIVERED (spec §12).
+  const liveEnabled =
+    order?.type === ORDER_TYPE.DELIVERY && !!order && LIVE_DRIVER_STATUSES.has(order.status);
+  const liveDriver = useDriverLocation(order ? orderId : null, liveEnabled);
 
   // Poll while the order is still moving. `tick` drives useAsync's reload via deps.
   useEffect(() => {
@@ -68,8 +90,11 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
 
           {(() => {
             const d = tracking.data;
-            const driverLat = d?.driver?.currentLatitude ?? null;
-            const driverLng = d?.driver?.currentLongitude ?? null;
+            // Prefer the realtime coord over the polled snapshot — it is at
+            // most a few seconds old, the polled one can be a full poll cycle
+            // behind. Fall back to the polled coord until the first live event.
+            const driverLat = liveDriver?.latitude ?? d?.driver?.currentLatitude ?? null;
+            const driverLng = liveDriver?.longitude ?? d?.driver?.currentLongitude ?? null;
             const addrLat = d?.addressSnapshot?.latitude ?? null;
             const addrLng = d?.addressSnapshot?.longitude ?? null;
             if (order.type !== ORDER_TYPE.DELIVERY || (driverLat === null && addrLat === null)) {
@@ -91,6 +116,29 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
                   markers={markers}
                 />
               </View>
+            );
+          })()}
+
+          {(() => {
+            const eta = tracking.data?.etaMinutes ?? null;
+            if (order.type !== ORDER_TYPE.DELIVERY || eta === null || !liveEnabled) {
+              return null;
+            }
+            const near = eta <= 3;
+            return (
+              <Card>
+                <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>
+                  {near ? 'ALMOST THERE' : 'ESTIMATED ARRIVAL'}
+                </Text>
+                <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 20, marginTop: 4 }}>
+                  {near ? `About ${eta} min away` : `~${eta} min`}
+                </Text>
+                {tracking.data?.driver?.user.fullName ? (
+                  <Text style={{ color: theme.colors.textMuted, marginTop: 4 }}>
+                    Driver: {tracking.data.driver.user.fullName}
+                  </Text>
+                ) : null}
+              </Card>
             );
           })()}
 
