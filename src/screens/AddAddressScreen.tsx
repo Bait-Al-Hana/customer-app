@@ -7,6 +7,7 @@ import type { Region } from 'react-native-maps';
 import { ApiError } from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
 import { PrimaryButton, Screen, TextField } from '../components/ui';
+import { useAddressAutocomplete } from '../hooks/useAddressAutocomplete';
 import { AppMap, DEFAULT_REGION } from '../maps/AppMap';
 import { PressableScale, Toast } from '../motion';
 import { RootStackParamList } from '../navigation/types';
@@ -24,6 +25,8 @@ export function AddAddressScreen({ navigation }: NativeStackScreenProps<RootStac
   const [pin, setPin] = useState<{ latitude: number; longitude: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const { suggestions, loading: searching, select } = useAddressAutocomplete(search);
 
   const useMyLocation = async (): Promise<void> => {
     try {
@@ -77,6 +80,44 @@ export function AddAddressScreen({ navigation }: NativeStackScreenProps<RootStac
         <PressableScale accessibilityRole="button" onPress={useMyLocation} style={{ alignSelf: 'flex-start', marginBottom: 16 }}>
           <Text style={{ color: theme.colors.accent, fontWeight: '700' }}>📍 Use my current location</Text>
         </PressableScale>
+
+        <TextField
+          label="Search address"
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Start typing a district, street…"
+          maxLength={120}
+        />
+        {searching ? (
+          <Text style={{ color: theme.colors.textMuted, marginBottom: 6 }}>Searching…</Text>
+        ) : null}
+        {suggestions.length > 0 ? (
+          <View style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, marginBottom: 12 }}>
+            {suggestions.map((s) => (
+              <PressableScale
+                key={s.placeId}
+                accessibilityRole="button"
+                onPress={async () => {
+                  const details = await select(s.placeId);
+                  if (details) {
+                    setLine1(details.district ? `${details.district}` : details.formattedAddress);
+                    if (details.city) setCity(details.city);
+                    const coord = { latitude: details.latitude, longitude: details.longitude };
+                    setPin(coord);
+                    setRegion({ ...coord, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+                    setSearch('');
+                  }
+                }}
+                style={{ padding: 12, borderBottomWidth: 1, borderColor: theme.colors.border }}
+              >
+                <Text style={{ color: theme.colors.text, fontWeight: '600' }}>{s.primaryText}</Text>
+                {s.secondaryText ? (
+                  <Text style={{ color: theme.colors.textMuted, fontSize: 12, marginTop: 2 }}>{s.secondaryText}</Text>
+                ) : null}
+              </PressableScale>
+            ))}
+          </View>
+        ) : null}
 
         <TextField label="Label" value={label} onChangeText={setLabel} maxLength={60} />
         <TextField label="Address line" value={line1} onChangeText={setLine1} placeholder="Street, building, apartment" />
