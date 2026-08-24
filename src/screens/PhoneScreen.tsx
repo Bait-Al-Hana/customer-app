@@ -28,7 +28,11 @@ export function PhoneScreen({ navigation }: NativeStackScreenProps<AuthStackPara
       await api.requestOtp(phone);
       navigation.navigate('Otp', { phone });
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not send the code. Try again.');
+      if (e instanceof ApiError) {
+        setError(e.details && e.details.length > 0 ? e.details.join(' ') : e.message);
+      } else {
+        setError('Could not send the code. Try again.');
+      }
     } finally {
       setBusy(false);
     }
