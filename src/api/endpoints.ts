@@ -1,6 +1,6 @@
 import { OrderType, PaymentMethod } from '../types/backend';
 import { ApiClient } from './http';
-import { Address, AuthTokens, Branch, CustomerProfile, DeliveryTracking, Menu, Notification, Order, Payment, PriceQuote } from './types';
+import { Address, AuthTokens, Branch, CustomerProfile, DeliveryTracking, LoyaltyLedger, Menu, Notification, Order, Payment, PriceQuote } from './types';
 
 export interface AddressInput {
   label?: string;
@@ -114,6 +114,11 @@ export class Api {
 
   updateProfile(fullName: string): Promise<CustomerProfile> {
     return this.http.request('/customer/me', { method: 'PATCH', body: { fullName } });
+  }
+
+  // --- Loyalty (authenticated) ------------------------------------------------
+  loyalty(limit = 20, skip = 0): Promise<LoyaltyLedger> {
+    return this.http.request(`/customer/loyalty?limit=${limit}&skip=${skip}`);
   }
 
   // --- Notifications (authenticated) ----------------------------------------

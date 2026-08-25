@@ -139,6 +139,21 @@ export interface CustomerProfile {
   createdAt: string;
 }
 
+export interface LoyaltyTransaction {
+  id: string;
+  type: string;
+  points: number;
+  orderId: string | null;
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface LoyaltyLedger {
+  balance: number;
+  data: LoyaltyTransaction[];
+  meta: { total: number };
+}
+
 export interface Notification {
   id: string;
   type: string;

@@ -66,6 +66,13 @@ export function ProfileScreen({ navigation }: NativeStackScreenProps<RootStackPa
             <PrimaryButton label="Save" onPress={save} busy={saving} disabled={!dirty || !name.trim()} />
           </View>
 
+          <PressableScale accessibilityRole="button" onPress={() => navigation.navigate('Loyalty')}>
+            <Card style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ color: theme.colors.text, fontWeight: '600', fontSize: 15 }}>Loyalty points</Text>
+              <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>View ›</Text>
+            </Card>
+          </PressableScale>
+
           <PressableScale accessibilityRole="button" onPress={signOut} style={{ alignItems: 'center', paddingVertical: 12 }}>
             <Text style={{ color: theme.colors.danger, fontWeight: '600', fontSize: 15 }}>Sign out</Text>
           </PressableScale>

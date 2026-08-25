@@ -11,6 +11,7 @@ import { CheckoutScreen } from '../screens/CheckoutScreen';
 import { MenuScreen } from '../screens/MenuScreen';
 import { OrderTrackingScreen } from '../screens/OrderTrackingScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
+import { LoyaltyScreen } from '../screens/LoyaltyScreen';
 import { OrdersScreen } from '../screens/OrdersScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { AddAddressScreen } from '../screens/AddAddressScreen';
@@ -74,6 +75,7 @@ export function RootNavigator(): React.JSX.Element {
             <Stack.Screen name="Orders" component={OrdersScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="Loyalty" component={LoyaltyScreen} />
           </>
         )}
       </Stack.Navigator>
