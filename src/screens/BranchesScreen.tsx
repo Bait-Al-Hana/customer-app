@@ -13,7 +13,7 @@ import { useTheme } from '../theme/theme';
 /** Home: choose a branch to order from. */
 export function BranchesScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'Branches'>): React.JSX.Element {
   const theme = useTheme();
-  const { api, signOut } = useAuth();
+  const { api } = useAuth();
   const { data, loading, error, reload } = useAsync(() => api.listBranches(), []);
 
   const headerRight = (
@@ -24,8 +24,8 @@ export function BranchesScreen({ navigation }: NativeStackScreenProps<RootStackP
       <PressableScale accessibilityRole="button" accessibilityLabel="Notifications" onPress={() => navigation.navigate('Notifications')}>
         <Text style={{ color: theme.colors.accent, fontWeight: '600' }}>Inbox</Text>
       </PressableScale>
-      <PressableScale accessibilityRole="button" accessibilityLabel="Sign out" onPress={() => signOut()}>
-        <Text style={{ color: theme.colors.textMuted, fontWeight: '600' }}>Sign out</Text>
+      <PressableScale accessibilityRole="button" accessibilityLabel="My profile" onPress={() => navigation.navigate('Profile')}>
+        <Text style={{ color: theme.colors.textMuted, fontWeight: '600' }}>Profile</Text>
       </PressableScale>
     </View>
   );

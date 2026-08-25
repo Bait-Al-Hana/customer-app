@@ -1,6 +1,6 @@
 import { OrderType, PaymentMethod } from '../types/backend';
 import { ApiClient } from './http';
-import { Address, AuthTokens, Branch, DeliveryTracking, Menu, Notification, Order, Payment, PriceQuote } from './types';
+import { Address, AuthTokens, Branch, CustomerProfile, DeliveryTracking, Menu, Notification, Order, Payment, PriceQuote } from './types';
 
 export interface AddressInput {
   label?: string;
@@ -105,6 +105,15 @@ export class Api {
 
   paymentFor(orderId: string): Promise<Payment> {
     return this.http.request(`/customer/orders/${orderId}/payment`);
+  }
+
+  // --- Profile (authenticated) -----------------------------------------------
+  profile(): Promise<CustomerProfile> {
+    return this.http.request('/customer/me');
+  }
+
+  updateProfile(fullName: string): Promise<CustomerProfile> {
+    return this.http.request('/customer/me', { method: 'PATCH', body: { fullName } });
   }
 
   // --- Notifications (authenticated) ----------------------------------------

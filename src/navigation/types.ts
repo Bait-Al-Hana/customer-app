@@ -15,4 +15,5 @@ export type RootStackParamList = {
   OrderTracking: { orderId: string };
   Orders: undefined;
   Notifications: undefined;
+  Profile: undefined;
 };

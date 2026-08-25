@@ -131,6 +131,14 @@ export interface Address {
   isDefault: boolean;
 }
 
+export interface CustomerProfile {
+  id: string;
+  fullName: string | null;
+  phone: string;
+  email: string | null;
+  createdAt: string;
+}
+
 export interface Notification {
   id: string;
   type: string;
