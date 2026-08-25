@@ -21,13 +21,16 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const { data, loading, error, reload } = useAsync(() => api.menu(branchId), [branchId]);
 
   const add = (product: MenuProduct): void => {
+    const variant = product.variants.find((v) => v.isDefault) ?? product.variants[0];
     dispatch({
       type: 'ADD',
       branchId,
       line: {
         productId: product.id,
+        productVariantId: variant?.id,
+        variantName: variant?.name,
         productName: product.name,
-        unitPriceMinor: product.priceMinor,
+        unitPriceMinor: variant?.priceMinor ?? product.priceMinor,
         addonIds: [],
         addonNames: [],
       },

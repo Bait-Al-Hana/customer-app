@@ -18,6 +18,7 @@ export interface AddressInput {
 /** Cart item as the quote/order endpoints expect it. */
 export interface OrderItemInput {
   productId: string;
+  productVariantId?: string;
   quantity: number;
   addonIds?: string[];
 }

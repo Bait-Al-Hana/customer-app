@@ -77,7 +77,31 @@ describe('cart reducer', () => {
     expect(toOrderItems(cart)).toEqual([{ productId: 'p1', quantity: 3, addonIds: [] }]);
   });
 
+  it('includes productVariantId in order items when present', () => {
+    const cart = cartReducer(
+      EMPTY_CART,
+      addBurger({ line: { productId: 'p1', productVariantId: 'v1', variantName: 'Large', productName: 'Burger', unitPriceMinor: 4000, addonIds: [], addonNames: [] } }),
+    );
+    expect(toOrderItems(cart)).toEqual([{ productId: 'p1', productVariantId: 'v1', quantity: 1, addonIds: [] }]);
+  });
+
+  it('keeps different variants as separate lines', () => {
+    let cart: Cart = EMPTY_CART;
+    cart = cartReducer(cart, addBurger({ line: { productId: 'p1', productVariantId: 'v1', variantName: 'Small', productName: 'Burger', unitPriceMinor: 2500, addonIds: [], addonNames: [] } }));
+    cart = cartReducer(cart, addBurger({ line: { productId: 'p1', productVariantId: 'v2', variantName: 'Large', productName: 'Burger', unitPriceMinor: 4000, addonIds: [], addonNames: [] } }));
+    expect(cart.lines).toHaveLength(2);
+    expect(toOrderItems(cart)).toEqual([
+      { productId: 'p1', productVariantId: 'v1', quantity: 1, addonIds: [] },
+      { productId: 'p1', productVariantId: 'v2', quantity: 1, addonIds: [] },
+    ]);
+  });
+
   it('lineKey is order-independent for addons', () => {
     expect(lineKey('p1', ['a2', 'a1'])).toBe(lineKey('p1', ['a1', 'a2']));
+  });
+
+  it('lineKey includes variantId', () => {
+    expect(lineKey('p1', [], 'v1')).not.toBe(lineKey('p1', []));
+    expect(lineKey('p1', ['a1'], 'v1')).toBe(lineKey('p1', ['a1'], 'v1'));
   });
 });
