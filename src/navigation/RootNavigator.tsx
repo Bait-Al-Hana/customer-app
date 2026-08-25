@@ -10,6 +10,7 @@ import { CartScreen } from '../screens/CartScreen';
 import { CheckoutScreen } from '../screens/CheckoutScreen';
 import { MenuScreen } from '../screens/MenuScreen';
 import { OrderTrackingScreen } from '../screens/OrderTrackingScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { OrdersScreen } from '../screens/OrdersScreen';
 import { AddAddressScreen } from '../screens/AddAddressScreen';
 import { OtpScreen } from '../screens/OtpScreen';
@@ -70,6 +71,7 @@ export function RootNavigator(): React.JSX.Element {
             />
             <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
             <Stack.Screen name="Orders" component={OrdersScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
           </>
         )}
       </Stack.Navigator>

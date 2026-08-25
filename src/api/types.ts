@@ -131,6 +131,16 @@ export interface Address {
   isDefault: boolean;
 }
 
+export interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  data: Record<string, unknown> | null;
+  orderId: string | null;
+  createdAt: string;
+}
+
 export interface DeliveryTracking {
   id: string;
   orderId: string;

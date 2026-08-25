@@ -14,4 +14,5 @@ export type RootStackParamList = {
   PaymentProcessing: { orderId: string };
   OrderTracking: { orderId: string };
   Orders: undefined;
+  Notifications: undefined;
 };

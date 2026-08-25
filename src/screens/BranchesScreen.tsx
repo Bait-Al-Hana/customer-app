@@ -16,10 +16,13 @@ export function BranchesScreen({ navigation }: NativeStackScreenProps<RootStackP
   const { api, signOut } = useAuth();
   const { data, loading, error, reload } = useAsync(() => api.listBranches(), []);
 
-  const signOutButton = (
+  const headerRight = (
     <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
       <PressableScale accessibilityRole="button" accessibilityLabel="My orders" onPress={() => navigation.navigate('Orders')}>
         <Text style={{ color: theme.colors.accent, fontWeight: '600' }}>Orders</Text>
+      </PressableScale>
+      <PressableScale accessibilityRole="button" accessibilityLabel="Notifications" onPress={() => navigation.navigate('Notifications')}>
+        <Text style={{ color: theme.colors.accent, fontWeight: '600' }}>Inbox</Text>
       </PressableScale>
       <PressableScale accessibilityRole="button" accessibilityLabel="Sign out" onPress={() => signOut()}>
         <Text style={{ color: theme.colors.textMuted, fontWeight: '600' }}>Sign out</Text>
@@ -28,7 +31,7 @@ export function BranchesScreen({ navigation }: NativeStackScreenProps<RootStackP
   );
 
   return (
-    <Screen title="Bait Al Hana" right={signOutButton}>
+    <Screen title="Bait Al Hana" right={headerRight}>
       {loading ? (
         <View style={{ padding: 20, gap: 12 }}>
           {[0, 1, 2].map((i) => (

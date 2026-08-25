@@ -1,6 +1,6 @@
 import { OrderType, PaymentMethod } from '../types/backend';
 import { ApiClient } from './http';
-import { Address, AuthTokens, Branch, DeliveryTracking, Menu, Order, Payment, PriceQuote } from './types';
+import { Address, AuthTokens, Branch, DeliveryTracking, Menu, Notification, Order, Payment, PriceQuote } from './types';
 
 export interface AddressInput {
   label?: string;
@@ -105,5 +105,10 @@ export class Api {
 
   paymentFor(orderId: string): Promise<Payment> {
     return this.http.request(`/customer/orders/${orderId}/payment`);
+  }
+
+  // --- Notifications (authenticated) ----------------------------------------
+  notifications(limit = 20, skip = 0): Promise<{ data: Notification[]; meta: { total: number } }> {
+    return this.http.request(`/customer/notifications?limit=${limit}&skip=${skip}`);
   }
 }
