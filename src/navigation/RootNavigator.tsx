@@ -8,6 +8,7 @@ import { RootStackParamList } from './types';
 import { BranchesScreen } from '../screens/BranchesScreen';
 import { CartScreen } from '../screens/CartScreen';
 import { CheckoutScreen } from '../screens/CheckoutScreen';
+import { LoyaltyScreen } from '../screens/LoyaltyScreen';
 import { MenuScreen } from '../screens/MenuScreen';
 import { OrderTrackingScreen } from '../screens/OrderTrackingScreen';
 import { OrdersScreen } from '../screens/OrdersScreen';
@@ -15,6 +16,7 @@ import { AddAddressScreen } from '../screens/AddAddressScreen';
 import { OtpScreen } from '../screens/OtpScreen';
 import { PaymentProcessingScreen } from '../screens/PaymentProcessingScreen';
 import { PhoneScreen } from '../screens/PhoneScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 import { useTheme } from '../theme/theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -70,6 +72,8 @@ export function RootNavigator(): React.JSX.Element {
             />
             <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
             <Stack.Screen name="Orders" component={OrdersScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="Loyalty" component={LoyaltyScreen} />
           </>
         )}
       </Stack.Navigator>

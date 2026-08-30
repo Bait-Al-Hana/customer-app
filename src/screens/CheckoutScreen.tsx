@@ -1,33 +1,29 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, TextInput, View } from 'react-native';
 
 import { ApiError } from '../api/http';
 import { Address } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
 import { toOrderItems } from '../cart/cart';
+import { useConfig } from '../config';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
+import { useI18n } from '../i18n';
 import { BottomSheet, ErrorState, PressableScale, Skeleton, Toast } from '../motion';
 import { ORDER_TYPE, OrderType, PAYMENT_METHOD, PaymentMethod } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
 import { formatSar } from '../util/money';
 import { useTheme } from '../theme/theme';
 
-const METHOD_LABELS: Record<string, string> = {
-  [PAYMENT_METHOD.CARD]: 'Card',
-  [PAYMENT_METHOD.MADA]: 'mada',
-  [PAYMENT_METHOD.APPLE_PAY]: 'Apple Pay',
-  [PAYMENT_METHOD.CASH_ON_DELIVERY]: 'Cash on delivery',
-};
-
-/** Choose pickup or delivery, review the server quote, pick payment, place order. */
 export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'Checkout'>): React.JSX.Element {
   const theme = useTheme();
   const { api } = useAuth();
   const { cart, dispatch } = useCart();
+  const { t } = useI18n();
+  const config = useConfig();
 
   const items = toOrderItems(cart);
   const branchId = cart.branchId ?? '';
@@ -38,17 +34,19 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   const [busy, setBusy] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
 
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+
   const { data: quote, loading, error, reload } = useAsync(
-    () => api.quote({ branchId, type, items }),
-    [branchId, JSON.stringify(items), type],
+    () => api.quote({ branchId, type, items, couponCode: appliedCoupon ?? undefined }),
+    [branchId, JSON.stringify(items), type, appliedCoupon],
   );
 
-  // Addresses, reloaded whenever the screen regains focus (e.g. after adding one).
   const addresses = useAsync<Address[]>(() => api.listAddresses(), []);
   const reloadAddresses = addresses.reload;
   useFocusEffect(useCallback(() => reloadAddresses(), [reloadAddresses]));
 
-  // Auto-select the default (or first) address once loaded.
   useEffect(() => {
     if (type === ORDER_TYPE.DELIVERY && !addressId && addresses.data && addresses.data.length > 0) {
       setAddressId((addresses.data.find((a) => a.isDefault) ?? addresses.data[0])?.id ?? null);
@@ -58,10 +56,20 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   const isDelivery = type === ORDER_TYPE.DELIVERY;
   const needsAddress = isDelivery && !addressId;
 
+  const applyCoupon = (): void => {
+    if (!couponCode.trim()) return;
+    setCouponError(null);
+    setAppliedCoupon(couponCode.trim());
+  };
+
+  const removeCoupon = (): void => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponError(null);
+  };
+
   const placeOrder = async (): Promise<void> => {
-    if (!branchId || needsAddress) {
-      return;
-    }
+    if (!branchId || needsAddress) return;
     setBusy(true);
     setPlaceError(null);
     try {
@@ -71,6 +79,7 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
         paymentMethod: method,
         items,
         customerAddressId: isDelivery ? addressId ?? undefined : undefined,
+        couponCode: appliedCoupon ?? undefined,
       });
       dispatch({ type: 'CLEAR' });
       if (method === PAYMENT_METHOD.CASH_ON_DELIVERY) {
@@ -79,9 +88,16 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
         navigation.replace('PaymentProcessing', { orderId: order.id });
       }
     } catch (e) {
-      setPlaceError(e instanceof ApiError ? e.message : 'Could not place the order. Try again.');
+      setPlaceError(e instanceof ApiError ? e.message : t('placeError'));
       setBusy(false);
     }
+  };
+
+  const methodLabels: Record<string, string> = {
+    [PAYMENT_METHOD.CARD]: t('methodCard'),
+    [PAYMENT_METHOD.MADA]: t('methodMada'),
+    [PAYMENT_METHOD.APPLE_PAY]: t('methodApplePay'),
+    [PAYMENT_METHOD.CASH_ON_DELIVERY]: t('methodCod'),
   };
 
   const row = (label: string, value: string, bold?: boolean) => (
@@ -91,18 +107,15 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
     </View>
   );
 
-  const typeTab = (t: OrderType, label: string) => {
-    const active = type === t;
+  const typeTab = (tp: OrderType, label: string) => {
+    const active = type === tp;
     return (
       <PressableScale
         accessibilityRole="button"
         accessibilityState={{ selected: active }}
-        onPress={() => setType(t)}
+        onPress={() => setType(tp)}
         style={{
-          flex: 1,
-          paddingVertical: 12,
-          borderRadius: theme.radius.md,
-          alignItems: 'center',
+          flex: 1, paddingVertical: 12, borderRadius: theme.radius.md, alignItems: 'center',
           backgroundColor: active ? theme.colors.primary : theme.colors.surfaceAlt,
         }}
       >
@@ -112,18 +125,19 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   };
 
   return (
-    <Screen title="Checkout" onBack={() => navigation.goBack()}>
+    <Screen title={t('checkoutTitle')} onBack={() => navigation.goBack()}>
       <Toast visible={!!placeError} message={placeError ?? ''} tone="danger" onHide={() => setPlaceError(null)} />
+      <Toast visible={!!couponError} message={couponError ?? ''} tone="danger" onHide={() => setCouponError(null)} />
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          {typeTab(ORDER_TYPE.PICKUP, 'Pickup')}
-          {typeTab(ORDER_TYPE.DELIVERY, 'Delivery')}
+          {typeTab(ORDER_TYPE.PICKUP, t('pickup'))}
+          {typeTab(ORDER_TYPE.DELIVERY, t('deliveryType'))}
         </View>
 
         {isDelivery ? (
           <Card>
             <Text style={{ color: theme.colors.textMuted, fontSize: 13, fontWeight: '600', marginBottom: 8 }}>
-              Deliver to
+              {t('deliverTo')}
             </Text>
             {addresses.loading ? (
               <Skeleton height={40} />
@@ -140,13 +154,10 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
                   >
                     <View
                       style={{
-                        width: 20,
-                        height: 20,
-                        borderRadius: 10,
+                        width: 20, height: 20, borderRadius: 10,
                         borderWidth: 2,
                         borderColor: active ? theme.colors.primary : theme.colors.border,
-                        alignItems: 'center',
-                        justifyContent: 'center',
+                        alignItems: 'center', justifyContent: 'center',
                       }}
                     >
                       {active ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.primary }} /> : null}
@@ -161,16 +172,66 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
                 );
               })
             ) : (
-              <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>No saved address yet.</Text>
+              <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>{t('noAddress')}</Text>
             )}
             <PressableScale accessibilityRole="button" onPress={() => navigation.navigate('AddAddress')} style={{ marginTop: 6 }}>
-              <Text style={{ color: theme.colors.accent, fontWeight: '700' }}>+ Add a new address</Text>
+              <Text style={{ color: theme.colors.accent, fontWeight: '700' }}>{t('addAddress')}</Text>
             </PressableScale>
           </Card>
         ) : null}
 
+        {config.couponsEnabled ? (
+          <Card>
+            <Text style={{ color: theme.colors.textMuted, fontSize: 13, fontWeight: '600', marginBottom: 8 }}>
+              {t('couponCode')}
+            </Text>
+            {appliedCoupon ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ color: theme.colors.success, fontWeight: '700' }}>{appliedCoupon}</Text>
+                  <Text style={{ color: theme.colors.success, fontSize: 12 }}>{t('couponApplied')}</Text>
+                </View>
+                <PressableScale accessibilityRole="button" onPress={removeCoupon}>
+                  <Text style={{ color: theme.colors.danger, fontWeight: '600' }}>{t('removeCoupon')}</Text>
+                </PressableScale>
+              </View>
+            ) : (
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TextInput
+                  value={couponCode}
+                  onChangeText={setCouponCode}
+                  placeholder={t('couponPlaceholder')}
+                  placeholderTextColor={theme.colors.textMuted}
+                  autoCapitalize="characters"
+                  style={{
+                    flex: 1,
+                    backgroundColor: theme.colors.surfaceAlt,
+                    borderRadius: theme.radius.md,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    fontSize: 14,
+                    color: theme.colors.text,
+                  }}
+                />
+                <PressableScale
+                  accessibilityRole="button"
+                  onPress={applyCoupon}
+                  style={{
+                    backgroundColor: theme.colors.primary,
+                    borderRadius: theme.radius.md,
+                    paddingHorizontal: 16,
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ color: theme.colors.onPrimary, fontWeight: '700' }}>{t('applyCoupon')}</Text>
+                </PressableScale>
+              </View>
+            )}
+          </Card>
+        ) : null}
+
         <Card>
-          <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 16, marginBottom: 12 }}>Order total</Text>
+          <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 16, marginBottom: 12 }}>{t('orderTotal')}</Text>
           {loading ? (
             <View style={{ gap: 8 }}>
               <Skeleton height={16} />
@@ -178,35 +239,44 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
               <Skeleton width="50%" height={20} />
             </View>
           ) : error ? (
-            <ErrorState title="Couldn’t price your order" message={error.message} actionLabel="Retry" onAction={reload} />
+            <ErrorState title={t('priceError')} message={error.message} actionLabel={t('retry')} onAction={reload} />
           ) : quote ? (
             <>
-              {row('Subtotal', formatSar(quote.subtotalMinor))}
-              {quote.discountMinor > 0 ? row('Discount', `- ${formatSar(quote.discountMinor)}`) : null}
-              {quote.deliveryFeeMinor > 0 ? row('Delivery', formatSar(quote.deliveryFeeMinor)) : null}
-              {row('VAT (incl.)', formatSar(quote.vatMinor))}
+              {row(t('subtotal'), formatSar(quote.subtotalMinor))}
+              {quote.discountMinor > 0 ? row(t('discount'), `- ${formatSar(quote.discountMinor)}`) : null}
+              {quote.deliveryFeeMinor > 0 ? row(t('deliveryFee'), formatSar(quote.deliveryFeeMinor)) : null}
+              {config.showChargesBreakdown && quote.serviceFeeMinor ? row(t('serviceFee'), formatSar(quote.serviceFeeMinor)) : null}
+              {config.showChargesBreakdown && quote.packagingFeeMinor ? row(t('packagingFee'), formatSar(quote.packagingFeeMinor)) : null}
+              {config.showChargesBreakdown && quote.platformFeeMinor ? row(t('platformFee'), formatSar(quote.platformFeeMinor)) : null}
+              {config.showChargesBreakdown && quote.charges?.map((c) => (
+                <View key={c.name} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <Text style={{ color: theme.colors.textMuted }}>{c.name}</Text>
+                  <Text style={{ color: theme.colors.text, fontWeight: '600' }}>{formatSar(c.amountMinor)}</Text>
+                </View>
+              ))}
+              {row(t('vatIncl'), formatSar(quote.vatMinor))}
               <View style={{ height: 1, backgroundColor: theme.colors.border, marginVertical: 6 }} />
-              {row('Total', formatSar(quote.totalMinor), true)}
+              {row(t('total'), formatSar(quote.totalMinor), true)}
             </>
           ) : null}
         </Card>
 
         <Card>
-          <Text style={{ color: theme.colors.textMuted, fontSize: 13, fontWeight: '600', marginBottom: 8 }}>Payment method</Text>
+          <Text style={{ color: theme.colors.textMuted, fontSize: 13, fontWeight: '600', marginBottom: 8 }}>{t('paymentMethod')}</Text>
           <PressableScale accessibilityRole="button" onPress={() => setSheetOpen(true)} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>{METHOD_LABELS[method]}</Text>
-            <Text style={{ color: theme.colors.accent, fontWeight: '600' }}>Change</Text>
+            <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>{methodLabels[method]}</Text>
+            <Text style={{ color: theme.colors.accent, fontWeight: '600' }}>{t('change')}</Text>
           </PressableScale>
         </Card>
 
         <Text style={{ color: theme.colors.textMuted, fontSize: 12, textAlign: 'center', paddingHorizontal: 12 }}>
-          Payment is confirmed by our server — never by this screen alone.
+          {t('paymentNote')}
         </Text>
       </ScrollView>
 
       <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
         <PrimaryButton
-          label={needsAddress ? 'Add a delivery address' : quote ? `Place order · ${formatSar(quote.totalMinor)}` : 'Place order'}
+          label={needsAddress ? t('addDeliveryAddress') : quote ? `${t('placeOrder')} · ${formatSar(quote.totalMinor)}` : t('placeOrder')}
           onPress={needsAddress ? () => navigation.navigate('AddAddress') : placeOrder}
           busy={busy}
           disabled={!quote || !!error}
@@ -214,18 +284,15 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
       </View>
 
       <BottomSheet visible={sheetOpen} onClose={() => setSheetOpen(false)}>
-        <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '700', marginBottom: 8 }}>Payment method</Text>
+        <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '700', marginBottom: 8 }}>{t('paymentMethod')}</Text>
         {[PAYMENT_METHOD.CARD, PAYMENT_METHOD.MADA, PAYMENT_METHOD.APPLE_PAY, PAYMENT_METHOD.CASH_ON_DELIVERY].map((m) => (
           <PressableScale
             key={m}
             accessibilityRole="button"
-            onPress={() => {
-              setMethod(m);
-              setSheetOpen(false);
-            }}
+            onPress={() => { setMethod(m); setSheetOpen(false); }}
             style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: theme.colors.border, flexDirection: 'row', justifyContent: 'space-between' }}
           >
-            <Text style={{ color: theme.colors.text, fontSize: 16 }}>{METHOD_LABELS[m]}</Text>
+            <Text style={{ color: theme.colors.text, fontSize: 16 }}>{methodLabels[m]}</Text>
             {method === m ? <Text style={{ color: theme.colors.primary, fontWeight: '800' }}>✓</Text> : null}
           </PressableScale>
         ))}

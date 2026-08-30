@@ -131,6 +131,40 @@ export interface Address {
   isDefault: boolean;
 }
 
+export interface PriceQuoteCharge {
+  name: string;
+  amountMinor: number;
+  vatMinor: number;
+}
+
+export interface EnhancedPriceQuote extends PriceQuote {
+  charges?: PriceQuoteCharge[];
+  serviceFeeMinor?: number;
+  packagingFeeMinor?: number;
+  platformFeeMinor?: number;
+}
+
+export interface CustomerProfile {
+  id: string;
+  phone: string;
+  fullName: string | null;
+  email: string | null;
+}
+
+export interface LoyaltyBalance {
+  balance: number;
+  lifetimeEarned: number;
+}
+
+export interface LoyaltyEntry {
+  id: string;
+  type: 'EARN' | 'REDEEM' | 'REVERSE' | 'ADJUST';
+  points: number;
+  description: string | null;
+  orderId: string | null;
+  createdAt: string;
+}
+
 export interface DeliveryTracking {
   id: string;
   orderId: string;

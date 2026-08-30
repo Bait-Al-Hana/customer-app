@@ -1,6 +1,19 @@
 import { OrderType, PaymentMethod } from '../types/backend';
 import { ApiClient } from './http';
-import { Address, AuthTokens, Branch, DeliveryTracking, Menu, Order, Payment, PriceQuote } from './types';
+import {
+  Address,
+  AuthTokens,
+  Branch,
+  CustomerProfile,
+  DeliveryTracking,
+  EnhancedPriceQuote,
+  LoyaltyBalance,
+  LoyaltyEntry,
+  Menu,
+  Order,
+  Payment,
+  PriceQuote,
+} from './types';
 
 export interface AddressInput {
   label?: string;
@@ -51,7 +64,7 @@ export class Api {
     return this.http.request(`/branches/${branchId}/menu`, { public: true });
   }
 
-  quote(input: { branchId: string; type: OrderType; items: OrderItemInput[] }): Promise<PriceQuote> {
+  quote(input: { branchId: string; type: OrderType; items: OrderItemInput[]; couponCode?: string }): Promise<EnhancedPriceQuote> {
     return this.http.request('/pricing/quote', { method: 'POST', body: input, public: true });
   }
 
@@ -105,5 +118,23 @@ export class Api {
 
   paymentFor(orderId: string): Promise<Payment> {
     return this.http.request(`/customer/orders/${orderId}/payment`);
+  }
+
+  // --- Customer profile (authenticated) ------------------------------------
+  profile(): Promise<CustomerProfile> {
+    return this.http.request('/customer/profile');
+  }
+
+  updateProfile(input: { fullName?: string; email?: string }): Promise<CustomerProfile> {
+    return this.http.request('/customer/profile', { method: 'PATCH', body: input });
+  }
+
+  // --- Loyalty (authenticated) ---------------------------------------------
+  loyaltyBalance(): Promise<LoyaltyBalance> {
+    return this.http.request('/customer/loyalty/balance');
+  }
+
+  loyaltyHistory(): Promise<{ data: LoyaltyEntry[] }> {
+    return this.http.request('/customer/loyalty/history');
   }
 }
