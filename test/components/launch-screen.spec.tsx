@@ -13,6 +13,6 @@ describe('LaunchScreen (mount)', () => {
 
   it('exposes the brand name to assistive tech', () => {
     const { getByLabelText } = wrap(<LaunchScreen onFinish={() => undefined} />);
-    expect(getByLabelText(/bait al hana/i)).toBeTruthy();
+    expect(getByLabelText(/بيت الهناء/i)).toBeTruthy();
   });
 });

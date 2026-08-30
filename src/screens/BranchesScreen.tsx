@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Image, ScrollView, Text, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthProvider';
 import { Card, Screen } from '../components/ui';
@@ -9,6 +9,8 @@ import { EmptyState, ErrorState, PressableScale, Skeleton, Stagger } from '../mo
 import { RootStackParamList } from '../navigation/types';
 import { formatSar } from '../util/money';
 import { useTheme } from '../theme/theme';
+
+const LOGO = require('../../assets/logo.jpeg');
 
 /** Home: choose a branch to order from. */
 export function BranchesScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'Branches'>): React.JSX.Element {
@@ -28,7 +30,7 @@ export function BranchesScreen({ navigation }: NativeStackScreenProps<RootStackP
   );
 
   return (
-    <Screen title="Bait Al Hana" right={signOutButton}>
+    <Screen left={<Image source={LOGO} style={{ width: 120, height: 36 }} resizeMode="contain" accessibilityLabel="Bait Al Hana" />} right={signOutButton}>
       {loading ? (
         <View style={{ padding: 20, gap: 12 }}>
           {[0, 1, 2].map((i) => (
