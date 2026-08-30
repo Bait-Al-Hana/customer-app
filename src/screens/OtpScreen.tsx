@@ -6,11 +6,11 @@ import { ApiError } from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
 import { PrimaryButton, Screen, TextField } from '../components/ui';
 import { Toast } from '../motion';
-import { RootStackParamList } from '../navigation/types';
+import { AuthStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
 
 /** Step 2 of OTP login: enter the code, verify, sign in. */
-export function OtpScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'Otp'>): React.JSX.Element {
+export function OtpScreen({ route, navigation }: NativeStackScreenProps<AuthStackParamList, 'Otp'>): React.JSX.Element {
   const theme = useTheme();
   const { api, signIn } = useAuth();
   const { phone } = route.params;

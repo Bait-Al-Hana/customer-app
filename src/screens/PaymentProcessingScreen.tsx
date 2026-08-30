@@ -1,30 +1,31 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View } from 'react-native';
 
 import { useAuth } from '../auth/AuthProvider';
-import { PrimaryButton, Screen } from '../components/ui';
+import { AppText, Button, Screen } from '../components';
 import { PaymentStateView } from '../features/payment/PaymentStateView';
 import { paymentVisualForServerStatus } from '../features/payment/payment-state.model';
-import { PAYMENT_METHOD, PAYMENT_STATUS, PaymentStatus } from '../types/backend';
+import { PAYMENT_STATUS, PaymentStatus } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
-import { useTheme } from '../theme/theme';
 
 const POLL_MS = 2500;
 
 /**
- * Initiates the online charge, then polls the backend for the true payment
- * status. The success view appears only when the SERVER reports PAID — this
- * screen never treats initiating (or any client signal) as proof of payment.
+ * Initiates the online charge, then polls the backend for the TRUE payment
+ * status. The success view — and the forward navigation — happen only when the
+ * SERVER reports PAID. This screen never treats initiating, or any client
+ * signal, as proof of payment; it mirrors the backend rule that client-side
+ * success is never trusted.
  */
 export function PaymentProcessingScreen({
   route,
   navigation,
 }: NativeStackScreenProps<RootStackParamList, 'PaymentProcessing'>): React.JSX.Element {
-  const theme = useTheme();
   const { api } = useAuth();
-  const { orderId } = route.params;
+  const { orderId, orderNumber, method } = route.params;
   const [status, setStatus] = useState<PaymentStatus>(PAYMENT_STATUS.PENDING);
+  const [attempt, setAttempt] = useState(0);
   const started = useRef(false);
 
   useEffect(() => {
@@ -41,7 +42,7 @@ export function PaymentProcessingScreen({
         const settled = paymentVisualForServerStatus(payment.status).settled;
         if (settled) {
           if (payment.status === PAYMENT_STATUS.PAID) {
-            timer = setTimeout(() => mounted && navigation.replace('OrderTracking', { orderId }), 1200);
+            timer = setTimeout(() => mounted && navigation.replace('OrderSuccess', { orderId, orderNumber, method }), 900);
           }
           return; // stop polling once settled
         }
@@ -57,7 +58,7 @@ export function PaymentProcessingScreen({
       if (!started.current) {
         started.current = true;
         try {
-          await api.initiatePayment(orderId, PAYMENT_METHOD.CARD);
+          await api.initiatePayment(orderId, method);
         } catch {
           // Even if initiate errored, poll — the server remains the truth.
         }
@@ -73,22 +74,33 @@ export function PaymentProcessingScreen({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId]);
+  }, [orderId, attempt]);
+
+  const retry = useCallback((): void => {
+    started.current = false;
+    setStatus(PAYMENT_STATUS.PENDING);
+    setAttempt((a) => a + 1); // re-runs the effect: initiate + poll again
+  }, []);
 
   const visual = paymentVisualForServerStatus(status).visual;
+  const failed = visual === 'failed' || visual === 'cancelled';
 
   return (
     <Screen title="Payment">
       <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
         <PaymentStateView status={status} />
-        <Text style={{ color: theme.colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 8 }}>
+        <AppText variant="caption" color="textMuted" center style={{ marginTop: 8, paddingHorizontal: 16 }}>
           Your bank confirms this with us directly. You can safely track your order while it finishes.
-        </Text>
-        <View style={{ marginTop: 24, gap: 10 }}>
-          <PrimaryButton label="Track my order" onPress={() => navigation.replace('OrderTracking', { orderId })} />
-          {visual === 'failed' || visual === 'cancelled' ? (
-            <PrimaryButton label="Back to orders" onPress={() => navigation.replace('Orders')} />
-          ) : null}
+        </AppText>
+        <View style={{ marginTop: 28, gap: 10 }}>
+          {failed ? (
+            <>
+              <Button label="Try again" onPress={retry} />
+              <Button label="Back to orders" variant="ghost" onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Tabs', params: { screen: 'Orders' } }] })} />
+            </>
+          ) : (
+            <Button label="Track my order" onPress={() => navigation.replace('OrderTracking', { orderId })} />
+          )}
         </View>
       </View>
     </Screen>
