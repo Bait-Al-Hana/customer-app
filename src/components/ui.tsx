@@ -82,12 +82,14 @@ export function TextField({
 export function Screen({
   children,
   title,
+  left,
   subtitle,
   onBack,
   right,
 }: {
   children: React.ReactNode;
   title?: string;
+  left?: React.ReactNode;
   subtitle?: string;
   onBack?: () => void;
   right?: React.ReactNode;
@@ -96,7 +98,7 @@ export function Screen({
   const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background, paddingTop: insets.top }}>
-      {title !== undefined ? (
+      {(title !== undefined || left) ? (
         <View
           style={{
             flexDirection: 'row',
@@ -123,6 +125,7 @@ export function Screen({
               <Text style={{ color: theme.colors.text, fontSize: 22, lineHeight: 24, marginTop: -2 }}>‹</Text>
             </PressableScale>
           ) : null}
+          {left ? <View style={{ flex: 1 }}>{left}</View> : (
           <View style={{ flex: 1 }}>
             <AppText variant="h2" numberOfLines={1}>
               {title}
@@ -133,6 +136,7 @@ export function Screen({
               </AppText>
             ) : null}
           </View>
+          )}
           {right}
         </View>
       ) : null}

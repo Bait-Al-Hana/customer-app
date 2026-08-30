@@ -43,8 +43,7 @@ export function PhoneScreen({ navigation }: NativeStackScreenProps<AuthStackPara
       <Toast visible={!!error} message={error ?? ''} tone="danger" onHide={() => setError(null)} />
       <View style={{ padding: 20 }}>
         <View style={{ alignItems: 'center', marginBottom: 20 }}>
-          <Image source={LOGO} style={{ width: 96, height: 96, borderRadius: 16 }} resizeMode="contain" />
-          <Text style={{ marginTop: 12, fontSize: 22, fontWeight: '700', color: theme.colors.text }}>Bait Al Hana</Text>
+          <Image source={LOGO} style={{ width: 200, height: 80 }} resizeMode="contain" accessibilityLabel="بيت الهناء" />
         </View>
         <Text style={{ color: theme.colors.textMuted, fontSize: 15, lineHeight: 22, marginBottom: 24, textAlign: 'center' }}>
           Enter your mobile number and we’ll text you a login code.

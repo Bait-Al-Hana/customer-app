@@ -83,7 +83,7 @@ export function AccountScreen(): React.JSX.Element {
                   {profile.data?.fullName?.trim() || 'Welcome back'}
                 </AppText>
                 <AppText variant="bodySmall" color="textMuted" style={{ marginTop: 2 }}>
-                  {profile.data?.phone ?? 'Bait Al Hana member'}
+                  {profile.data?.phone ?? 'بيت الهناء'}
                 </AppText>
               </View>
               <ChevronRight color={theme.colors.textMuted} size={18} />
@@ -131,7 +131,7 @@ export function AccountScreen(): React.JSX.Element {
 
         <Button label="Log out" variant="danger" onPress={() => signOut()} />
         <AppText variant="caption" color="textMuted" center>
-          Bait Al Hana · v0.1.0
+          بيت الهناء · v0.1.0
         </AppText>
       </ScrollView>
     </Screen>

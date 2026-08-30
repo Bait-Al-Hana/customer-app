@@ -101,7 +101,7 @@ export function HomeScreen(): React.JSX.Element {
         {branchesReq.loading ? (
           <HomeSkeleton />
         ) : branchesReq.error ? (
-          <ErrorState title="Couldn’t load Bait Al Hana" message={branchesReq.error.message} actionLabel="Retry" onAction={branchesReq.reload} />
+          <ErrorState title="Couldn’t load menu" message={branchesReq.error.message} actionLabel="Retry" onAction={branchesReq.reload} />
         ) : !branchesReq.data || branchesReq.data.length === 0 ? (
           <EmptyState title="No branches yet" message="Please check back soon." />
         ) : (
