@@ -32,7 +32,7 @@
       "config": {
         "googleMaps": {
           "//": "Supply your Google Maps Android API key here (or via EAS secret). Never commit a real key.",
-          "apiKey": ""
+          "apiKey": "AIzaSyBICLr_ywyW3t2zKBW1HlqBfyr1Wvq8W_8"
         }
       }
     },
@@ -45,7 +45,7 @@
     "extra": {
       "//": "API base URL is injected per environment; never hard-code secrets.",
       "apiBaseUrl": "https://bah-api-5nhjrpuu3a-ww.a.run.app/api/v1",
-      "googleMapsApiKey": ""
+      "googleMapsApiKey": "AIzaSyBICLr_ywyW3t2zKBW1HlqBfyr1Wvq8W_8"
     }
   }
 }
