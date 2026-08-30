@@ -6,7 +6,7 @@ import Constants from 'expo-constants';
  * read here — only a URL.
  */
 export function resolveBaseUrl(extra: unknown): string {
-  const fallback = 'https://bah-api-5nhjrpuu3a-ww.a.run.app/api/v1';
+  const fallback = 'https://bah-api-453110822953.me-central1.run.app/api/v1';
   if (extra && typeof extra === 'object') {
     const url = (extra as Record<string, unknown>).apiBaseUrl;
     if (typeof url === 'string' && url.length > 0) {
