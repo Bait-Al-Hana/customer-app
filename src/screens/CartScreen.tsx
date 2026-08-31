@@ -4,15 +4,19 @@ import { ScrollView, Text, View } from 'react-native';
 
 import { useCart } from '../cart/CartProvider';
 import { estimatedTotalMinor } from '../cart/cart';
-import { Card, InfoRow, PrimaryButton, Screen } from '../components/ui';
+import { Screen } from '../components/ui';
 import {
   AnimatedNumber,
+  CountUp,
   EmptyState,
   FadeIn,
+  MotiCard,
   PressableScale,
+  PulseButton,
   QuantityStepper,
   SlideIn,
   Stagger,
+  SwipeAction,
 } from '../motion';
 import { ORDER_TYPE } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
@@ -48,62 +52,66 @@ export function CartScreen({ navigation }: NativeStackScreenProps<RootStackParam
         </FadeIn>
 
         <Stagger step={60}>
-          {cart.lines.map((line) => (
-            <Card key={line.key}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {/* Product thumbnail placeholder */}
-                <View
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: theme.radius.md,
-                    backgroundColor: theme.colors.surfaceAlt,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: 14,
-                  }}
-                >
-                  <Text style={{ fontSize: 22 }}>🍽️</Text>
-                </View>
+          {cart.lines.map((line, index) => (
+            <SwipeAction
+              key={line.key}
+              onSwipe={() => dispatch({ type: 'REMOVE', key: line.key })}
+              actionLabel="Remove"
+            >
+              <MotiCard delay={index * 50} from="left">
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: theme.radius.md,
+                      backgroundColor: theme.colors.surfaceAlt,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 14,
+                    }}
+                  >
+                    <Text style={{ fontSize: 22 }}>🍽️</Text>
+                  </View>
 
-                <View style={{ flex: 1, paddingRight: 8 }}>
-                  <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>
-                    {line.productName}
-                  </Text>
-                  <AnimatedNumber
-                    value={formatSar(line.unitPriceMinor * line.quantity)}
-                    style={{ color: theme.colors.primary, fontWeight: '700', marginTop: 4, fontSize: 15 }}
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>
+                      {line.productName}
+                    </Text>
+                    <AnimatedNumber
+                      value={formatSar(line.unitPriceMinor * line.quantity)}
+                      style={{ color: theme.colors.primary, fontWeight: '700', marginTop: 4, fontSize: 15 }}
+                    />
+                  </View>
+
+                  <QuantityStepper
+                    value={line.quantity}
+                    onChange={(q) => dispatch({ type: 'SET_QTY', key: line.key, quantity: q })}
+                    min={0}
                   />
                 </View>
 
-                <QuantityStepper
-                  value={line.quantity}
-                  onChange={(q) => dispatch({ type: 'SET_QTY', key: line.key, quantity: q })}
-                  min={0}
-                />
-              </View>
-
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 }}>
-                <PressableScale
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove ${line.productName}`}
-                  onPress={() => dispatch({ type: 'REMOVE', key: line.key })}
-                  style={{
-                    paddingHorizontal: 14,
-                    paddingVertical: 6,
-                    borderRadius: theme.radius.pill,
-                    backgroundColor: theme.colors.danger + '14',
-                  }}
-                >
-                  <Text style={{ color: theme.colors.danger, fontWeight: '600', fontSize: 13 }}>Remove</Text>
-                </PressableScale>
-              </View>
-            </Card>
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 }}>
+                  <PressableScale
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${line.productName}`}
+                    onPress={() => dispatch({ type: 'REMOVE', key: line.key })}
+                    style={{
+                      paddingHorizontal: 14,
+                      paddingVertical: 6,
+                      borderRadius: theme.radius.pill,
+                      backgroundColor: theme.colors.danger + '14',
+                    }}
+                  >
+                    <Text style={{ color: theme.colors.danger, fontWeight: '600', fontSize: 13 }}>Remove</Text>
+                  </PressableScale>
+                </View>
+              </MotiCard>
+            </SwipeAction>
           ))}
         </Stagger>
       </ScrollView>
 
-      {/* Bottom CTA bar */}
       <SlideIn direction="up" distance={20}>
         <View
           style={{
@@ -124,18 +132,17 @@ export function CartScreen({ navigation }: NativeStackScreenProps<RootStackParam
             elevation: 8,
           }}
         >
-          <InfoRow label="Estimated subtotal" value={formatSar(total)} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <Text style={{ color: theme.colors.textMuted, fontSize: 14, fontWeight: '600' }}>Estimated subtotal</Text>
+            <CountUp to={total / 100} prefix="SAR " decimals={2} style={{ fontSize: 18, fontWeight: '800', color: theme.colors.text }} />
+          </View>
           <Text style={{ color: theme.colors.textMuted, fontSize: 12, marginTop: 2, marginBottom: 14 }}>
             Final total, VAT and delivery confirmed at checkout.
           </Text>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <View style={{ flex: 1 }}>
-              <PrimaryButton
-                label="Checkout"
-                onPress={() => navigation.navigate('Checkout', { type: ORDER_TYPE.PICKUP })}
-              />
-            </View>
-          </View>
+          <PulseButton
+            label="Checkout"
+            onPress={() => navigation.navigate('Checkout', { type: ORDER_TYPE.PICKUP })}
+          />
         </View>
       </SlideIn>
     </Screen>

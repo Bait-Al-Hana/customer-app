@@ -1,19 +1,22 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 
 import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
-import { Card } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 import {
   CartBadge,
   EmptyState,
   ErrorState,
   FloatingBar,
+  MotiCard,
   PressableScale,
+  Ripple,
+  ScrollFadeHeader,
   SectionTitle,
-  Skeleton,
+  Shimmer,
   SlideIn,
   Stagger,
 } from '../motion';
@@ -22,12 +25,19 @@ import { formatSar } from '../util/money';
 import { useTheme } from '../theme/theme';
 import type { MenuProduct } from '../api/types';
 
+const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
+
 export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'Menu'>): React.JSX.Element {
   const theme = useTheme();
   const { api } = useAuth();
   const { cart, count, dispatch } = useCart();
   const { branchId, branchName } = route.params;
   const { data, loading, error, reload } = useAsync(() => api.menu(branchId), [branchId]);
+  const scrollY = useSharedValue(0);
+
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (e) => { scrollY.value = e.contentOffset.y; },
+  });
 
   const add = (product: MenuProduct): void => {
     dispatch({
@@ -66,45 +76,19 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      {/* Header */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          gap: 12,
-        }}
-      >
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          onPress={() => navigation.goBack()}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: theme.colors.surfaceAlt,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text style={{ color: theme.colors.text, fontSize: 20, fontWeight: '600' }}>‹</Text>
-        </PressableScale>
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: theme.colors.text, fontSize: 20, fontWeight: '800', letterSpacing: -0.3 }}>
-            {branchName}
-          </Text>
-          <Text style={{ color: theme.colors.textMuted, fontSize: 13 }}>Browse the menu</Text>
-        </View>
-        {cartButton}
-      </View>
+      <ScrollFadeHeader
+        title={branchName}
+        subtitle="Browse the menu"
+        scrollY={scrollY}
+        onBack={() => navigation.goBack()}
+        right={cartButton}
+      />
 
       {loading ? (
         <View style={{ padding: 20, gap: 14 }}>
-          <Skeleton height={24} width="40%" radius={theme.radius.sm} />
+          <Shimmer height={24} width="40%" radius={theme.radius.sm} />
           {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} height={88} radius={theme.radius.lg} />
+            <Shimmer key={i} height={88} radius={theme.radius.lg} />
           ))}
         </View>
       ) : error ? (
@@ -112,7 +96,9 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
       ) : !data || data.categories.length === 0 ? (
         <EmptyState title="Menu is empty" message="This branch has nothing available right now." />
       ) : (
-        <ScrollView
+        <AnimatedScrollView
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           contentContainerStyle={{
             paddingHorizontal: 16,
             paddingTop: 8,
@@ -124,11 +110,10 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
               <SectionTitle title={category.name} delay={ci * 60} />
 
               <Stagger step={50}>
-                {category.products.map((product) => (
+                {category.products.map((product, pi) => (
                   <View key={product.id} style={{ marginBottom: 10 }}>
-                    <Card>
+                    <MotiCard delay={ci * 60 + pi * 40} from="left">
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        {/* Product image placeholder */}
                         <View
                           style={{
                             width: 64,
@@ -160,9 +145,7 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
                           </Text>
                         </View>
 
-                        <PressableScale
-                          accessibilityRole="button"
-                          accessibilityLabel={`Add ${product.name}`}
+                        <Ripple
                           onPress={() => add(product)}
                           style={{
                             backgroundColor: theme.colors.primary,
@@ -179,18 +162,17 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
                           }}
                         >
                           <Text style={{ color: theme.colors.onPrimary, fontSize: 26, fontWeight: '700', marginTop: -2 }}>+</Text>
-                        </PressableScale>
+                        </Ripple>
                       </View>
-                    </Card>
+                    </MotiCard>
                   </View>
                 ))}
               </Stagger>
             </View>
           ))}
-        </ScrollView>
+        </AnimatedScrollView>
       )}
 
-      {/* Floating cart bar */}
       <FloatingBar visible={count > 0 && cart.branchId === branchId}>
         <SlideIn direction="up" distance={30}>
           <View style={{ paddingHorizontal: 16, paddingBottom: 24, paddingTop: 8 }}>

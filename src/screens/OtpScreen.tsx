@@ -1,11 +1,21 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
 
 import { ApiError } from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
-import { PrimaryButton, TextField } from '../components/ui';
-import { FadeIn, PressableScale, Stagger, Toast } from '../motion';
+import { TextField } from '../components/ui';
+import {
+  AnimatedGradient,
+  AnimatedIcon,
+  MotiCard,
+  PressableScale,
+  PulseButton,
+  ShakeView,
+  Stagger,
+  Toast,
+} from '../motion';
+import type { ShakeViewRef } from '../motion';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
 
@@ -16,6 +26,7 @@ export function OtpScreen({ route, navigation }: NativeStackScreenProps<RootStac
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const shakeRef = useRef<ShakeViewRef>(null);
 
   const valid = /^\d{4,8}$/.test(code);
 
@@ -27,17 +38,14 @@ export function OtpScreen({ route, navigation }: NativeStackScreenProps<RootStac
       await signIn(tokens);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Wrong or expired code. Try again.');
+      shakeRef.current?.shake();
       setBusy(false);
     }
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <AnimatedGradient style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <Toast visible={!!error} message={error ?? ''} tone="danger" onHide={() => setError(null)} />
-
-      {/* Decorative background orbs */}
-      <View style={{ position: 'absolute', top: -60, left: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: theme.colors.primary, opacity: 0.05 }} />
-      <View style={{ position: 'absolute', bottom: 80, right: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: theme.colors.secondary, opacity: 0.04 }} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -45,22 +53,8 @@ export function OtpScreen({ route, navigation }: NativeStackScreenProps<RootStac
       >
         <Stagger>
           <View style={{ alignItems: 'center', marginBottom: 40 }}>
-            {/* Code icon */}
-            <FadeIn translateY={10}>
-              <View
-                style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: 36,
-                  backgroundColor: theme.colors.primary + '14',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 24,
-                }}
-              >
-                <Text style={{ fontSize: 32 }}>🔐</Text>
-              </View>
-            </FadeIn>
+            <AnimatedIcon icon="🔐" size={72} delay={0} bounce />
+            <View style={{ height: 24 }} />
             <Text style={{ color: theme.colors.text, fontSize: 26, fontWeight: '900', textAlign: 'center', letterSpacing: -0.5 }}>
               Enter your code
             </Text>
@@ -72,20 +66,22 @@ export function OtpScreen({ route, navigation }: NativeStackScreenProps<RootStac
             </Text>
           </View>
 
-          <View>
-            <TextField
-              label="Verification code"
-              value={code}
-              onChangeText={setCode}
-              keyboardType="number-pad"
-              maxLength={8}
-              autoFocus
-              placeholder="Enter code"
-            />
-          </View>
+          <ShakeView ref={shakeRef}>
+            <MotiCard from="bottom" delay={100}>
+              <TextField
+                label="Verification code"
+                value={code}
+                onChangeText={setCode}
+                keyboardType="number-pad"
+                maxLength={8}
+                autoFocus
+                placeholder="Enter code"
+              />
+            </MotiCard>
+          </ShakeView>
 
-          <View>
-            <PrimaryButton label="Verify & sign in" onPress={submit} busy={busy} disabled={!valid} />
+          <View style={{ marginTop: 16 }}>
+            <PulseButton label="Verify & sign in" onPress={submit} busy={busy} disabled={!valid} />
           </View>
 
           <View style={{ alignItems: 'center', marginTop: 20 }}>
@@ -97,6 +93,6 @@ export function OtpScreen({ route, navigation }: NativeStackScreenProps<RootStac
           </View>
         </Stagger>
       </KeyboardAvoidingView>
-    </View>
+    </AnimatedGradient>
   );
 }

@@ -3,15 +3,16 @@ import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthProvider';
-import { Card, Screen } from '../components/ui';
+import { Screen } from '../components/ui';
 import { STATUS_META, StatusTone } from '../features/order/order-status.model';
 import { useAsync } from '../hooks/useAsync';
 import {
   EmptyState,
   ErrorState,
   FadeIn,
+  MotiCard,
   PressableScale,
-  Skeleton,
+  Shimmer,
   Stagger,
   StatusBadge,
 } from '../motion';
@@ -46,7 +47,7 @@ export function OrdersScreen({ navigation }: NativeStackScreenProps<RootStackPar
       {loading ? (
         <View style={{ padding: 20, gap: 14 }}>
           {[0, 1, 2].map((i) => (
-            <Skeleton key={i} height={100} radius={theme.radius.lg} />
+            <Shimmer key={i} height={100} radius={theme.radius.lg} />
           ))}
         </View>
       ) : error ? (
@@ -67,7 +68,7 @@ export function OrdersScreen({ navigation }: NativeStackScreenProps<RootStackPar
           </FadeIn>
 
           <Stagger step={50}>
-            {orders.map((order) => {
+            {orders.map((order, index) => {
               const meta = STATUS_META[order.status];
               return (
                 <PressableScale
@@ -75,7 +76,7 @@ export function OrdersScreen({ navigation }: NativeStackScreenProps<RootStackPar
                   accessibilityRole="button"
                   onPress={() => navigation.navigate('OrderTracking', { orderId: order.id })}
                 >
-                  <Card>
+                  <MotiCard delay={index * 60} from="bottom">
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 16, letterSpacing: -0.2 }}>
@@ -92,11 +93,10 @@ export function OrdersScreen({ navigation }: NativeStackScreenProps<RootStackPar
                       />
                     </View>
 
-                    {/* Decorative arrow */}
                     <View style={{ position: 'absolute', right: 16, bottom: 16 }}>
                       <Text style={{ color: theme.colors.border, fontSize: 18 }}>›</Text>
                     </View>
-                  </Card>
+                  </MotiCard>
                 </PressableScale>
               );
             })}

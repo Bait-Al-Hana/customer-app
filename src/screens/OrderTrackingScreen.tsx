@@ -3,15 +3,18 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthProvider';
-import { Card, Divider, InfoRow, PrimaryButton, Screen } from '../components/ui';
+import { Divider, InfoRow, PrimaryButton, Screen } from '../components/ui';
 import { OrderStatusTracker } from '../features/order/OrderStatusTracker';
 import { useAsync } from '../hooks/useAsync';
 import { AppMap, DEFAULT_REGION, MapMarker } from '../maps/AppMap';
 import {
+  AnimatedIcon,
   ErrorState,
   FadeIn,
+  GlassCard,
+  MotiCard,
   PulsingDot,
-  Skeleton,
+  Shimmer,
   SlideIn,
   StatusBadge,
 } from '../motion';
@@ -62,60 +65,59 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
     <Screen title="Your order" onBack={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace('Branches')}>
       {loading && !order ? (
         <View style={{ padding: 20, gap: 14 }}>
-          <Skeleton height={36} width="60%" radius={theme.radius.sm} />
-          <Skeleton height={240} radius={theme.radius.lg} />
-          <Skeleton height={120} radius={theme.radius.lg} />
+          <Shimmer height={36} width="60%" radius={theme.radius.sm} />
+          <Shimmer height={240} radius={theme.radius.lg} />
+          <Shimmer height={120} radius={theme.radius.lg} />
         </View>
       ) : error && !order ? (
         <ErrorState title="Couldn't load your order" message={error.message} actionLabel="Retry" onAction={reload} />
       ) : order ? (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 14 }}>
-          {/* Order header */}
           <FadeIn translateY={8}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <View>
-                <Text style={{ color: theme.colors.textMuted, fontSize: 13 }}>Order</Text>
-                <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800', letterSpacing: -0.3 }}>
-                  {order.orderNumber}
-                </Text>
-              </View>
-              {statusMeta ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  {isActive ? <PulsingDot color={theme.colors.primary} size={6} /> : null}
-                  <StatusBadge
-                    label={statusMeta.label}
-                    color={
-                      statusMeta.tone === 'success'
-                        ? theme.colors.success + '1A'
-                        : statusMeta.tone === 'danger'
-                          ? theme.colors.danger + '1A'
-                          : statusMeta.tone === 'warning'
-                            ? theme.colors.warning + '1A'
-                            : theme.colors.primary + '1A'
-                    }
-                    textColor={
-                      statusMeta.tone === 'success'
-                        ? theme.colors.success
-                        : statusMeta.tone === 'danger'
-                          ? theme.colors.danger
-                          : statusMeta.tone === 'warning'
-                            ? theme.colors.warning
-                            : theme.colors.primary
-                    }
-                  />
+            <GlassCard intensity="light">
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View>
+                  <Text style={{ color: theme.colors.textMuted, fontSize: 13 }}>Order</Text>
+                  <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800', letterSpacing: -0.3 }}>
+                    {order.orderNumber}
+                  </Text>
                 </View>
-              ) : null}
-            </View>
+                {statusMeta ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    {isActive ? <PulsingDot color={theme.colors.primary} size={6} /> : null}
+                    <StatusBadge
+                      label={statusMeta.label}
+                      color={
+                        statusMeta.tone === 'success'
+                          ? theme.colors.success + '1A'
+                          : statusMeta.tone === 'danger'
+                            ? theme.colors.danger + '1A'
+                            : statusMeta.tone === 'warning'
+                              ? theme.colors.warning + '1A'
+                              : theme.colors.primary + '1A'
+                      }
+                      textColor={
+                        statusMeta.tone === 'success'
+                          ? theme.colors.success
+                          : statusMeta.tone === 'danger'
+                            ? theme.colors.danger
+                            : statusMeta.tone === 'warning'
+                              ? theme.colors.warning
+                              : theme.colors.primary
+                      }
+                    />
+                  </View>
+                ) : null}
+              </View>
+            </GlassCard>
           </FadeIn>
 
-          {/* Status tracker */}
           <FadeIn translateY={8} delay={60}>
-            <Card>
+            <MotiCard from="bottom" delay={80}>
               <OrderStatusTracker status={order.status} type={order.type} />
-            </Card>
+            </MotiCard>
           </FadeIn>
 
-          {/* Map */}
           {(() => {
             const d = tracking.data;
             const driverLat = d?.driver?.currentLatitude ?? null;
@@ -135,7 +137,7 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
 
             return (
               <FadeIn translateY={8} delay={120}>
-                <Card style={{ padding: 0, overflow: 'hidden' }}>
+                <MotiCard from="scale" style={{ padding: 0, overflow: 'hidden' }}>
                   <View style={{ height: 220 }}>
                     <AppMap
                       scrollEnabled={false}
@@ -145,32 +147,20 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
                   </View>
                   {d?.driver ? (
                     <View style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      <View
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 20,
-                          backgroundColor: theme.colors.primary + '14',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Text style={{ fontSize: 18 }}>🚗</Text>
-                      </View>
+                      <AnimatedIcon icon="🚗" size={40} delay={200} bounce={false} />
                       <View>
                         <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{d.driver.user.fullName}</Text>
                         <Text style={{ color: theme.colors.textMuted, fontSize: 13 }}>Your driver</Text>
                       </View>
                     </View>
                   ) : null}
-                </Card>
+                </MotiCard>
               </FadeIn>
             );
           })()}
 
-          {/* Order items */}
           <FadeIn translateY={8} delay={180}>
-            <Card>
+            <MotiCard from="bottom" delay={200}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 }}>
                 <Text style={{ fontSize: 15 }}>🧾</Text>
                 <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 15 }}>Order items</Text>
@@ -197,7 +187,7 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
               ))}
               <Divider spacing={8} />
               <InfoRow label="Total" value={formatSar(order.totalMinor)} bold />
-            </Card>
+            </MotiCard>
           </FadeIn>
 
           <SlideIn direction="up" distance={10} delay={240}>

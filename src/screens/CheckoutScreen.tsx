@@ -8,17 +8,21 @@ import { Address } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
 import { toOrderItems } from '../cart/cart';
-import { Card, Divider, InfoRow, PrimaryButton, Screen } from '../components/ui';
+import { Divider, InfoRow, Screen } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 import {
   AnimatedTabBar,
   BottomSheet,
   ErrorState,
   FadeIn,
+  GlassCard,
+  MotiCard,
   PressableScale,
-  Skeleton,
+  PulseButton,
+  Shimmer,
   SlideIn,
   Stagger,
+  StepIndicator,
   Toast,
 } from '../motion';
 import { ORDER_TYPE, OrderType, PAYMENT_METHOD, PaymentMethod } from '../types/backend';
@@ -33,6 +37,11 @@ const METHOD_LABELS: Record<string, string> = {
   [PAYMENT_METHOD.CASH_ON_DELIVERY]: '💵  Cash on delivery',
 };
 
+function checkoutStep(type: OrderType, addressId: string | null, quote: unknown): number {
+  if (!quote) return 0;
+  if (type === ORDER_TYPE.DELIVERY && !addressId) return 1;
+  return 2;
+}
 
 export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'Checkout'>): React.JSX.Element {
   const theme = useTheme();
@@ -95,13 +104,19 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
     { value: ORDER_TYPE.DELIVERY as OrderType, label: '🚗  Delivery' },
   ];
 
+  const currentStep = checkoutStep(type, addressId, quote);
+  const steps = isDelivery ? ['Type', 'Address', 'Pay'] : ['Type', 'Pay'];
+
   return (
     <Screen title="Checkout" onBack={() => navigation.goBack()}>
       <Toast visible={!!placeError} message={placeError ?? ''} tone="danger" onHide={() => setPlaceError(null)} />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 140, gap: 14 }}>
-        {/* Pickup / Delivery toggle */}
         <FadeIn translateY={8}>
+          <StepIndicator steps={steps} current={currentStep} />
+        </FadeIn>
+
+        <FadeIn translateY={8} delay={40}>
           <AnimatedTabBar
             options={tabOptions}
             value={type}
@@ -109,10 +124,9 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
           />
         </FadeIn>
 
-        {/* Delivery address */}
         {isDelivery ? (
           <FadeIn translateY={8} delay={60}>
-            <Card>
+            <MotiCard from="bottom" delay={80}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                 <Text style={{ fontSize: 16 }}>📍</Text>
                 <Text style={{ color: theme.colors.text, fontSize: 15, fontWeight: '700', marginLeft: 8 }}>
@@ -121,8 +135,8 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
               </View>
               {addresses.loading ? (
                 <View style={{ gap: 8 }}>
-                  <Skeleton height={48} radius={theme.radius.md} />
-                  <Skeleton height={48} radius={theme.radius.md} />
+                  <Shimmer height={48} radius={theme.radius.md} />
+                  <Shimmer height={48} radius={theme.radius.md} />
                 </View>
               ) : addresses.data && addresses.data.length > 0 ? (
                 <View style={{ gap: 6 }}>
@@ -192,22 +206,21 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
               >
                 <Text style={{ color: theme.colors.accent, fontWeight: '700' }}>+ Add a new address</Text>
               </PressableScale>
-            </Card>
+            </MotiCard>
           </FadeIn>
         ) : null}
 
-        {/* Order total */}
         <FadeIn translateY={8} delay={120}>
-          <Card>
+          <GlassCard delay={140} intensity="medium">
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
               <Text style={{ fontSize: 16 }}>🧾</Text>
               <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 16, marginLeft: 8 }}>Order total</Text>
             </View>
             {loading ? (
               <View style={{ gap: 10 }}>
-                <Skeleton height={16} />
-                <Skeleton width="70%" height={16} />
-                <Skeleton width="50%" height={20} />
+                <Shimmer height={16} />
+                <Shimmer width="70%" height={16} />
+                <Shimmer width="50%" height={20} />
               </View>
             ) : error ? (
               <ErrorState title="Couldn't price your order" message={error.message} actionLabel="Retry" onAction={reload} />
@@ -221,12 +234,11 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
                 <InfoRow label="Total" value={formatSar(quote.totalMinor)} bold />
               </View>
             ) : null}
-          </Card>
+          </GlassCard>
         </FadeIn>
 
-        {/* Payment method */}
         <FadeIn translateY={8} delay={180}>
-          <Card>
+          <MotiCard from="bottom" delay={200}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
               <Text style={{ fontSize: 16 }}>💳</Text>
               <Text style={{ color: theme.colors.text, fontSize: 15, fontWeight: '700', marginLeft: 8 }}>Payment method</Text>
@@ -247,7 +259,7 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
               <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>{METHOD_LABELS[method]}</Text>
               <Text style={{ color: theme.colors.accent, fontWeight: '700', fontSize: 13 }}>Change</Text>
             </PressableScale>
-          </Card>
+          </MotiCard>
         </FadeIn>
 
         <FadeIn translateY={6} delay={240}>
@@ -257,7 +269,6 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
         </FadeIn>
       </ScrollView>
 
-      {/* Bottom CTA */}
       <SlideIn direction="up" distance={20}>
         <View
           style={{
@@ -278,7 +289,7 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
             elevation: 8,
           }}
         >
-          <PrimaryButton
+          <PulseButton
             label={needsAddress ? 'Add a delivery address' : quote ? `Place order · ${formatSar(quote.totalMinor)}` : 'Place order'}
             onPress={needsAddress ? () => navigation.navigate('AddAddress') : placeOrder}
             busy={busy}
@@ -287,7 +298,6 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
         </View>
       </SlideIn>
 
-      {/* Payment method bottom sheet */}
       <BottomSheet visible={sheetOpen} onClose={() => setSheetOpen(false)}>
         <Text style={{ color: theme.colors.text, fontSize: 20, fontWeight: '800', marginBottom: 16 }}>Payment method</Text>
         <Stagger step={40}>

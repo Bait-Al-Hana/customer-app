@@ -6,9 +6,18 @@ import type { Region } from 'react-native-maps';
 
 import { ApiError } from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
-import { Card, PrimaryButton, Screen, TextField } from '../components/ui';
+import { Screen, TextField } from '../components/ui';
 import { AppMap, DEFAULT_REGION } from '../maps/AppMap';
-import { FadeIn, PressableScale, Stagger, Toast } from '../motion';
+import {
+  AnimatedIcon,
+  FadeIn,
+  MotiCard,
+  PressableScale,
+  PulseButton,
+  Stagger,
+  StepIndicator,
+  Toast,
+} from '../motion';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
 
@@ -65,14 +74,20 @@ export function AddAddressScreen({ navigation }: NativeStackScreenProps<RootStac
   };
 
   const valid = line1.trim().length > 0 && city.trim().length > 0;
+  const currentStep = pin ? (valid ? 2 : 1) : 0;
 
   return (
     <Screen title="Add address" onBack={() => navigation.goBack()}>
       <Toast visible={!!error} message={error ?? ''} tone="danger" onHide={() => setError(null)} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-        {/* Map section */}
+        <FadeIn translateY={6}>
+          <View style={{ marginBottom: 16 }}>
+            <StepIndicator steps={['Pin', 'Details', 'Save']} current={currentStep} />
+          </View>
+        </FadeIn>
+
         <FadeIn translateY={10}>
-          <Card style={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>
+          <MotiCard from="scale" style={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>
             <View style={{ height: 220 }}>
               <AppMap
                 region={region}
@@ -121,14 +136,13 @@ export function AddAddressScreen({ navigation }: NativeStackScreenProps<RootStac
                 ) : null}
               </View>
             </View>
-          </Card>
+          </MotiCard>
         </FadeIn>
 
-        {/* Address form */}
         <Stagger step={50}>
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <View style={{ width: 4, height: 20, borderRadius: 2, backgroundColor: theme.colors.primary }} />
+              <AnimatedIcon icon="🏠" size={32} delay={200} bounce={false} />
               <Text style={{ color: theme.colors.text, fontSize: 17, fontWeight: '800' }}>Address details</Text>
             </View>
           </View>
@@ -151,7 +165,7 @@ export function AddAddressScreen({ navigation }: NativeStackScreenProps<RootStac
           </View>
 
           <View>
-            <PrimaryButton label="Save address" onPress={save} busy={busy} disabled={!valid} />
+            <PulseButton label="Save address" onPress={save} busy={busy} disabled={!valid} />
           </View>
         </Stagger>
       </ScrollView>

@@ -3,16 +3,16 @@ import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthProvider';
-import { Card } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 import {
   EmptyState,
   ErrorState,
   FadeIn,
   GradientHeader,
+  MotiCard,
   PressableScale,
   PulsingDot,
-  Skeleton,
+  Shimmer,
   Stagger,
   StatusBadge,
 } from '../motion';
@@ -77,7 +77,7 @@ export function BranchesScreen({ navigation }: NativeStackScreenProps<RootStackP
       {loading ? (
         <View style={{ padding: 20, gap: 14 }}>
           {[0, 1, 2].map((i) => (
-            <Skeleton key={i} height={120} radius={theme.radius.lg} />
+            <Shimmer key={i} height={120} radius={theme.radius.lg} />
           ))}
         </View>
       ) : error ? (
@@ -87,13 +87,13 @@ export function BranchesScreen({ navigation }: NativeStackScreenProps<RootStackP
       ) : (
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32, gap: 14 }}>
           <Stagger>
-            {data.map((branch) => (
+            {data.map((branch, index) => (
               <PressableScale
                 key={branch.id}
                 accessibilityRole="button"
                 onPress={() => navigation.navigate('Menu', { branchId: branch.id, branchName: branch.name })}
               >
-                <Card>
+                <MotiCard delay={index * 80} from="bottom">
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                     <View style={{ flex: 1, paddingRight: 12 }}>
                       <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800', letterSpacing: -0.3 }}>
@@ -153,11 +153,10 @@ export function BranchesScreen({ navigation }: NativeStackScreenProps<RootStackP
                     </FadeIn>
                   ) : null}
 
-                  {/* Decorative arrow */}
                   <View style={{ position: 'absolute', right: 16, bottom: 16 }}>
                     <Text style={{ color: theme.colors.border, fontSize: 18 }}>›</Text>
                   </View>
-                </Card>
+                </MotiCard>
               </PressableScale>
             ))}
           </Stagger>

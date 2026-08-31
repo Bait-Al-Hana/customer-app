@@ -1,11 +1,21 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Text, View } from 'react-native';
 
 import { ApiError } from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
-import { PrimaryButton, TextField } from '../components/ui';
-import { Stagger, Toast } from '../motion';
+import { TextField } from '../components/ui';
+import {
+  AnimatedGradient,
+  AnimatedIcon,
+  MotiCard,
+  PulseButton,
+  ShakeView,
+  Stagger,
+  Toast,
+  TypeWriter,
+} from '../motion';
+import type { ShakeViewRef } from '../motion';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
 
@@ -19,6 +29,7 @@ export function PhoneScreen({ navigation }: NativeStackScreenProps<RootStackPara
   const [phone, setPhone] = useState('+9665');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const shakeRef = useRef<ShakeViewRef>(null);
 
   const valid = /^\+9665\d{8}$/.test(phone);
 
@@ -30,6 +41,7 @@ export function PhoneScreen({ navigation }: NativeStackScreenProps<RootStackPara
       navigation.navigate('Otp', { phone });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not send the code. Try again.');
+      shakeRef.current?.shake();
     } finally {
       setBusy(false);
     }
@@ -39,13 +51,8 @@ export function PhoneScreen({ navigation }: NativeStackScreenProps<RootStackPara
   const logoHeight = logoWidth / LOGO_ASPECT;
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <AnimatedGradient style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <Toast visible={!!error} message={error ?? ''} tone="danger" onHide={() => setError(null)} />
-
-      {/* Decorative background orbs */}
-      <View style={{ position: 'absolute', top: -80, right: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: theme.colors.primary, opacity: 0.05 }} />
-      <View style={{ position: 'absolute', top: 100, left: -50, width: 150, height: 150, borderRadius: 75, backgroundColor: theme.colors.secondary, opacity: 0.04 }} />
-      <View style={{ position: 'absolute', bottom: 60, right: -30, width: 120, height: 120, borderRadius: 60, backgroundColor: theme.colors.accent, opacity: 0.04 }} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -62,31 +69,41 @@ export function PhoneScreen({ navigation }: NativeStackScreenProps<RootStackPara
               accessibilityLabel="Bait Al Hana"
             />
             <View style={{ width: 48, height: 3, borderRadius: 2, backgroundColor: theme.colors.primary, marginBottom: 24 }} />
-            <Text style={{ color: theme.colors.text, fontSize: 26, fontWeight: '900', textAlign: 'center', letterSpacing: -0.5 }}>
-              Welcome back
-            </Text>
+            <TypeWriter
+              text="Welcome back"
+              speed={35}
+              style={{ color: theme.colors.text, fontSize: 26, fontWeight: '900', textAlign: 'center', letterSpacing: -0.5 }}
+            />
             <Text style={{ color: theme.colors.textMuted, fontSize: 15, textAlign: 'center', marginTop: 8, lineHeight: 22, maxWidth: 280 }}>
               Enter your mobile number and we&apos;ll text you a login code.
             </Text>
           </View>
 
-          <View>
-            <TextField
-              label="Mobile number"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              maxLength={13}
-              autoFocus
-              placeholder="+9665XXXXXXXX"
-            />
-          </View>
+          <ShakeView ref={shakeRef}>
+            <MotiCard from="bottom" delay={100}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <AnimatedIcon icon="📱" size={40} delay={200} />
+                <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>
+                  Your mobile number
+                </Text>
+              </View>
+              <TextField
+                label="Mobile number"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                maxLength={13}
+                autoFocus
+                placeholder="+9665XXXXXXXX"
+              />
+            </MotiCard>
+          </ShakeView>
 
-          <View>
-            <PrimaryButton label="Send code" onPress={submit} busy={busy} disabled={!valid} />
+          <View style={{ marginTop: 16 }}>
+            <PulseButton label="Send code" onPress={submit} busy={busy} disabled={!valid} />
           </View>
         </Stagger>
       </KeyboardAvoidingView>
-    </View>
+    </AnimatedGradient>
   );
 }

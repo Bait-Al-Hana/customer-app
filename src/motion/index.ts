@@ -37,3 +37,22 @@ export { StatusBadge } from './components/StatusBadge';
 export { FloatingBar } from './components/FloatingBar';
 export { GradientHeader } from './components/GradientHeader';
 export { SectionTitle } from './components/SectionTitle';
+
+// Moti-powered motion components
+export { AnimatePresenceWrapper } from './components/AnimatePresenceWrapper';
+export { MotiCard } from './components/MotiCard';
+export { Shimmer } from './components/Shimmer';
+export { ProgressRing } from './components/ProgressRing';
+export { Confetti } from './components/Confetti';
+export { Ripple } from './components/Ripple';
+export { ScrollFadeHeader } from './components/ScrollFadeHeader';
+export { SwipeAction } from './components/SwipeAction';
+export { CountUp } from './components/CountUp';
+export { GlassCard } from './components/GlassCard';
+export { AnimatedGradient } from './components/AnimatedGradient';
+export { PulseButton } from './components/PulseButton';
+export { AnimatedIcon } from './components/AnimatedIcon';
+export { StepIndicator } from './components/StepIndicator';
+export { ShakeView } from './components/ShakeView';
+export type { ShakeViewRef } from './components/ShakeView';
+export { TypeWriter } from './components/TypeWriter';
