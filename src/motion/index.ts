@@ -25,3 +25,15 @@ export { CartBadge } from './components/CartBadge';
 export { QuantityStepper } from './components/QuantityStepper';
 export { Toast } from './components/Toast';
 export { EmptyState, ErrorState } from './components/StateView';
+
+// New motion components
+export { AnimatedNumber } from './components/AnimatedNumber';
+export { PulsingDot } from './components/PulsingDot';
+export { SlideIn } from './components/SlideIn';
+export { AnimatedTabBar } from './components/AnimatedTabBar';
+export type { TabOption } from './components/AnimatedTabBar';
+export { SuccessAnimation } from './components/SuccessAnimation';
+export { StatusBadge } from './components/StatusBadge';
+export { FloatingBar } from './components/FloatingBar';
+export { GradientHeader } from './components/GradientHeader';
+export { SectionTitle } from './components/SectionTitle';

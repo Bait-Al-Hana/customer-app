@@ -8,22 +8,32 @@ import { Address } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
 import { toOrderItems } from '../cart/cart';
-import { Card, PrimaryButton, Screen } from '../components/ui';
+import { Card, Divider, InfoRow, PrimaryButton, Screen } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
-import { BottomSheet, ErrorState, PressableScale, Skeleton, Toast } from '../motion';
+import {
+  AnimatedTabBar,
+  BottomSheet,
+  ErrorState,
+  FadeIn,
+  PressableScale,
+  Skeleton,
+  SlideIn,
+  Stagger,
+  Toast,
+} from '../motion';
 import { ORDER_TYPE, OrderType, PAYMENT_METHOD, PaymentMethod } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
 import { formatSar } from '../util/money';
 import { useTheme } from '../theme/theme';
 
 const METHOD_LABELS: Record<string, string> = {
-  [PAYMENT_METHOD.CARD]: 'Card',
-  [PAYMENT_METHOD.MADA]: 'mada',
-  [PAYMENT_METHOD.APPLE_PAY]: 'Apple Pay',
-  [PAYMENT_METHOD.CASH_ON_DELIVERY]: 'Cash on delivery',
+  [PAYMENT_METHOD.CARD]: '💳  Card',
+  [PAYMENT_METHOD.MADA]: '🏦  mada',
+  [PAYMENT_METHOD.APPLE_PAY]: '  Apple Pay',
+  [PAYMENT_METHOD.CASH_ON_DELIVERY]: '💵  Cash on delivery',
 };
 
-/** Choose pickup or delivery, review the server quote, pick payment, place order. */
+
 export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'Checkout'>): React.JSX.Element {
   const theme = useTheme();
   const { api } = useAuth();
@@ -43,12 +53,10 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
     [branchId, JSON.stringify(items), type],
   );
 
-  // Addresses, reloaded whenever the screen regains focus (e.g. after adding one).
   const addresses = useAsync<Address[]>(() => api.listAddresses(), []);
   const reloadAddresses = addresses.reload;
   useFocusEffect(useCallback(() => reloadAddresses(), [reloadAddresses]));
 
-  // Auto-select the default (or first) address once loaded.
   useEffect(() => {
     if (type === ORDER_TYPE.DELIVERY && !addressId && addresses.data && addresses.data.length > 0) {
       setAddressId((addresses.data.find((a) => a.isDefault) ?? addresses.data[0])?.id ?? null);
@@ -59,9 +67,7 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   const needsAddress = isDelivery && !addressId;
 
   const placeOrder = async (): Promise<void> => {
-    if (!branchId || needsAddress) {
-      return;
-    }
+    if (!branchId || needsAddress) return;
     setBusy(true);
     setPlaceError(null);
     try {
@@ -84,151 +90,246 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
     }
   };
 
-  const row = (label: string, value: string, bold?: boolean) => (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-      <Text style={{ color: bold ? theme.colors.text : theme.colors.textMuted, fontWeight: bold ? '800' : '400' }}>{label}</Text>
-      <Text style={{ color: theme.colors.text, fontWeight: bold ? '800' : '600' }}>{value}</Text>
-    </View>
-  );
-
-  const typeTab = (t: OrderType, label: string) => {
-    const active = type === t;
-    return (
-      <PressableScale
-        accessibilityRole="button"
-        accessibilityState={{ selected: active }}
-        onPress={() => setType(t)}
-        style={{
-          flex: 1,
-          paddingVertical: 12,
-          borderRadius: theme.radius.md,
-          alignItems: 'center',
-          backgroundColor: active ? theme.colors.primary : theme.colors.surfaceAlt,
-        }}
-      >
-        <Text style={{ color: active ? theme.colors.onPrimary : theme.colors.text, fontWeight: '700' }}>{label}</Text>
-      </PressableScale>
-    );
-  };
+  const tabOptions = [
+    { value: ORDER_TYPE.PICKUP as OrderType, label: '🏪  Pickup' },
+    { value: ORDER_TYPE.DELIVERY as OrderType, label: '🚗  Delivery' },
+  ];
 
   return (
     <Screen title="Checkout" onBack={() => navigation.goBack()}>
       <Toast visible={!!placeError} message={placeError ?? ''} tone="danger" onHide={() => setPlaceError(null)} />
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {typeTab(ORDER_TYPE.PICKUP, 'Pickup')}
-          {typeTab(ORDER_TYPE.DELIVERY, 'Delivery')}
-        </View>
 
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 140, gap: 14 }}>
+        {/* Pickup / Delivery toggle */}
+        <FadeIn translateY={8}>
+          <AnimatedTabBar
+            options={tabOptions}
+            value={type}
+            onChange={setType}
+          />
+        </FadeIn>
+
+        {/* Delivery address */}
         {isDelivery ? (
-          <Card>
-            <Text style={{ color: theme.colors.textMuted, fontSize: 13, fontWeight: '600', marginBottom: 8 }}>
-              Deliver to
-            </Text>
-            {addresses.loading ? (
-              <Skeleton height={40} />
-            ) : addresses.data && addresses.data.length > 0 ? (
-              addresses.data.map((a) => {
-                const active = a.id === addressId;
-                return (
-                  <PressableScale
-                    key={a.id}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
-                    onPress={() => setAddressId(a.id)}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 }}
-                  >
-                    <View
-                      style={{
-                        width: 20,
-                        height: 20,
-                        borderRadius: 10,
-                        borderWidth: 2,
-                        borderColor: active ? theme.colors.primary : theme.colors.border,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {active ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.primary }} /> : null}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{a.label ?? 'Address'}</Text>
-                      <Text style={{ color: theme.colors.textMuted }} numberOfLines={1}>
-                        {[a.line1, a.city].filter(Boolean).join(', ')}
-                      </Text>
-                    </View>
-                  </PressableScale>
-                );
-              })
-            ) : (
-              <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>No saved address yet.</Text>
-            )}
-            <PressableScale accessibilityRole="button" onPress={() => navigation.navigate('AddAddress')} style={{ marginTop: 6 }}>
-              <Text style={{ color: theme.colors.accent, fontWeight: '700' }}>+ Add a new address</Text>
-            </PressableScale>
-          </Card>
+          <FadeIn translateY={8} delay={60}>
+            <Card>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={{ fontSize: 16 }}>📍</Text>
+                <Text style={{ color: theme.colors.text, fontSize: 15, fontWeight: '700', marginLeft: 8 }}>
+                  Deliver to
+                </Text>
+              </View>
+              {addresses.loading ? (
+                <View style={{ gap: 8 }}>
+                  <Skeleton height={48} radius={theme.radius.md} />
+                  <Skeleton height={48} radius={theme.radius.md} />
+                </View>
+              ) : addresses.data && addresses.data.length > 0 ? (
+                <View style={{ gap: 6 }}>
+                  {addresses.data.map((a) => {
+                    const active = a.id === addressId;
+                    return (
+                      <PressableScale
+                        key={a.id}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                        onPress={() => setAddressId(a.id)}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          paddingVertical: 12,
+                          paddingHorizontal: 12,
+                          gap: 12,
+                          borderRadius: theme.radius.md,
+                          backgroundColor: active ? theme.colors.primary + '0D' : 'transparent',
+                          borderWidth: 1.5,
+                          borderColor: active ? theme.colors.primary : theme.colors.border,
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: 11,
+                            borderWidth: 2,
+                            borderColor: active ? theme.colors.primary : theme.colors.border,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {active ? (
+                            <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: theme.colors.primary }} />
+                          ) : null}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{a.label ?? 'Address'}</Text>
+                          <Text style={{ color: theme.colors.textMuted, fontSize: 13 }} numberOfLines={1}>
+                            {[a.line1, a.city].filter(Boolean).join(', ')}
+                          </Text>
+                        </View>
+                      </PressableScale>
+                    );
+                  })}
+                </View>
+              ) : (
+                <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>No saved address yet.</Text>
+              )}
+              <PressableScale
+                accessibilityRole="button"
+                onPress={() => navigation.navigate('AddAddress')}
+                style={{
+                  marginTop: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingVertical: 10,
+                  paddingHorizontal: 12,
+                  borderRadius: theme.radius.md,
+                  borderWidth: 1.5,
+                  borderColor: theme.colors.accent + '40',
+                  borderStyle: 'dashed',
+                }}
+              >
+                <Text style={{ color: theme.colors.accent, fontWeight: '700' }}>+ Add a new address</Text>
+              </PressableScale>
+            </Card>
+          </FadeIn>
         ) : null}
 
-        <Card>
-          <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 16, marginBottom: 12 }}>Order total</Text>
-          {loading ? (
-            <View style={{ gap: 8 }}>
-              <Skeleton height={16} />
-              <Skeleton width="70%" height={16} />
-              <Skeleton width="50%" height={20} />
+        {/* Order total */}
+        <FadeIn translateY={8} delay={120}>
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+              <Text style={{ fontSize: 16 }}>🧾</Text>
+              <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 16, marginLeft: 8 }}>Order total</Text>
             </View>
-          ) : error ? (
-            <ErrorState title="Couldn’t price your order" message={error.message} actionLabel="Retry" onAction={reload} />
-          ) : quote ? (
-            <>
-              {row('Subtotal', formatSar(quote.subtotalMinor))}
-              {quote.discountMinor > 0 ? row('Discount', `- ${formatSar(quote.discountMinor)}`) : null}
-              {quote.deliveryFeeMinor > 0 ? row('Delivery', formatSar(quote.deliveryFeeMinor)) : null}
-              {row('VAT (incl.)', formatSar(quote.vatMinor))}
-              <View style={{ height: 1, backgroundColor: theme.colors.border, marginVertical: 6 }} />
-              {row('Total', formatSar(quote.totalMinor), true)}
-            </>
-          ) : null}
-        </Card>
+            {loading ? (
+              <View style={{ gap: 10 }}>
+                <Skeleton height={16} />
+                <Skeleton width="70%" height={16} />
+                <Skeleton width="50%" height={20} />
+              </View>
+            ) : error ? (
+              <ErrorState title="Couldn't price your order" message={error.message} actionLabel="Retry" onAction={reload} />
+            ) : quote ? (
+              <View>
+                <InfoRow label="Subtotal" value={formatSar(quote.subtotalMinor)} />
+                {quote.discountMinor > 0 ? <InfoRow label="Discount" value={`- ${formatSar(quote.discountMinor)}`} /> : null}
+                {quote.deliveryFeeMinor > 0 ? <InfoRow label="Delivery" value={formatSar(quote.deliveryFeeMinor)} /> : null}
+                <InfoRow label="VAT (incl.)" value={formatSar(quote.vatMinor)} />
+                <Divider spacing={8} />
+                <InfoRow label="Total" value={formatSar(quote.totalMinor)} bold />
+              </View>
+            ) : null}
+          </Card>
+        </FadeIn>
 
-        <Card>
-          <Text style={{ color: theme.colors.textMuted, fontSize: 13, fontWeight: '600', marginBottom: 8 }}>Payment method</Text>
-          <PressableScale accessibilityRole="button" onPress={() => setSheetOpen(true)} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>{METHOD_LABELS[method]}</Text>
-            <Text style={{ color: theme.colors.accent, fontWeight: '600' }}>Change</Text>
-          </PressableScale>
-        </Card>
+        {/* Payment method */}
+        <FadeIn translateY={8} delay={180}>
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 16 }}>💳</Text>
+              <Text style={{ color: theme.colors.text, fontSize: 15, fontWeight: '700', marginLeft: 8 }}>Payment method</Text>
+            </View>
+            <PressableScale
+              accessibilityRole="button"
+              onPress={() => setSheetOpen(true)}
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingVertical: 12,
+                paddingHorizontal: 14,
+                borderRadius: theme.radius.md,
+                backgroundColor: theme.colors.surfaceAlt,
+              }}
+            >
+              <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>{METHOD_LABELS[method]}</Text>
+              <Text style={{ color: theme.colors.accent, fontWeight: '700', fontSize: 13 }}>Change</Text>
+            </PressableScale>
+          </Card>
+        </FadeIn>
 
-        <Text style={{ color: theme.colors.textMuted, fontSize: 12, textAlign: 'center', paddingHorizontal: 12 }}>
-          Payment is confirmed by our server — never by this screen alone.
-        </Text>
+        <FadeIn translateY={6} delay={240}>
+          <Text style={{ color: theme.colors.textMuted, fontSize: 12, textAlign: 'center', paddingHorizontal: 12, lineHeight: 18 }}>
+            Payment is confirmed by our server — never by this screen alone.
+          </Text>
+        </FadeIn>
       </ScrollView>
 
-      <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
-        <PrimaryButton
-          label={needsAddress ? 'Add a delivery address' : quote ? `Place order · ${formatSar(quote.totalMinor)}` : 'Place order'}
-          onPress={needsAddress ? () => navigation.navigate('AddAddress') : placeOrder}
-          busy={busy}
-          disabled={!quote || !!error}
-        />
-      </View>
+      {/* Bottom CTA */}
+      <SlideIn direction="up" distance={20}>
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: theme.colors.surface,
+            borderTopWidth: 1,
+            borderTopColor: theme.colors.border,
+            paddingHorizontal: 20,
+            paddingVertical: 16,
+            paddingBottom: 28,
+            shadowColor: '#000',
+            shadowOpacity: 0.06,
+            shadowRadius: 12,
+            shadowOffset: { width: 0, height: -4 },
+            elevation: 8,
+          }}
+        >
+          <PrimaryButton
+            label={needsAddress ? 'Add a delivery address' : quote ? `Place order · ${formatSar(quote.totalMinor)}` : 'Place order'}
+            onPress={needsAddress ? () => navigation.navigate('AddAddress') : placeOrder}
+            busy={busy}
+            disabled={!quote || !!error}
+          />
+        </View>
+      </SlideIn>
 
+      {/* Payment method bottom sheet */}
       <BottomSheet visible={sheetOpen} onClose={() => setSheetOpen(false)}>
-        <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '700', marginBottom: 8 }}>Payment method</Text>
-        {[PAYMENT_METHOD.CARD, PAYMENT_METHOD.MADA, PAYMENT_METHOD.APPLE_PAY, PAYMENT_METHOD.CASH_ON_DELIVERY].map((m) => (
-          <PressableScale
-            key={m}
-            accessibilityRole="button"
-            onPress={() => {
-              setMethod(m);
-              setSheetOpen(false);
-            }}
-            style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: theme.colors.border, flexDirection: 'row', justifyContent: 'space-between' }}
-          >
-            <Text style={{ color: theme.colors.text, fontSize: 16 }}>{METHOD_LABELS[m]}</Text>
-            {method === m ? <Text style={{ color: theme.colors.primary, fontWeight: '800' }}>✓</Text> : null}
-          </PressableScale>
-        ))}
+        <Text style={{ color: theme.colors.text, fontSize: 20, fontWeight: '800', marginBottom: 16 }}>Payment method</Text>
+        <Stagger step={40}>
+          {[PAYMENT_METHOD.CARD, PAYMENT_METHOD.MADA, PAYMENT_METHOD.APPLE_PAY, PAYMENT_METHOD.CASH_ON_DELIVERY].map((m) => {
+            const selected = method === m;
+            return (
+              <PressableScale
+                key={m}
+                accessibilityRole="button"
+                onPress={() => { setMethod(m); setSheetOpen(false); }}
+                style={{
+                  paddingVertical: 16,
+                  paddingHorizontal: 14,
+                  borderRadius: theme.radius.md,
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  backgroundColor: selected ? theme.colors.primary + '0D' : 'transparent',
+                  marginBottom: 4,
+                }}
+              >
+                <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '600' }}>
+                  {METHOD_LABELS[m]}
+                </Text>
+                {selected ? (
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      backgroundColor: theme.colors.primary,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text style={{ color: theme.colors.onPrimary, fontWeight: '800', fontSize: 14 }}>✓</Text>
+                  </View>
+                ) : null}
+              </PressableScale>
+            );
+          })}
+        </Stagger>
       </BottomSheet>
     </Screen>
   );

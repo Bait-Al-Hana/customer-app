@@ -6,17 +6,13 @@ import { useAuth } from '../auth/AuthProvider';
 import { PrimaryButton, Screen } from '../components/ui';
 import { PaymentStateView } from '../features/payment/PaymentStateView';
 import { paymentVisualForServerStatus } from '../features/payment/payment-state.model';
+import { FadeIn, Stagger, SuccessAnimation } from '../motion';
 import { PAYMENT_METHOD, PAYMENT_STATUS, PaymentStatus } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
 
 const POLL_MS = 2500;
 
-/**
- * Initiates the online charge, then polls the backend for the true payment
- * status. The success view appears only when the SERVER reports PAID — this
- * screen never treats initiating (or any client signal) as proof of payment.
- */
 export function PaymentProcessingScreen({
   route,
   navigation,
@@ -34,16 +30,14 @@ export function PaymentProcessingScreen({
     const poll = async (): Promise<void> => {
       try {
         const payment = await api.paymentFor(orderId);
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
         setStatus(payment.status);
         const settled = paymentVisualForServerStatus(payment.status).settled;
         if (settled) {
           if (payment.status === PAYMENT_STATUS.PAID) {
-            timer = setTimeout(() => mounted && navigation.replace('OrderTracking', { orderId }), 1200);
+            timer = setTimeout(() => mounted && navigation.replace('OrderTracking', { orderId }), 1800);
           }
-          return; // stop polling once settled
+          return;
         }
       } catch {
         // Transient error — keep polling.
@@ -68,28 +62,70 @@ export function PaymentProcessingScreen({
     start();
     return () => {
       mounted = false;
-      if (timer) {
-        clearTimeout(timer);
-      }
+      if (timer) clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
   const visual = paymentVisualForServerStatus(status).visual;
+  const isPaid = visual === 'success';
+  const isFailed = visual === 'failed' || visual === 'cancelled';
 
   return (
     <Screen title="Payment">
-      <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
-        <PaymentStateView status={status} />
-        <Text style={{ color: theme.colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 8 }}>
-          Your bank confirms this with us directly. You can safely track your order while it finishes.
-        </Text>
-        <View style={{ marginTop: 24, gap: 10 }}>
-          <PrimaryButton label="Track my order" onPress={() => navigation.replace('OrderTracking', { orderId })} />
-          {visual === 'failed' || visual === 'cancelled' ? (
-            <PrimaryButton label="Back to orders" onPress={() => navigation.replace('Orders')} />
-          ) : null}
-        </View>
+      {/* Decorative background */}
+      <View style={{ position: 'absolute', top: '20%', left: -60, width: 200, height: 200, borderRadius: 100, backgroundColor: theme.colors.primary, opacity: 0.04 }} />
+      <View style={{ position: 'absolute', bottom: '15%', right: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: theme.colors.accent, opacity: 0.04 }} />
+
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 28 }}>
+        <Stagger>
+          <View style={{ alignItems: 'center' }}>
+            {isPaid ? (
+              <FadeIn translateY={10}>
+                <SuccessAnimation size={120} />
+              </FadeIn>
+            ) : (
+              <PaymentStateView status={status} />
+            )}
+          </View>
+
+          <View style={{ alignItems: 'center', marginTop: 24 }}>
+            <Text
+              style={{
+                color: isPaid ? theme.colors.success : isFailed ? theme.colors.danger : theme.colors.text,
+                fontSize: 22,
+                fontWeight: '800',
+                textAlign: 'center',
+                letterSpacing: -0.3,
+              }}
+            >
+              {isPaid ? 'Payment successful!' : isFailed ? 'Payment failed' : 'Processing payment...'}
+            </Text>
+            <Text
+              style={{
+                color: theme.colors.textMuted,
+                fontSize: 14,
+                textAlign: 'center',
+                marginTop: 8,
+                lineHeight: 20,
+                maxWidth: 280,
+              }}
+            >
+              {isPaid
+                ? 'Your order is confirmed. Taking you to order tracking...'
+                : isFailed
+                  ? 'Something went wrong with the payment. Please try again.'
+                  : 'Your bank confirms this with us directly. You can safely track your order while it finishes.'}
+            </Text>
+          </View>
+
+          <View style={{ width: '100%', marginTop: 32, gap: 12 }}>
+            <PrimaryButton label="Track my order" onPress={() => navigation.replace('OrderTracking', { orderId })} />
+            {isFailed ? (
+              <PrimaryButton label="Back to orders" onPress={() => navigation.replace('Orders')} variant="outline" />
+            ) : null}
+          </View>
+        </Stagger>
       </View>
     </Screen>
   );
