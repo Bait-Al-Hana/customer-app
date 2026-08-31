@@ -8,6 +8,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
 import { AppText, Card, CategoryCard, FoodCard, PromoBanner, Screen, SearchBar, SectionHeader } from '../components';
 import { BellIcon, ChevronRight, PinIcon } from '../components/icons';
+import { BannerCarousel } from '../components/BannerCarousel';
 import { PROMO_BANNERS, OFFERS } from '../data/content';
 import { glyphFor } from '../components/FoodImage';
 import { GradientSurface } from '../components/GradientSurface';
@@ -27,6 +28,7 @@ export function HomeScreen(): React.JSX.Element {
   const tabNav = useNavigation<BottomTabScreenProps<MainTabParamList>['navigation']>();
   const { cart, dispatch } = useCart();
 
+  const configReq = useAsync(() => api.customerConfig(), []);
   const branchesReq = useAsync<Branch[]>(() => api.listBranches(), []);
   const addressesReq = useAsync<Address[]>(() => api.listAddresses().catch(() => []), []);
   const [branchId, setBranchId] = useState<string | null>(null);
@@ -110,18 +112,22 @@ export function HomeScreen(): React.JSX.Element {
               <SearchBar onPress={() => tabNav.navigate('Search')} />
             </View>
 
-            {/* Promo carousel */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingTop: 16 }}
-              snapToInterval={0}
-              decelerationRate="fast"
-            >
-              {PROMO_BANNERS.map((p) => (
-                <PromoBanner key={p.id} data={p} onPress={() => tabNav.navigate('Offers')} style={{ width: 300 }} />
-              ))}
-            </ScrollView>
+            {/* Live banners from backend (auto-rotate 8s) */}
+            {configReq.data && configReq.data.banners.length > 0 ? (
+              <BannerCarousel banners={configReq.data.banners} />
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingTop: 16 }}
+                snapToInterval={0}
+                decelerationRate="fast"
+              >
+                {PROMO_BANNERS.map((p) => (
+                  <PromoBanner key={p.id} data={p} onPress={() => tabNav.navigate('Offers')} style={{ width: 300 }} />
+                ))}
+              </ScrollView>
+            )}
 
             {/* Branch selector */}
             <View style={{ paddingTop: 20 }}>

@@ -162,6 +162,28 @@ export interface Address {
   isDefault: boolean;
 }
 
+export interface Banner {
+  id: string;
+  imageUrl: string;
+  imageUrlAr?: string;
+  title: string;
+  titleAr?: string;
+  description?: string;
+  descriptionAr?: string;
+  buttonText?: string;
+  buttonTextAr?: string;
+  action: string;
+  targetId?: string;
+  targetUrl?: string;
+  branchIds: string[];
+  priority: number;
+}
+
+export interface CustomerConfig {
+  version: string;
+  banners: Banner[];
+}
+
 export interface DeliveryTracking {
   id: string;
   orderId: string;
