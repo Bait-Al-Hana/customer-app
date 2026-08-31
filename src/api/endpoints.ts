@@ -4,6 +4,7 @@ import {
   Address,
   AuthTokens,
   Branch,
+  CustomerConfig,
   CustomerProfile,
   DeliveryTracking,
   LoyaltyLedger,
@@ -54,6 +55,11 @@ export class Api {
 
   refresh(refreshToken: string): Promise<AuthTokens> {
     return this.http.request('/auth/refresh', { method: 'POST', body: { refreshToken }, public: true });
+  }
+
+  // --- Customer config (public) ----------------------------------------------
+  customerConfig(): Promise<CustomerConfig> {
+    return this.http.request('/customer/config', { public: true });
   }
 
   // --- Catalog (public) -----------------------------------------------------
