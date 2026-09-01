@@ -101,12 +101,14 @@ export function FoodListItem({
   onAdd,
   favorite,
   onToggleFavorite,
+  unavailable,
 }: {
   data: FoodCardData;
   onPress: () => void;
-  onAdd: () => void;
+  onAdd?: (() => void) | undefined;
   favorite?: boolean;
   onToggleFavorite?: () => void;
+  unavailable?: boolean;
 }): React.JSX.Element {
   const theme = useTheme();
   return (
@@ -116,9 +118,12 @@ export function FoodListItem({
           <FoodImage uri={data.imageUrl} glyph={glyphFor(data.name)} height={92} style={{ width: 92 }} radius={theme.radius.md} />
           <View style={{ flex: 1, justifyContent: 'space-between' }}>
             <View>
-              <AppText variant="h3" numberOfLines={1} style={{ fontSize: 15 }}>
-                {data.name}
-              </AppText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <AppText variant="h3" numberOfLines={1} style={{ fontSize: 15, flex: 1 }}>
+                  {data.name}
+                </AppText>
+                {unavailable ? <Badge label="Unavailable" tone="neutral" /> : null}
+              </View>
               {data.description ? (
                 <AppText variant="bodySmall" color="textMuted" numberOfLines={2} style={{ marginTop: 2 }}>
                   {data.description}
@@ -134,7 +139,7 @@ export function FoodListItem({
               <AppText variant="price" color="primary">
                 {formatSar(data.priceMinor)}
               </AppText>
-              <AddButton onPress={onAdd} size={36} accessibilityLabel={`Add ${data.name}`} />
+              {onAdd ? <AddButton onPress={onAdd} size={36} accessibilityLabel={`Add ${data.name}`} /> : null}
             </View>
           </View>
           {onToggleFavorite ? (
