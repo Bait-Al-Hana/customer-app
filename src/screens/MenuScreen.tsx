@@ -9,7 +9,7 @@ import { toFoodCard } from '../data/menu';
 import { useFavorites } from '../favorites/FavoritesProvider';
 import { FloatingCart } from '../components/FloatingCart';
 import { useAsync } from '../hooks/useAsync';
-import { EmptyState, ErrorState, Skeleton, Stagger } from '../motion';
+import { EmptyState, ErrorState, Shimmer, Stagger } from '../motion';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
 import type { MenuProduct } from '../api/types';
@@ -48,12 +48,13 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
     <Screen title={branchName} onBack={() => navigation.goBack()}>
       {loading ? (
         <View style={{ padding: 16, gap: 12 }}>
+          <Shimmer height={24} width="40%" radius={theme.radius.sm} />
           {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} height={116} radius={theme.radius.lg} />
+            <Shimmer key={i} height={116} radius={theme.radius.lg} />
           ))}
         </View>
       ) : error ? (
-        <ErrorState title="Couldn’t load the menu" message={error.message} actionLabel="Retry" onAction={reload} />
+        <ErrorState title="Couldn't load the menu" message={error.message} actionLabel="Retry" onAction={reload} />
       ) : !data || categories.length === 0 ? (
         <EmptyState title="Menu is empty" message="This branch has nothing available right now." />
       ) : (

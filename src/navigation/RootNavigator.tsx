@@ -37,7 +37,7 @@ function navTheme(background: string, card: string, text: string, primary: strin
  *
  * Two graphs, switched by auth state: the OTP flow when signed out, and the
  * signed-in root — a bottom-tab home (`Tabs`) plus the task flows that push
- * above the tabs (menu → product → cart → checkout → payment → success →
+ * above the tabs (menu -> product -> cart -> checkout -> payment -> success ->
  * tracking). Screen transitions collapse to none under reduced motion.
  */
 export function RootNavigator(): React.JSX.Element {
@@ -45,8 +45,9 @@ export function RootNavigator(): React.JSX.Element {
   const reduceMotion = useReducedMotion();
   const { isAuthenticated } = useAuth();
 
-  const animation = reduceMotion ? 'none' : 'slide_from_right';
-  const modal = reduceMotion ? 'none' : 'slide_from_bottom';
+  const slide = reduceMotion ? 'none' : 'slide_from_right';
+  const slideUp = reduceMotion ? 'none' : 'slide_from_bottom';
+  const fade = reduceMotion ? 'none' : 'fade';
 
   return (
     <NavigationContainer
@@ -60,23 +61,23 @@ export function RootNavigator(): React.JSX.Element {
       )}
     >
       {!isAuthenticated ? (
-        <AuthStack.Navigator screenOptions={{ headerShown: false, animation, contentStyle: { backgroundColor: theme.colors.background } }}>
+        <AuthStack.Navigator screenOptions={{ headerShown: false, animation: slide, contentStyle: { backgroundColor: theme.colors.background } }}>
           <AuthStack.Screen name="Phone" component={PhoneScreen} />
           <AuthStack.Screen name="Otp" component={OtpScreen} />
         </AuthStack.Navigator>
       ) : (
-        <RootStack.Navigator screenOptions={{ headerShown: false, animation, contentStyle: { backgroundColor: theme.colors.background } }}>
+        <RootStack.Navigator screenOptions={{ headerShown: false, animation: slide, contentStyle: { backgroundColor: theme.colors.background } }}>
           <RootStack.Screen name="Tabs" component={MainTabs} />
           <RootStack.Screen name="Menu" component={MenuScreen} />
-          <RootStack.Screen name="Product" component={ProductScreen} options={{ animation: modal }} />
-          <RootStack.Screen name="Cart" component={CartScreen} options={{ animation: modal }} />
+          <RootStack.Screen name="Product" component={ProductScreen} options={{ animation: slideUp }} />
+          <RootStack.Screen name="Cart" component={CartScreen} options={{ animation: slideUp }} />
           <RootStack.Screen name="Checkout" component={CheckoutScreen} />
-          <RootStack.Screen name="AddAddress" component={AddAddressScreen} options={{ animation: modal }} />
+          <RootStack.Screen name="AddAddress" component={AddAddressScreen} options={{ animation: slideUp }} />
           <RootStack.Screen name="Addresses" component={AddressesScreen} />
           <RootStack.Screen name="Favorites" component={FavoritesScreen} />
           <RootStack.Screen name="Loyalty" component={LoyaltyScreen} />
-          <RootStack.Screen name="OrderSuccess" component={OrderSuccessScreen} options={{ animation: modal, gestureEnabled: false }} />
-          <RootStack.Screen name="PaymentProcessing" component={PaymentProcessingScreen} options={{ animation: reduceMotion ? 'none' : 'fade', gestureEnabled: false }} />
+          <RootStack.Screen name="OrderSuccess" component={OrderSuccessScreen} options={{ animation: slideUp, gestureEnabled: false }} />
+          <RootStack.Screen name="PaymentProcessing" component={PaymentProcessingScreen} options={{ animation: fade, gestureEnabled: false }} />
           <RootStack.Screen name="OrderTracking" component={OrderTrackingScreen} />
           <RootStack.Screen name="Notifications" component={NotificationsScreen} />
           <RootStack.Screen name="Profile" component={ProfileScreen} />

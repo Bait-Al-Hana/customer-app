@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { AppText, OrderCard, Screen } from '../components';
 import { STATUS_META } from '../features/order/order-status.model';
 import { useAsync } from '../hooks/useAsync';
-import { EmptyState, ErrorState, PressableScale, Skeleton } from '../motion';
+import { EmptyState, ErrorState, PressableScale, Shimmer, Stagger } from '../motion';
 import { ORDER_STATUS, OrderStatus } from '../types/backend';
 import type { Branch, Order } from '../api/types';
 import { RootStackParamList } from '../navigation/types';
@@ -78,11 +78,11 @@ export function OrdersScreen(): React.JSX.Element {
       {loading ? (
         <View style={{ padding: 16, gap: 12 }}>
           {[0, 1, 2].map((i) => (
-            <Skeleton key={i} height={128} radius={theme.radius.lg} />
+            <Shimmer key={i} height={128} radius={theme.radius.lg} />
           ))}
         </View>
       ) : error ? (
-        <ErrorState title="Couldn’t load your orders" message={error.message} actionLabel="Retry" onAction={reload} />
+        <ErrorState title="Couldn't load your orders" message={error.message} actionLabel="Retry" onAction={reload} />
       ) : list.length === 0 ? (
         <EmptyState
           glyph={tab === 'active' ? '🍽️' : '🧾'}
@@ -91,23 +91,25 @@ export function OrdersScreen(): React.JSX.Element {
         />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingTop: 8, gap: 12, paddingBottom: 120 }}>
-          {list.map((o) => {
-            const meta = STATUS_META[o.status];
-            return (
-              <OrderCard
-                key={o.id}
-                orderNumber={o.orderNumber}
-                dateLabel={dateLabel(o.placedAt)}
-                itemsLabel={`${o.items.length} item${o.items.length === 1 ? '' : 's'}`}
-                totalMinor={o.totalMinor}
-                statusLabel={meta.label}
-                statusTone={meta.tone}
-                onPress={() => nav.navigate('OrderTracking', { orderId: o.id })}
-                onReorder={tab === 'past' ? () => reorder(o) : undefined}
-                actionLabel={tab === 'active' ? 'Track' : 'View'}
-              />
-            );
-          })}
+          <Stagger>
+            {list.map((o) => {
+              const meta = STATUS_META[o.status];
+              return (
+                <OrderCard
+                  key={o.id}
+                  orderNumber={o.orderNumber}
+                  dateLabel={dateLabel(o.placedAt)}
+                  itemsLabel={`${o.items.length} item${o.items.length === 1 ? '' : 's'}`}
+                  totalMinor={o.totalMinor}
+                  statusLabel={meta.label}
+                  statusTone={meta.tone}
+                  onPress={() => nav.navigate('OrderTracking', { orderId: o.id })}
+                  onReorder={tab === 'past' ? () => reorder(o) : undefined}
+                  actionLabel={tab === 'active' ? 'Track' : 'View'}
+                />
+              );
+            })}
+          </Stagger>
         </ScrollView>
       )}
     </Screen>

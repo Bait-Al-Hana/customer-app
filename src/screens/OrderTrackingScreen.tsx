@@ -7,8 +7,9 @@ import { AppText, Button, Card, Divider, PriceRow, Screen } from '../components'
 import { OrderStatusTracker } from '../features/order/OrderStatusTracker';
 import { useAsync } from '../hooks/useAsync';
 import { AppMap, DEFAULT_REGION, MapMarker } from '../maps/AppMap';
-import { ErrorState, Skeleton } from '../motion';
+import { ErrorState, FadeIn, MotiCard, PulsingDot, Shimmer, StatusBadge } from '../motion';
 import { ORDER_STATUS, ORDER_TYPE, OrderStatus } from '../types/backend';
+import { STATUS_META } from '../features/order/order-status.model';
 import type { DeliveryTracking } from '../api/types';
 import { RootStackParamList } from '../navigation/types';
 import { formatSar } from '../util/money';
@@ -53,47 +54,87 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
   }, [order, tick, reload]);
 
   const goHome = (): void => navigation.reset({ index: 0, routes: [{ name: 'Tabs' }] });
+  const isActive = order && ACTIVE.includes(order.status);
+  const statusMeta = order ? STATUS_META[order.status] : null;
 
   return (
     <Screen title="Your order" onBack={() => (navigation.canGoBack() ? navigation.goBack() : goHome())}>
       {loading && !order ? (
         <View style={{ padding: 20, gap: 12 }}>
-          <Skeleton height={64} radius={theme.radius.lg} />
-          <Skeleton height={240} radius={theme.radius.lg} />
+          <Shimmer height={64} radius={theme.radius.lg} />
+          <Shimmer height={240} radius={theme.radius.lg} />
         </View>
       ) : error && !order ? (
-        <ErrorState title="Couldn’t load your order" message={error.message} actionLabel="Retry" onAction={reload} />
+        <ErrorState title="Couldn't load your order" message={error.message} actionLabel="Retry" onAction={reload} />
       ) : order ? (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 24 }}>
-          <AppText variant="bodySmall" color="textMuted">
-            Order {order.orderNumber}
-          </AppText>
+          <FadeIn translateY={8}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <AppText variant="bodySmall" color="textMuted">
+                Order {order.orderNumber}
+              </AppText>
+              {statusMeta ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  {isActive ? <PulsingDot color={theme.colors.primary} size={6} /> : null}
+                  <StatusBadge
+                    label={statusMeta.label}
+                    color={
+                      statusMeta.tone === 'success'
+                        ? theme.colors.success + '1A'
+                        : statusMeta.tone === 'danger'
+                          ? theme.colors.danger + '1A'
+                          : statusMeta.tone === 'warning'
+                            ? theme.colors.warning + '1A'
+                            : theme.colors.primary + '1A'
+                    }
+                    textColor={
+                      statusMeta.tone === 'success'
+                        ? theme.colors.success
+                        : statusMeta.tone === 'danger'
+                          ? theme.colors.danger
+                          : statusMeta.tone === 'warning'
+                            ? theme.colors.warning
+                            : theme.colors.primary
+                    }
+                  />
+                </View>
+              ) : null}
+            </View>
+          </FadeIn>
 
-          <OrderStatusTracker status={order.status} type={order.type} />
+          <FadeIn translateY={8} delay={60}>
+            <MotiCard from="bottom" delay={80}>
+              <OrderStatusTracker status={order.status} type={order.type} />
+            </MotiCard>
+          </FadeIn>
 
           {/* Live delivery: driver + ETA + map */}
           {order.type === ORDER_TYPE.DELIVERY && ON_THE_WAY.includes(order.status) ? (
-            <DeliveryPanel tracking={tracking.data} orderNumber={order.orderNumber} />
+            <FadeIn translateY={8} delay={120}>
+              <DeliveryPanel tracking={tracking.data} orderNumber={order.orderNumber} />
+            </FadeIn>
           ) : null}
 
           {/* Items */}
-          <Card elevated>
-            <AppText variant="h3" style={{ marginBottom: 10 }}>
-              Order details
-            </AppText>
-            {order.items.map((item) => (
-              <View key={item.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                <AppText variant="body" style={{ flex: 1 }} numberOfLines={1}>
-                  {item.quantity}× {item.productName}
-                </AppText>
-                <AppText variant="body" color="textMuted">
-                  {formatSar(item.lineTotalMinor)}
-                </AppText>
-              </View>
-            ))}
-            <Divider style={{ marginVertical: 8 }} />
-            <PriceRow label="Total" value={formatSar(order.totalMinor)} emphasis />
-          </Card>
+          <FadeIn translateY={8} delay={180}>
+            <Card elevated>
+              <AppText variant="h3" style={{ marginBottom: 10 }}>
+                Order details
+              </AppText>
+              {order.items.map((item) => (
+                <View key={item.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <AppText variant="body" style={{ flex: 1 }} numberOfLines={1}>
+                    {item.quantity}× {item.productName}
+                  </AppText>
+                  <AppText variant="body" color="textMuted">
+                    {formatSar(item.lineTotalMinor)}
+                  </AppText>
+                </View>
+              ))}
+              <Divider style={{ marginVertical: 8 }} />
+              <PriceRow label="Total" value={formatSar(order.totalMinor)} emphasis />
+            </Card>
+          </FadeIn>
 
           <Button label="Back to home" variant="ghost" onPress={goHome} />
         </ScrollView>

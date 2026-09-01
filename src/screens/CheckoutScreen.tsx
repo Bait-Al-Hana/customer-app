@@ -8,10 +8,10 @@ import { Address, Branch } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
 import { toOrderItems } from '../cart/cart';
-import { AppText, Button, Card, Divider, PaymentMethodCard, PriceRow, Screen } from '../components';
+import { AppText, Card, Divider, PaymentMethodCard, PriceRow, Screen } from '../components';
 import { AddressCard } from '../components';
 import { useAsync } from '../hooks/useAsync';
-import { ErrorState, PressableScale, Skeleton, Toast } from '../motion';
+import { ErrorState, FadeIn, PressableScale, PulseButton, Shimmer, StepIndicator, Toast } from '../motion';
 import { ORDER_TYPE, OrderType, PAYMENT_METHOD, PaymentMethod } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
 import { formatSar } from '../util/money';
@@ -24,6 +24,12 @@ const METHOD_META: Record<string, { label: string; glyph: string; hint?: string 
   [PAYMENT_METHOD.GOOGLE_PAY]: { label: 'Google Pay', glyph: '🟢' },
   [PAYMENT_METHOD.CASH_ON_DELIVERY]: { label: 'Cash on delivery', glyph: '💵', hint: 'Pay the driver when it arrives' },
 };
+
+function checkoutStep(type: OrderType, addressId: string | null, quote: unknown): number {
+  if (!quote) return 0;
+  if (type === ORDER_TYPE.DELIVERY && !addressId) return 1;
+  return 2;
+}
 
 /** Choose fulfilment, review the server quote, pick a payment method, place order. */
 export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'Checkout'>): React.JSX.Element {
@@ -132,85 +138,100 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
     );
   };
 
+  const currentStep = checkoutStep(type, addressId, quote);
+  const steps = isDelivery ? ['Type', 'Address', 'Pay'] : ['Type', 'Pay'];
+
   return (
     <Screen title="Checkout" onBack={() => navigation.goBack()}>
       <Toast visible={!!placeError} message={placeError ?? ''} tone="danger" onHide={() => setPlaceError(null)} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 24 }}>
+        <FadeIn translateY={8}>
+          <StepIndicator steps={steps} current={currentStep} />
+        </FadeIn>
+
         {/* Fulfilment type */}
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          {typeTab(ORDER_TYPE.PICKUP, 'Pickup', '🏪', branch ? branch.acceptsPickup : true)}
-          {typeTab(ORDER_TYPE.DELIVERY, 'Delivery', '🛵', branch ? branch.acceptsDelivery : true)}
-        </View>
+        <FadeIn translateY={8} delay={40}>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {typeTab(ORDER_TYPE.PICKUP, 'Pickup', '🏪', branch ? branch.acceptsPickup : true)}
+            {typeTab(ORDER_TYPE.DELIVERY, 'Delivery', '🛵', branch ? branch.acceptsDelivery : true)}
+          </View>
+        </FadeIn>
 
         {/* Delivery address */}
         {isDelivery ? (
-          <View style={{ gap: 10 }}>
-            <AppText variant="h3">Deliver to</AppText>
-            {addresses.loading ? (
-              <Skeleton height={64} radius={theme.radius.lg} />
-            ) : addresses.data && addresses.data.length > 0 ? (
-              addresses.data.map((a) => (
-                <AddressCard
-                  key={a.id}
-                  label={a.label ?? 'Address'}
-                  line={[a.line1, a.city].filter(Boolean).join(', ')}
-                  isDefault={a.isDefault}
-                  selected={a.id === addressId}
-                  onPress={() => setAddressId(a.id)}
-                />
-              ))
-            ) : (
-              <AppText variant="bodySmall" color="textMuted">
-                No saved address yet.
-              </AppText>
-            )}
-            <PressableScale accessibilityRole="button" onPress={() => navigation.navigate('AddAddress')} style={{ paddingVertical: 6 }}>
-              <AppText variant="bodySmall" weight="700" color="accent">
-                + Add a new address
-              </AppText>
-            </PressableScale>
-          </View>
+          <FadeIn translateY={8} delay={60}>
+            <View style={{ gap: 10 }}>
+              <AppText variant="h3">Deliver to</AppText>
+              {addresses.loading ? (
+                <Shimmer height={64} radius={theme.radius.lg} />
+              ) : addresses.data && addresses.data.length > 0 ? (
+                addresses.data.map((a) => (
+                  <AddressCard
+                    key={a.id}
+                    label={a.label ?? 'Address'}
+                    line={[a.line1, a.city].filter(Boolean).join(', ')}
+                    isDefault={a.isDefault}
+                    selected={a.id === addressId}
+                    onPress={() => setAddressId(a.id)}
+                  />
+                ))
+              ) : (
+                <AppText variant="bodySmall" color="textMuted">
+                  No saved address yet.
+                </AppText>
+              )}
+              <PressableScale accessibilityRole="button" onPress={() => navigation.navigate('AddAddress')} style={{ paddingVertical: 6 }}>
+                <AppText variant="bodySmall" weight="700" color="accent">
+                  + Add a new address
+                </AppText>
+              </PressableScale>
+            </View>
+          </FadeIn>
         ) : null}
 
         {/* Order summary */}
-        <Card elevated>
-          <AppText variant="h3" style={{ marginBottom: 12 }}>
-            Order summary
-          </AppText>
-          {loading ? (
-            <View style={{ gap: 8 }}>
-              <Skeleton height={16} />
-              <Skeleton width="70%" height={16} />
-              <Skeleton width="50%" height={20} />
-            </View>
-          ) : error ? (
-            <ErrorState title="Couldn’t price your order" message={error.message} actionLabel="Retry" onAction={reload} />
-          ) : quote ? (
-            <>
-              <PriceRow label="Subtotal" value={formatSar(quote.subtotalMinor)} />
-              {quote.discountMinor > 0 ? <PriceRow label={`Discount${couponCode ? ` (${couponCode})` : ''}`} value={`- ${formatSar(quote.discountMinor)}`} tone="discount" /> : null}
-              {quote.deliveryFeeMinor > 0 ? <PriceRow label="Delivery fee" value={formatSar(quote.deliveryFeeMinor)} /> : null}
-              <PriceRow label={`VAT (${quote.vatRate}%, incl.)`} value={formatSar(quote.vatMinor)} />
-              <Divider style={{ marginVertical: 6 }} />
-              <PriceRow label="Total" value={formatSar(quote.totalMinor)} emphasis />
-            </>
-          ) : null}
-        </Card>
+        <FadeIn translateY={8} delay={120}>
+          <Card elevated>
+            <AppText variant="h3" style={{ marginBottom: 12 }}>
+              Order summary
+            </AppText>
+            {loading ? (
+              <View style={{ gap: 8 }}>
+                <Shimmer height={16} />
+                <Shimmer width="70%" height={16} />
+                <Shimmer width="50%" height={20} />
+              </View>
+            ) : error ? (
+              <ErrorState title="Couldn't price your order" message={error.message} actionLabel="Retry" onAction={reload} />
+            ) : quote ? (
+              <>
+                <PriceRow label="Subtotal" value={formatSar(quote.subtotalMinor)} />
+                {quote.discountMinor > 0 ? <PriceRow label={`Discount${couponCode ? ` (${couponCode})` : ''}`} value={`- ${formatSar(quote.discountMinor)}`} tone="discount" /> : null}
+                {quote.deliveryFeeMinor > 0 ? <PriceRow label="Delivery fee" value={formatSar(quote.deliveryFeeMinor)} /> : null}
+                <PriceRow label={`VAT (${quote.vatRate}%, incl.)`} value={formatSar(quote.vatMinor)} />
+                <Divider style={{ marginVertical: 6 }} />
+                <PriceRow label="Total" value={formatSar(quote.totalMinor)} emphasis />
+              </>
+            ) : null}
+          </Card>
+        </FadeIn>
 
         {/* Payment method */}
-        <View style={{ gap: 10 }}>
-          <AppText variant="h3">Payment method</AppText>
-          {methods.map((m) => (
-            <PaymentMethodCard
-              key={m}
-              glyph={METHOD_META[m]?.glyph ?? '💳'}
-              label={METHOD_META[m]?.label ?? m}
-              hint={METHOD_META[m]?.hint}
-              selected={method === m}
-              onPress={() => setMethod(m)}
-            />
-          ))}
-        </View>
+        <FadeIn translateY={8} delay={180}>
+          <View style={{ gap: 10 }}>
+            <AppText variant="h3">Payment method</AppText>
+            {methods.map((m) => (
+              <PaymentMethodCard
+                key={m}
+                glyph={METHOD_META[m]?.glyph ?? '💳'}
+                label={METHOD_META[m]?.label ?? m}
+                hint={METHOD_META[m]?.hint}
+                selected={method === m}
+                onPress={() => setMethod(m)}
+              />
+            ))}
+          </View>
+        </FadeIn>
 
         <AppText variant="caption" color="textMuted" center style={{ paddingHorizontal: 12 }}>
           Payment is confirmed by our server — never by this screen alone. No card details are stored in this app.
@@ -218,7 +239,7 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
       </ScrollView>
 
       <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface }}>
-        <Button
+        <PulseButton
           label={
             needsAddress
               ? 'Add a delivery address'

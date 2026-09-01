@@ -6,8 +6,10 @@ import { useAuth } from '../auth/AuthProvider';
 import { AppText, Button, Screen } from '../components';
 import { PaymentStateView } from '../features/payment/PaymentStateView';
 import { paymentVisualForServerStatus } from '../features/payment/payment-state.model';
+import { Confetti, FadeIn, ProgressRing, SuccessAnimation } from '../motion';
 import { PAYMENT_STATUS, PaymentStatus } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
+import { useTheme } from '../theme/theme';
 
 const POLL_MS = 2500;
 
@@ -22,15 +24,18 @@ export function PaymentProcessingScreen({
   route,
   navigation,
 }: NativeStackScreenProps<RootStackParamList, 'PaymentProcessing'>): React.JSX.Element {
+  const theme = useTheme();
   const { api } = useAuth();
   const { orderId, orderNumber, method } = route.params;
   const [status, setStatus] = useState<PaymentStatus>(PAYMENT_STATUS.PENDING);
+  const [pollProgress, setPollProgress] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const started = useRef(false);
 
   useEffect(() => {
     let mounted = true;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let pollCount = 0;
 
     const poll = async (): Promise<void> => {
       try {
@@ -39,8 +44,11 @@ export function PaymentProcessingScreen({
           return;
         }
         setStatus(payment.status);
+        pollCount++;
+        setPollProgress(Math.min(pollCount * 0.15, 0.9));
         const settled = paymentVisualForServerStatus(payment.status).settled;
         if (settled) {
+          setPollProgress(1);
           if (payment.status === PAYMENT_STATUS.PAID) {
             timer = setTimeout(() => mounted && navigation.replace('OrderSuccess', { orderId, orderNumber, method }), 900);
           }
@@ -79,16 +87,37 @@ export function PaymentProcessingScreen({
   const retry = useCallback((): void => {
     started.current = false;
     setStatus(PAYMENT_STATUS.PENDING);
+    setPollProgress(0);
     setAttempt((a) => a + 1); // re-runs the effect: initiate + poll again
   }, []);
 
   const visual = paymentVisualForServerStatus(status).visual;
+  const isPaid = visual === 'success';
   const failed = visual === 'failed' || visual === 'cancelled';
 
   return (
     <Screen title="Payment">
+      <Confetti active={isPaid} />
       <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
-        <PaymentStateView status={status} />
+        {isPaid ? (
+          <FadeIn translateY={10}>
+            <View style={{ alignItems: 'center' }}>
+              <SuccessAnimation size={120} />
+            </View>
+          </FadeIn>
+        ) : failed ? (
+          <PaymentStateView status={status} />
+        ) : (
+          <View style={{ alignItems: 'center' }}>
+            <ProgressRing
+              progress={pollProgress}
+              size={100}
+              strokeWidth={8}
+              color={theme.colors.primary}
+              label="..."
+            />
+          </View>
+        )}
         <AppText variant="caption" color="textMuted" center style={{ marginTop: 8, paddingHorizontal: 16 }}>
           Your bank confirms this with us directly. You can safely track your order while it finishes.
         </AppText>

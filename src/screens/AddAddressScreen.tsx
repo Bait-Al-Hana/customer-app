@@ -6,13 +6,21 @@ import type { Region } from 'react-native-maps';
 
 import { ApiError } from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
-import { PrimaryButton, Screen, TextField } from '../components/ui';
+import { Screen, TextField } from '../components/ui';
 import { AppMap, DEFAULT_REGION } from '../maps/AppMap';
-import { PressableScale, Toast } from '../motion';
+import {
+  AnimatedIcon,
+  FadeIn,
+  MotiCard,
+  PressableScale,
+  PulseButton,
+  Stagger,
+  StepIndicator,
+  Toast,
+} from '../motion';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
 
-/** Add a delivery address: details plus a map pin the driver navigates to. */
 export function AddAddressScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'AddAddress'>): React.JSX.Element {
   const theme = useTheme();
   const { api } = useAuth();
@@ -24,12 +32,15 @@ export function AddAddressScreen({ navigation }: NativeStackScreenProps<RootStac
   const [pin, setPin] = useState<{ latitude: number; longitude: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [locating, setLocating] = useState(false);
 
   const useMyLocation = async (): Promise<void> => {
+    setLocating(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setError('Location permission denied. Drop a pin on the map instead.');
+        setLocating(false);
         return;
       }
       const pos = await Location.getCurrentPositionAsync({});
@@ -38,6 +49,8 @@ export function AddAddressScreen({ navigation }: NativeStackScreenProps<RootStac
       setRegion({ ...next, latitudeDelta: 0.01, longitudeDelta: 0.01 });
     } catch {
       setError('Couldn’t get your location. Drop a pin on the map instead.');
+    } finally {
+      setLocating(false);
     }
   };
 
@@ -61,29 +74,100 @@ export function AddAddressScreen({ navigation }: NativeStackScreenProps<RootStac
   };
 
   const valid = line1.trim().length > 0 && city.trim().length > 0;
+  const currentStep = pin ? (valid ? 2 : 1) : 0;
 
   return (
     <Screen title="Add address" onBack={() => navigation.goBack()}>
       <Toast visible={!!error} message={error ?? ''} tone="danger" onHide={() => setError(null)} />
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <View style={{ height: 220, borderRadius: theme.radius.lg, overflow: 'hidden', marginBottom: 8 }}>
-          <AppMap
-            region={region}
-            onRegionChangeComplete={setRegion}
-            onPress={(coord) => setPin(coord)}
-            markers={pin ? [{ id: 'pin', ...pin, kind: 'customer', title: 'Delivery here' }] : []}
-          />
-        </View>
-        <PressableScale accessibilityRole="button" onPress={useMyLocation} style={{ alignSelf: 'flex-start', marginBottom: 16 }}>
-          <Text style={{ color: theme.colors.accent, fontWeight: '700' }}>📍 Use my current location</Text>
-        </PressableScale>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+        <FadeIn translateY={6}>
+          <View style={{ marginBottom: 16 }}>
+            <StepIndicator steps={['Pin', 'Details', 'Save']} current={currentStep} />
+          </View>
+        </FadeIn>
 
-        <TextField label="Label" value={label} onChangeText={setLabel} maxLength={60} />
-        <TextField label="Address line" value={line1} onChangeText={setLine1} placeholder="Street, building, apartment" />
-        <TextField label="City" value={city} onChangeText={setCity} />
-        <TextField label="Notes for the driver (optional)" value={notes} onChangeText={setNotes} maxLength={500} />
+        <FadeIn translateY={10}>
+          <MotiCard from="scale" style={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>
+            <View style={{ height: 220 }}>
+              <AppMap
+                region={region}
+                onRegionChangeComplete={setRegion}
+                onPress={(coord) => setPin(coord)}
+                markers={pin ? [{ id: 'pin', ...pin, kind: 'customer', title: 'Delivery here' }] : []}
+              />
+            </View>
+            <View style={{ padding: 14 }}>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <PressableScale
+                  accessibilityRole="button"
+                  onPress={useMyLocation}
+                  disabled={locating}
+                  style={{
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    paddingVertical: 10,
+                    borderRadius: theme.radius.md,
+                    backgroundColor: theme.colors.accent + '14',
+                    opacity: locating ? 0.6 : 1,
+                  }}
+                >
+                  <Text style={{ fontSize: 15 }}>📍</Text>
+                  <Text style={{ color: theme.colors.accent, fontWeight: '700', fontSize: 14 }}>
+                    {locating ? 'Locating...' : 'Use my location'}
+                  </Text>
+                </PressableScale>
+                {pin ? (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      paddingHorizontal: 12,
+                      paddingVertical: 10,
+                      borderRadius: theme.radius.md,
+                      backgroundColor: theme.colors.success + '14',
+                    }}
+                  >
+                    <Text style={{ color: theme.colors.success, fontWeight: '700', fontSize: 13 }}>Pin set ✓</Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          </MotiCard>
+        </FadeIn>
 
-        <PrimaryButton label="Save address" onPress={save} busy={busy} disabled={!valid} />
+        <Stagger step={50}>
+          <View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <AnimatedIcon icon="🏠" size={32} delay={200} bounce={false} />
+              <Text style={{ color: theme.colors.text, fontSize: 17, fontWeight: '800' }}>Address details</Text>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <TextField label="Label" value={label} onChangeText={setLabel} maxLength={60} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <TextField label="City" value={city} onChangeText={setCity} />
+            </View>
+          </View>
+
+          <View>
+            <TextField label="Street & building" value={line1} onChangeText={setLine1} placeholder="Street, building, apartment" />
+          </View>
+
+          <View>
+            <TextField label="Notes for driver (optional)" value={notes} onChangeText={setNotes} maxLength={500} />
+          </View>
+
+          <View>
+            <PulseButton label="Save address" onPress={save} busy={busy} disabled={!valid} />
+          </View>
+        </Stagger>
       </ScrollView>
     </Screen>
   );

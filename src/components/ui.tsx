@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardTypeOptions,
@@ -8,13 +8,18 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PressableScale } from '../motion';
+import { PressableScale, useMotion } from '../motion';
 import { useTheme } from '../theme/theme';
 import { AppText } from './AppText';
 
-/** A labelled text input. */
+/** A labelled text input with animated focus ring. */
 export function TextField({
   label,
   value,
@@ -37,38 +42,78 @@ export function TextField({
   helpText?: string;
 }): React.JSX.Element {
   const theme = useTheme();
-  const [focused, setFocused] = React.useState(false);
+  const { spring } = useMotion();
+  const [focused, setFocused] = useState(false);
+  const borderProgress = useSharedValue(0);
+
+  const handleFocus = () => {
+    setFocused(true);
+    borderProgress.value = withSpring(1, spring('standard'));
+  };
+
+  const handleBlur = () => {
+    setFocused(false);
+    borderProgress.value = withSpring(0, spring('standard'));
+  };
+
+  const borderStyle = useAnimatedStyle(() => {
+    const r = borderProgress.value;
+    return {
+      borderColor: r > 0.5
+        ? theme.colors.primary
+        : theme.colors.border,
+      shadowOpacity: r * 0.15,
+      shadowRadius: r * 12,
+      transform: [{ scale: 1 + r * 0.005 }],
+    };
+  });
+
   return (
     <View style={{ marginBottom: theme.spacing(4) }}>
       {label ? (
-        <AppText variant="caption" color="textMuted" weight="600" style={{ marginBottom: 6 }}>
+        <AppText
+          variant="caption"
+          color={focused ? 'primary' : 'textMuted'}
+          weight="600"
+          style={{ marginBottom: 6 }}
+        >
           {label}
         </AppText>
       ) : null}
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={theme.colors.textMuted}
-        keyboardType={keyboardType}
-        maxLength={maxLength}
-        autoFocus={autoFocus}
-        multiline={multiline}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        style={{
-          backgroundColor: theme.colors.surface,
-          borderWidth: 1.5,
-          borderColor: focused ? theme.colors.primary : theme.colors.border,
-          borderRadius: theme.radius.md,
-          paddingHorizontal: 14,
-          paddingVertical: multiline ? 12 : 14,
-          minHeight: multiline ? 88 : undefined,
-          textAlignVertical: multiline ? 'top' : 'center',
-          fontSize: 16,
-          color: theme.colors.text,
-        }}
-      />
+      <Animated.View
+        style={[
+          {
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1.5,
+            borderRadius: theme.radius.md,
+            shadowColor: theme.colors.primary,
+            shadowOffset: { width: 0, height: 2 },
+            elevation: focused ? 2 : 0,
+          },
+          borderStyle,
+        ]}
+      >
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={theme.colors.textMuted}
+          keyboardType={keyboardType}
+          maxLength={maxLength}
+          autoFocus={autoFocus}
+          multiline={multiline}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          style={{
+            paddingHorizontal: 14,
+            paddingVertical: multiline ? 12 : 14,
+            minHeight: multiline ? 88 : undefined,
+            textAlignVertical: multiline ? 'top' : 'center',
+            fontSize: 16,
+            color: theme.colors.text,
+          }}
+        />
+      </Animated.View>
       {helpText ? (
         <AppText variant="caption" color="textMuted" style={{ marginTop: 6 }}>
           {helpText}
@@ -86,6 +131,7 @@ export function Screen({
   subtitle,
   onBack,
   right,
+  noPadTop,
 }: {
   children: React.ReactNode;
   title?: string;
@@ -93,11 +139,12 @@ export function Screen({
   subtitle?: string;
   onBack?: () => void;
   right?: React.ReactNode;
+  noPadTop?: boolean;
 }): React.JSX.Element {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background, paddingTop: insets.top }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background, paddingTop: noPadTop ? 0 : insets.top }}>
       {(title !== undefined || left) ? (
         <View
           style={{

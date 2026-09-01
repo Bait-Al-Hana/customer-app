@@ -1,13 +1,15 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Image, Text, View } from 'react-native';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
 const LOGO = require('../../assets/logo.jpeg');
 
 import { ApiError } from '../api/http';
 import { useAuth } from '../auth/AuthProvider';
 import { PrimaryButton, Screen, TextField } from '../components/ui';
-import { Toast } from '../motion';
+import { ShakeView, Toast } from '../motion';
+import type { ShakeViewRef } from '../motion';
 import { AuthStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
 
@@ -18,6 +20,7 @@ export function PhoneScreen({ navigation }: NativeStackScreenProps<AuthStackPara
   const [phone, setPhone] = useState('+9665');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const shakeRef = useRef<ShakeViewRef>(null);
 
   const valid = /^\+9665\d{8}$/.test(phone);
 
@@ -33,6 +36,7 @@ export function PhoneScreen({ navigation }: NativeStackScreenProps<AuthStackPara
       } else {
         setError('Could not send the code. Try again.');
       }
+      shakeRef.current?.shake();
     } finally {
       setBusy(false);
     }
@@ -46,17 +50,19 @@ export function PhoneScreen({ navigation }: NativeStackScreenProps<AuthStackPara
           <Image source={LOGO} style={{ width: 200, height: 80 }} resizeMode="contain" accessibilityLabel="بيت الهناء" />
         </View>
         <Text style={{ color: theme.colors.textMuted, fontSize: 15, lineHeight: 22, marginBottom: 24, textAlign: 'center' }}>
-          Enter your mobile number and we’ll text you a login code.
+          Enter your mobile number and we&apos;ll text you a login code.
         </Text>
-        <TextField
-          label="Mobile number"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          maxLength={13}
-          autoFocus
-          placeholder="+9665XXXXXXXX"
-        />
+        <ShakeView ref={shakeRef}>
+          <TextField
+            label="Mobile number"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            maxLength={13}
+            autoFocus
+            placeholder="+9665XXXXXXXX"
+          />
+        </ShakeView>
         <PrimaryButton label="Send code" onPress={submit} busy={busy} disabled={!valid} />
       </View>
     </Screen>
