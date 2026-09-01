@@ -118,6 +118,37 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
+export interface LoyaltyEntry {
+  id: string;
+  type: string;
+  points: number;
+  orderId: string | null;
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface LoyaltyLedger {
+  balance: number;
+  data: LoyaltyEntry[];
+}
+
+export interface NotificationItem {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  orderId: string | null;
+  createdAt: string;
+}
+
+export interface CustomerProfile {
+  id: string;
+  fullName: string | null;
+  phone: string;
+  email: string | null;
+  createdAt: string;
+}
+
 export interface Address {
   id: string;
   label: string | null;
@@ -130,6 +161,28 @@ export interface Address {
   longitude: number | null;
   notes: string | null;
   isDefault: boolean;
+}
+
+export interface Banner {
+  id: string;
+  imageUrl: string;
+  imageUrlAr?: string;
+  title: string;
+  titleAr?: string;
+  description?: string;
+  descriptionAr?: string;
+  buttonText?: string;
+  buttonTextAr?: string;
+  action: string;
+  targetId?: string;
+  targetUrl?: string;
+  branchIds: string[];
+  priority: number;
+}
+
+export interface CustomerConfig {
+  version: string;
+  banners: Banner[];
 }
 
 export interface DeliveryTracking {

@@ -80,4 +80,41 @@ describe('cart reducer', () => {
   it('lineKey is order-independent for addons', () => {
     expect(lineKey('p1', ['a2', 'a1'])).toBe(lineKey('p1', ['a1', 'a2']));
   });
+
+  it('lineKey stays backward compatible when no variant is given', () => {
+    expect(lineKey('p1', ['a1'])).toBe(lineKey('p1', ['a1'], undefined));
+  });
+
+  it('keeps different variants (sizes) as separate lines, same addons', () => {
+    let cart: Cart = EMPTY_CART;
+    cart = cartReducer(
+      cart,
+      addBurger({ line: { productId: 'p1', productName: 'Burger (Regular)', unitPriceMinor: 3000, addonIds: [], addonNames: [], variantId: 'v-reg', variantName: 'Regular' } }),
+    );
+    cart = cartReducer(
+      cart,
+      addBurger({ line: { productId: 'p1', productName: 'Burger (Large)', unitPriceMinor: 3500, addonIds: [], addonNames: [], variantId: 'v-lg', variantName: 'Large' } }),
+    );
+    expect(cart.lines).toHaveLength(2);
+  });
+
+  it('sends the chosen variant to the backend as productVariantId', () => {
+    let cart: Cart = EMPTY_CART;
+    cart = cartReducer(
+      cart,
+      addBurger({ line: { productId: 'p1', productName: 'Burger (Large)', unitPriceMinor: 3500, addonIds: ['a1'], addonNames: ['Cheese'], variantId: 'v-lg', variantName: 'Large' } }),
+    );
+    expect(toOrderItems(cart)).toEqual([
+      { productId: 'p1', productVariantId: 'v-lg', quantity: 1, addonIds: ['a1'] },
+    ]);
+  });
+
+  it('omits productVariantId when a line has no variant, so the base price applies server-side', () => {
+    let cart: Cart = EMPTY_CART;
+    cart = cartReducer(
+      cart,
+      addBurger({ line: { productId: 'p1', productName: 'Fries', unitPriceMinor: 1200, addonIds: [], addonNames: [] } }),
+    );
+    expect(toOrderItems(cart)).toEqual([{ productId: 'p1', quantity: 1, addonIds: [] }]);
+  });
 });

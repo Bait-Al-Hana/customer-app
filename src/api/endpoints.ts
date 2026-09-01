@@ -1,6 +1,19 @@
 import { OrderType, PaymentMethod } from '../types/backend';
 import { ApiClient } from './http';
-import { Address, AuthTokens, Branch, DeliveryTracking, Menu, Order, Payment, PriceQuote } from './types';
+import {
+  Address,
+  AuthTokens,
+  Branch,
+  CustomerConfig,
+  CustomerProfile,
+  DeliveryTracking,
+  LoyaltyLedger,
+  Menu,
+  NotificationItem,
+  Order,
+  Payment,
+  PriceQuote,
+} from './types';
 
 export interface AddressInput {
   label?: string;
@@ -18,6 +31,8 @@ export interface AddressInput {
 /** Cart item as the quote/order endpoints expect it. */
 export interface OrderItemInput {
   productId: string;
+  /** Chosen size/variant. When set, the variant's price replaces the product's base. */
+  productVariantId?: string;
   quantity: number;
   addonIds?: string[];
 }
@@ -40,6 +55,11 @@ export class Api {
 
   refresh(refreshToken: string): Promise<AuthTokens> {
     return this.http.request('/auth/refresh', { method: 'POST', body: { refreshToken }, public: true });
+  }
+
+  // --- Customer config (public) ----------------------------------------------
+  customerConfig(): Promise<CustomerConfig> {
+    return this.http.request('/customer/config', { public: true });
   }
 
   // --- Catalog (public) -----------------------------------------------------
@@ -105,5 +125,24 @@ export class Api {
 
   paymentFor(orderId: string): Promise<Payment> {
     return this.http.request(`/customer/orders/${orderId}/payment`);
+  }
+
+  // --- Loyalty (authenticated) ----------------------------------------------
+  loyalty(): Promise<LoyaltyLedger> {
+    return this.http.request('/customer/loyalty');
+  }
+
+  // --- Notifications (authenticated) ----------------------------------------
+  notifications(): Promise<{ data: NotificationItem[] }> {
+    return this.http.request('/customer/notifications');
+  }
+
+  // --- Profile (authenticated) ----------------------------------------------
+  getProfile(): Promise<CustomerProfile> {
+    return this.http.request('/customer/me');
+  }
+
+  updateProfile(input: { fullName: string }): Promise<CustomerProfile> {
+    return this.http.request('/customer/me', { method: 'PATCH', body: input });
   }
 }

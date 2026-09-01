@@ -1,0 +1,38 @@
+# CI: lint, typecheck, and test on every push and pull request.
+#
+# The logic test suite (jest.logic.config.js) runs in plain Node — no RN/Expo
+# native toolchain needed — so CI stays fast and deterministic. Component tests
+# (jest-expo) are intentionally not run here; they need the RN renderer and are
+# run locally / on demand.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
