@@ -1,35 +1,35 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View } from 'react-native';
 
 import { useAuth } from '../auth/AuthProvider';
-import { PrimaryButton, Screen } from '../components/ui';
+import { AppText, Button, Screen } from '../components';
 import { PaymentStateView } from '../features/payment/PaymentStateView';
 import { paymentVisualForServerStatus } from '../features/payment/payment-state.model';
-import {
-  AnimatedGradient,
-  Confetti,
-  FadeIn,
-  GlassCard,
-  ProgressRing,
-  Stagger,
-  SuccessAnimation,
-} from '../motion';
-import { PAYMENT_METHOD, PAYMENT_STATUS, PaymentStatus } from '../types/backend';
+import { Confetti, FadeIn, ProgressRing, SuccessAnimation } from '../motion';
+import { PAYMENT_STATUS, PaymentStatus } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
 
 const POLL_MS = 2500;
 
+/**
+ * Initiates the online charge, then polls the backend for the TRUE payment
+ * status. The success view — and the forward navigation — happen only when the
+ * SERVER reports PAID. This screen never treats initiating, or any client
+ * signal, as proof of payment; it mirrors the backend rule that client-side
+ * success is never trusted.
+ */
 export function PaymentProcessingScreen({
   route,
   navigation,
 }: NativeStackScreenProps<RootStackParamList, 'PaymentProcessing'>): React.JSX.Element {
   const theme = useTheme();
   const { api } = useAuth();
-  const { orderId } = route.params;
+  const { orderId, orderNumber, method } = route.params;
   const [status, setStatus] = useState<PaymentStatus>(PAYMENT_STATUS.PENDING);
   const [pollProgress, setPollProgress] = useState(0);
+  const [attempt, setAttempt] = useState(0);
   const started = useRef(false);
 
   useEffect(() => {
@@ -40,7 +40,9 @@ export function PaymentProcessingScreen({
     const poll = async (): Promise<void> => {
       try {
         const payment = await api.paymentFor(orderId);
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
         setStatus(payment.status);
         pollCount++;
         setPollProgress(Math.min(pollCount * 0.15, 0.9));
@@ -48,9 +50,9 @@ export function PaymentProcessingScreen({
         if (settled) {
           setPollProgress(1);
           if (payment.status === PAYMENT_STATUS.PAID) {
-            timer = setTimeout(() => mounted && navigation.replace('OrderTracking', { orderId }), 1800);
+            timer = setTimeout(() => mounted && navigation.replace('OrderSuccess', { orderId, orderNumber, method }), 900);
           }
-          return;
+          return; // stop polling once settled
         }
       } catch {
         // Transient error — keep polling.
@@ -64,7 +66,7 @@ export function PaymentProcessingScreen({
       if (!started.current) {
         started.current = true;
         try {
-          await api.initiatePayment(orderId, PAYMENT_METHOD.CARD);
+          await api.initiatePayment(orderId, method);
         } catch {
           // Even if initiate errored, poll — the server remains the truth.
         }
@@ -75,81 +77,61 @@ export function PaymentProcessingScreen({
     start();
     return () => {
       mounted = false;
-      if (timer) clearTimeout(timer);
+      if (timer) {
+        clearTimeout(timer);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId]);
+  }, [orderId, attempt]);
+
+  const retry = useCallback((): void => {
+    started.current = false;
+    setStatus(PAYMENT_STATUS.PENDING);
+    setPollProgress(0);
+    setAttempt((a) => a + 1); // re-runs the effect: initiate + poll again
+  }, []);
 
   const visual = paymentVisualForServerStatus(status).visual;
   const isPaid = visual === 'success';
-  const isFailed = visual === 'failed' || visual === 'cancelled';
+  const failed = visual === 'failed' || visual === 'cancelled';
 
   return (
     <Screen title="Payment">
-      <AnimatedGradient style={{ flex: 1 }}>
-        <Confetti active={isPaid} />
-
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 28 }}>
-          <Stagger>
+      <Confetti active={isPaid} />
+      <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
+        {isPaid ? (
+          <FadeIn translateY={10}>
             <View style={{ alignItems: 'center' }}>
-              {isPaid ? (
-                <FadeIn translateY={10}>
-                  <SuccessAnimation size={120} />
-                </FadeIn>
-              ) : isFailed ? (
-                <PaymentStateView status={status} />
-              ) : (
-                <ProgressRing
-                  progress={pollProgress}
-                  size={100}
-                  strokeWidth={8}
-                  color={theme.colors.primary}
-                  label="..."
-                />
-              )}
+              <SuccessAnimation size={120} />
             </View>
-
-            <View style={{ alignItems: 'center', marginTop: 24 }}>
-              <GlassCard intensity="light" delay={100}>
-                <Text
-                  style={{
-                    color: isPaid ? theme.colors.success : isFailed ? theme.colors.danger : theme.colors.text,
-                    fontSize: 22,
-                    fontWeight: '800',
-                    textAlign: 'center',
-                    letterSpacing: -0.3,
-                  }}
-                >
-                  {isPaid ? 'Payment successful!' : isFailed ? 'Payment failed' : 'Processing payment...'}
-                </Text>
-                <Text
-                  style={{
-                    color: theme.colors.textMuted,
-                    fontSize: 14,
-                    textAlign: 'center',
-                    marginTop: 8,
-                    lineHeight: 20,
-                    maxWidth: 280,
-                  }}
-                >
-                  {isPaid
-                    ? 'Your order is confirmed. Taking you to order tracking...'
-                    : isFailed
-                      ? 'Something went wrong with the payment. Please try again.'
-                      : 'Your bank confirms this with us directly. You can safely track your order while it finishes.'}
-                </Text>
-              </GlassCard>
-            </View>
-
-            <View style={{ width: '100%', marginTop: 32, gap: 12 }}>
-              <PrimaryButton label="Track my order" onPress={() => navigation.replace('OrderTracking', { orderId })} />
-              {isFailed ? (
-                <PrimaryButton label="Back to orders" onPress={() => navigation.replace('Orders')} variant="outline" />
-              ) : null}
-            </View>
-          </Stagger>
+          </FadeIn>
+        ) : failed ? (
+          <PaymentStateView status={status} />
+        ) : (
+          <View style={{ alignItems: 'center' }}>
+            <ProgressRing
+              progress={pollProgress}
+              size={100}
+              strokeWidth={8}
+              color={theme.colors.primary}
+              label="..."
+            />
+          </View>
+        )}
+        <AppText variant="caption" color="textMuted" center style={{ marginTop: 8, paddingHorizontal: 16 }}>
+          Your bank confirms this with us directly. You can safely track your order while it finishes.
+        </AppText>
+        <View style={{ marginTop: 28, gap: 10 }}>
+          {failed ? (
+            <>
+              <Button label="Try again" onPress={retry} />
+              <Button label="Back to orders" variant="ghost" onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Tabs', params: { screen: 'Orders' } }] })} />
+            </>
+          ) : (
+            <Button label="Track my order" onPress={() => navigation.replace('OrderTracking', { orderId })} />
+          )}
         </View>
-      </AnimatedGradient>
+      </View>
     </Screen>
   );
 }

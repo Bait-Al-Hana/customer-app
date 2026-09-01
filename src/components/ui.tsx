@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PressableScale, useMotion } from '../motion';
 import { useTheme } from '../theme/theme';
+import { AppText } from './AppText';
 
 /** A labelled text input with animated focus ring. */
 export function TextField({
@@ -27,16 +28,18 @@ export function TextField({
   keyboardType,
   maxLength,
   autoFocus,
-  secureTextEntry,
+  multiline,
+  helpText,
 }: {
-  label: string;
+  label?: string;
   value: string;
   onChangeText: (t: string) => void;
   placeholder?: string;
   keyboardType?: KeyboardTypeOptions;
   maxLength?: number;
   autoFocus?: boolean;
-  secureTextEntry?: boolean;
+  multiline?: boolean;
+  helpText?: string;
 }): React.JSX.Element {
   const theme = useTheme();
   const { spring } = useMotion();
@@ -66,18 +69,17 @@ export function TextField({
   });
 
   return (
-    <View style={{ marginBottom: 16 }}>
-      <Text
-        style={{
-          color: focused ? theme.colors.primary : theme.colors.textMuted,
-          fontSize: 13,
-          marginBottom: 6,
-          fontWeight: '700',
-          letterSpacing: 0.3,
-        }}
-      >
-        {label}
-      </Text>
+    <View style={{ marginBottom: theme.spacing(4) }}>
+      {label ? (
+        <AppText
+          variant="caption"
+          color={focused ? 'primary' : 'textMuted'}
+          weight="600"
+          style={{ marginBottom: 6 }}
+        >
+          {label}
+        </AppText>
+      ) : null}
       <Animated.View
         style={[
           {
@@ -95,36 +97,46 @@ export function TextField({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={theme.colors.textMuted + '80'}
+          placeholderTextColor={theme.colors.textMuted}
           keyboardType={keyboardType}
           maxLength={maxLength}
           autoFocus={autoFocus}
-          secureTextEntry={secureTextEntry}
+          multiline={multiline}
           onFocus={handleFocus}
           onBlur={handleBlur}
           style={{
-            paddingHorizontal: 16,
-            paddingVertical: 14,
+            paddingHorizontal: 14,
+            paddingVertical: multiline ? 12 : 14,
+            minHeight: multiline ? 88 : undefined,
+            textAlignVertical: multiline ? 'top' : 'center',
             fontSize: 16,
             color: theme.colors.text,
-            fontWeight: '500',
           }}
         />
       </Animated.View>
+      {helpText ? (
+        <AppText variant="caption" color="textMuted" style={{ marginTop: 6 }}>
+          {helpText}
+        </AppText>
+      ) : null}
     </View>
   );
 }
 
-/** A screen container: themed background + top safe-area padding + animated title. */
+/** A screen container: themed background + top safe-area padding + optional title. */
 export function Screen({
   children,
   title,
+  left,
+  subtitle,
   onBack,
   right,
   noPadTop,
 }: {
   children: React.ReactNode;
   title?: string;
+  left?: React.ReactNode;
+  subtitle?: string;
   onBack?: () => void;
   right?: React.ReactNode;
   noPadTop?: boolean;
@@ -133,14 +145,14 @@ export function Screen({
   const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background, paddingTop: noPadTop ? 0 : insets.top }}>
-      {title !== undefined ? (
+      {(title !== undefined || left) ? (
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            gap: 8,
+            paddingHorizontal: theme.spacing(4),
+            paddingVertical: theme.spacing(3),
+            gap: theme.spacing(2),
           }}
         >
           {onBack ? (
@@ -149,18 +161,29 @@ export function Screen({
               accessibilityLabel="Back"
               onPress={onBack}
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
+                width: 38,
+                height: 38,
+                borderRadius: 19,
                 backgroundColor: theme.colors.surfaceAlt,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Text style={{ color: theme.colors.text, fontSize: 20, fontWeight: '600' }}>‹</Text>
+              <Text style={{ color: theme.colors.text, fontSize: 22, lineHeight: 24, marginTop: -2 }}>‹</Text>
             </PressableScale>
           ) : null}
-          <Text style={{ color: theme.colors.text, fontSize: 20, fontWeight: '800', flex: 1, letterSpacing: -0.3 }}>{title}</Text>
+          {left ? <View style={{ flex: 1 }}>{left}</View> : (
+          <View style={{ flex: 1 }}>
+            <AppText variant="h2" numberOfLines={1}>
+              {title}
+            </AppText>
+            {subtitle ? (
+              <AppText variant="caption" color="textMuted" numberOfLines={1} style={{ marginTop: 2 }}>
+                {subtitle}
+              </AppText>
+            ) : null}
+          </View>
+          )}
           {right}
         </View>
       ) : null}
@@ -169,42 +192,36 @@ export function Screen({
   );
 }
 
-/** The primary call-to-action. Brand-filled, with animated press depth. */
-export function PrimaryButton({
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+
+/** The app's button. Brand-filled primary, tinted secondary, or quiet ghost. */
+export function Button({
   label,
   onPress,
   busy,
   disabled,
+  variant = 'primary',
+  leading,
   style,
-  variant,
 }: {
   label: string;
   onPress: () => void;
   busy?: boolean;
   disabled?: boolean;
+  variant?: ButtonVariant;
+  leading?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
-  variant?: 'primary' | 'secondary' | 'outline';
 }): React.JSX.Element {
   const theme = useTheme();
   const off = disabled || busy;
-  const v = variant ?? 'primary';
 
-  const bg =
-    v === 'outline'
-      ? 'transparent'
-      : v === 'secondary'
-        ? theme.colors.surfaceAlt
-        : theme.colors.primary;
-
-  const fg =
-    v === 'outline'
-      ? theme.colors.primary
-      : v === 'secondary'
-        ? theme.colors.text
-        : theme.colors.onPrimary;
-
-  const borderWidth = v === 'outline' ? 1.5 : 0;
-  const borderColor = v === 'outline' ? theme.colors.primary : 'transparent';
+  const palette: Record<ButtonVariant, { bg: string; fg: string; border?: string }> = {
+    primary: { bg: theme.colors.primary, fg: theme.colors.onPrimary },
+    secondary: { bg: theme.colors.primarySoft, fg: theme.colors.primary },
+    ghost: { bg: 'transparent', fg: theme.colors.text, border: theme.colors.border },
+    danger: { bg: theme.colors.dangerSoft, fg: theme.colors.danger },
+  };
+  const p = palette[variant];
 
   return (
     <PressableScale
@@ -214,34 +231,102 @@ export function PrimaryButton({
       onPress={onPress}
       style={[
         {
-          backgroundColor: bg,
+          backgroundColor: p.bg,
           borderRadius: theme.radius.pill,
           paddingVertical: 16,
+          paddingHorizontal: 20,
+          flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: off ? 0.5 : 1,
-          borderWidth,
-          borderColor,
-          shadowColor: v === 'primary' ? theme.colors.primary : '#000',
-          shadowOpacity: v === 'primary' && !off ? 0.2 : 0,
-          shadowRadius: 12,
-          shadowOffset: { width: 0, height: 4 },
-          elevation: v === 'primary' && !off ? 4 : 0,
+          gap: 8,
+          borderWidth: p.border ? 1.5 : 0,
+          borderColor: p.border,
+          opacity: off ? 0.55 : 1,
         },
+        variant === 'primary' ? theme.shadow(1) : null,
         style,
       ]}
     >
       {busy ? (
-        <ActivityIndicator color={fg} />
+        <ActivityIndicator color={p.fg} />
       ) : (
-        <Text style={{ color: fg, fontWeight: '800', fontSize: 16, letterSpacing: 0.2 }}>{label}</Text>
+        <>
+          {leading}
+          <AppText variant="button" style={{ color: p.fg }}>
+            {label}
+          </AppText>
+        </>
       )}
     </PressableScale>
   );
 }
 
-/** A surface card with subtle shadow and smooth appearance. */
-export function Card({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }): React.JSX.Element {
+/** The primary call-to-action. Kept as a thin alias so existing screens are unchanged. */
+export function PrimaryButton({
+  label,
+  onPress,
+  busy,
+  disabled,
+  style,
+}: {
+  label: string;
+  onPress: () => void;
+  busy?: boolean;
+  disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
+}): React.JSX.Element {
+  return <Button label={label} onPress={onPress} busy={busy} disabled={disabled} style={style} />;
+}
+
+/** A circular icon button — a glyph or SVG on a soft surface. */
+export function IconButton({
+  glyph,
+  onPress,
+  accessibilityLabel,
+  tint,
+  badge,
+  size = 40,
+}: {
+  glyph?: string;
+  onPress: () => void;
+  accessibilityLabel: string;
+  tint?: string;
+  badge?: React.ReactNode;
+  size?: number;
+}): React.JSX.Element {
+  const theme = useTheme();
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: theme.colors.surfaceAlt,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {glyph ? <Text style={{ fontSize: size * 0.46, color: tint ?? theme.colors.text }}>{glyph}</Text> : null}
+      {badge ? <View style={{ position: 'absolute', top: -4, right: -4 }}>{badge}</View> : null}
+    </PressableScale>
+  );
+}
+
+/** A surface card. */
+export function Card({
+  children,
+  style,
+  elevated,
+  padded = true,
+}: {
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  elevated?: boolean;
+  padded?: boolean;
+}): React.JSX.Element {
   const theme = useTheme();
   return (
     <View
@@ -251,13 +336,9 @@ export function Card({ children, style }: { children: React.ReactNode; style?: S
           borderRadius: theme.radius.lg,
           borderWidth: 1,
           borderColor: theme.colors.border,
-          padding: 16,
-          shadowColor: '#000',
-          shadowOpacity: 0.04,
-          shadowRadius: 8,
-          shadowOffset: { width: 0, height: 2 },
-          elevation: 1,
+          padding: padded ? theme.spacing(4) : 0,
         },
+        elevated ? theme.shadow(1) : null,
         style,
       ]}
     >
@@ -266,63 +347,8 @@ export function Card({ children, style }: { children: React.ReactNode; style?: S
   );
 }
 
-/** A thin horizontal rule. */
-export function Divider({ spacing = 12 }: { spacing?: number }): React.JSX.Element {
+/** A hairline divider. */
+export function Divider({ style }: { style?: StyleProp<ViewStyle> }): React.JSX.Element {
   const theme = useTheme();
-  return <View style={{ height: 1, backgroundColor: theme.colors.border, marginVertical: spacing }} />;
-}
-
-/** A labelled info row: "Label" on the left, "Value" on the right. */
-export function InfoRow({
-  label,
-  value,
-  bold,
-}: {
-  label: string;
-  value: string;
-  bold?: boolean;
-}): React.JSX.Element {
-  const theme = useTheme();
-  return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 }}>
-      <Text style={{ color: bold ? theme.colors.text : theme.colors.textMuted, fontWeight: bold ? '800' : '400', fontSize: bold ? 16 : 14 }}>
-        {label}
-      </Text>
-      <Text style={{ color: theme.colors.text, fontWeight: bold ? '800' : '600', fontSize: bold ? 16 : 14 }}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-/** A small icon button (e.g. for header actions). */
-export function IconButton({
-  icon,
-  label,
-  onPress,
-  color,
-}: {
-  icon: string;
-  label: string;
-  onPress: () => void;
-  color?: string;
-}): React.JSX.Element {
-  const theme = useTheme();
-  return (
-    <PressableScale
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={{
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: theme.colors.surfaceAlt,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text style={{ fontSize: 18, color: color ?? theme.colors.text }}>{icon}</Text>
-    </PressableScale>
-  );
+  return <View style={[{ height: 1, backgroundColor: theme.colors.border }, style]} />;
 }

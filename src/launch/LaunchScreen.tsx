@@ -137,7 +137,7 @@ export function LaunchScreen({ onFinish }: LaunchScreenProps): React.JSX.Element
           style={{ width: logoWidth, height: logoHeight }}
           accessible
           accessibilityRole="image"
-          accessibilityLabel="Bait Al Hana — for fast food"
+          accessibilityLabel="بيت الهناء — for fast food"
         />
       </Animated.View>
 
