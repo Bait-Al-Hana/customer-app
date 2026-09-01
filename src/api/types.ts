@@ -48,6 +48,7 @@ export interface MenuProduct {
   imageUrl: string | null;
   priceMinor: number;
   taxClass: string;
+  isAvailable: boolean;
   variants: { id: string; name: string; priceMinor: number; isDefault: boolean }[];
   modifierGroups: MenuModifierGroup[];
 }

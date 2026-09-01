@@ -66,10 +66,17 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
               </Text>
               <View style={{ gap: 10 }}>
                 {category.products.map((product) => (
-                  <Card key={product.id}>
+                  <Card key={product.id} style={product.isAvailable === false ? { opacity: 0.55 } : undefined}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <View style={{ flex: 1, paddingRight: 12 }}>
-                        <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>{product.name}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>{product.name}</Text>
+                          {product.isAvailable === false && (
+                            <View style={{ backgroundColor: theme.colors.textMuted, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                              <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>UNAVAILABLE</Text>
+                            </View>
+                          )}
+                        </View>
                         {product.description ? (
                           <Text style={{ color: theme.colors.textMuted, marginTop: 2 }} numberOfLines={2}>
                             {product.description}
@@ -79,21 +86,23 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
                           {formatSar(product.priceMinor)}
                         </Text>
                       </View>
-                      <PressableScale
-                        accessibilityRole="button"
-                        accessibilityLabel={`Add ${product.name}`}
-                        onPress={() => add(product)}
-                        style={{
-                          backgroundColor: theme.colors.primary,
-                          width: 40,
-                          height: 40,
-                          borderRadius: 20,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Text style={{ color: theme.colors.onPrimary, fontSize: 24, fontWeight: '700' }}>+</Text>
-                      </PressableScale>
+                      {product.isAvailable !== false && (
+                        <PressableScale
+                          accessibilityRole="button"
+                          accessibilityLabel={`Add ${product.name}`}
+                          onPress={() => add(product)}
+                          style={{
+                            backgroundColor: theme.colors.primary,
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Text style={{ color: theme.colors.onPrimary, fontSize: 24, fontWeight: '700' }}>+</Text>
+                        </PressableScale>
+                      )}
                     </View>
                   </Card>
                 ))}
