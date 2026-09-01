@@ -102,8 +102,8 @@ export class ApiClient {
     let response: Response;
     try {
       response = await doFetch();
-    } catch {
-      throw new ApiError({ statusCode: 0, code: 'NETWORK', message: 'No connection. Check your network and try again.' });
+    } catch (e) {
+      throw new ApiError({ statusCode: 0, code: 'NETWORK', message: networkErrorMessage(e) });
     }
 
     // One retry after a successful token refresh on 401.
@@ -112,8 +112,8 @@ export class ApiClient {
       if (refreshed) {
         try {
           response = await doFetch();
-        } catch {
-          throw new ApiError({ statusCode: 0, code: 'NETWORK', message: 'No connection. Check your network and try again.' });
+        } catch (e) {
+          throw new ApiError({ statusCode: 0, code: 'NETWORK', message: networkErrorMessage(e) });
         }
       }
     }
@@ -138,4 +138,18 @@ function safeParse(text: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+function networkErrorMessage(e: unknown): string {
+  const raw = e instanceof Error ? e.message : '';
+  if (/network request failed/i.test(raw)) {
+    return 'Could not reach the server. Check your internet connection and try again.';
+  }
+  if (/cors/i.test(raw) || /access-control/i.test(raw) || /blocked/i.test(raw)) {
+    return 'The server refused the request (CORS). Please contact support.';
+  }
+  if (/abort/i.test(raw) || /timeout/i.test(raw)) {
+    return 'The request timed out. Please try again.';
+  }
+  return 'Could not reach the server. Check your internet connection and try again.';
 }
