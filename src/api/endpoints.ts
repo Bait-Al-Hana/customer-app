@@ -44,7 +44,9 @@ export class Api {
 
   // --- Catalog (public) -----------------------------------------------------
   listBranches(): Promise<Branch[]> {
-    return this.http.request('/branches', { public: true });
+    // `/customer/branches`, not `/branches`: the latter is the staff resource
+    // and carries a different projection. See the backend catalog controller.
+    return this.http.request('/customer/branches', { public: true });
   }
 
   menu(branchId: string): Promise<Menu> {
