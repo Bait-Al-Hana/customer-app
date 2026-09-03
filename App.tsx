@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from './src/auth/AuthProvider';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { CartProvider } from './src/cart/CartProvider';
 import { MotionProvider } from './src/motion';
 import { LaunchScreen } from './src/launch/LaunchScreen';
@@ -24,17 +25,22 @@ export default function App(): React.JSX.Element {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <MotionProvider>
-          <AuthProvider>
-            <CartProvider>
-              <StatusBar style="auto" />
-              <RootNavigator />
-              {!launched ? <LaunchScreen onFinish={() => setLaunched(true)} /> : null}
-            </CartProvider>
-          </AuthProvider>
-        </MotionProvider>
-      </SafeAreaProvider>
+      {/* Outside every provider: a throw inside one of them (auth bootstrap,
+          the motion provider resolving reduce-motion) would otherwise leave a
+          blank view the customer can only escape by force-quitting. */}
+      <ErrorBoundary>
+        <SafeAreaProvider>
+          <MotionProvider>
+            <AuthProvider>
+              <CartProvider>
+                <StatusBar style="auto" />
+                <RootNavigator />
+                {!launched ? <LaunchScreen onFinish={() => setLaunched(true)} /> : null}
+              </CartProvider>
+            </AuthProvider>
+          </MotionProvider>
+        </SafeAreaProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }
