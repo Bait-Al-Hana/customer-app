@@ -34,6 +34,8 @@ export type CartAction =
   | { type: 'ADD'; branchId: string; line: Omit<CartLine, 'key' | 'quantity'>; quantity?: number }
   | { type: 'SET_QTY'; key: string; quantity: number }
   | { type: 'REMOVE'; key: string }
+  /** Replaces the whole cart in one step — used by reorder. */
+  | { type: 'REPLACE'; cart: Cart }
   | { type: 'CLEAR' };
 
 /** A stable line key so the same product+addons stacks instead of duplicating. */
@@ -66,6 +68,10 @@ export function cartReducer(state: Cart, action: CartAction): Cart {
     }
     case 'REMOVE':
       return removeLine(state, action.key);
+    case 'REPLACE':
+      // One step rather than CLEAR + N ADDs: reordering must not leave a
+      // half-filled cart on screen if anything interrupts it.
+      return action.cart.lines.length > 0 ? action.cart : EMPTY_CART;
     case 'CLEAR':
       return EMPTY_CART;
     default:
@@ -91,4 +97,81 @@ export function estimatedTotalMinor(cart: Cart): number {
 /** The cart as the order/quote API expects it: product ids, quantities, addons. */
 export function toOrderItems(cart: Cart): { productId: string; quantity: number; addonIds: string[] }[] {
   return cart.lines.map((l) => ({ productId: l.productId, quantity: l.quantity, addonIds: l.addonIds }));
+}
+
+// --- Reorder ----------------------------------------------------------------
+
+/** The shape of a past order this module needs, kept free of the API types. */
+export interface ReorderSource {
+  branchId: string;
+  items: {
+    productId: string | null;
+    productName: string;
+    quantity: number;
+    unitPriceMinor: number;
+    modifiers?: { addonId: string | null; addonName: string }[];
+  }[];
+}
+
+export interface ReorderResult {
+  cart: Cart;
+  /**
+   * Names of lines that could not be carried over because the product (or one
+   * of its add-ons) has since been removed from the catalogue. The customer is
+   * told which, rather than being handed a quietly smaller cart.
+   */
+  unavailable: string[];
+}
+
+/**
+ * Rebuilds a cart from a past order.
+ *
+ * An order snapshots what was sold and its `productId` is deliberately nulled
+ * when the product is deleted — a catalogue change must never rewrite history.
+ * So a line can genuinely have nothing to reorder, and the same is true of an
+ * add-on. Those lines are dropped and named, never silently substituted, and
+ * never guessed at by matching on the snapshotted name.
+ *
+ * Prices come from the snapshot only as a display estimate; the checkout still
+ * prices the cart server-side, so a stale price here can never be charged.
+ */
+export function cartFromOrder(order: ReorderSource): ReorderResult {
+  const lines: CartLine[] = [];
+  const unavailable: string[] = [];
+
+  for (const item of order.items) {
+    const modifiers = item.modifiers ?? [];
+    const lostAddon = modifiers.some((m) => m.addonId === null);
+
+    if (item.productId === null || lostAddon) {
+      unavailable.push(item.productName);
+      continue;
+    }
+
+    const addonIds = modifiers
+      .map((m) => m.addonId)
+      .filter((id): id is string => id !== null);
+    const key = lineKey(item.productId, addonIds);
+    const existing = lines.find((l) => l.key === key);
+
+    if (existing) {
+      existing.quantity += item.quantity;
+      continue;
+    }
+
+    lines.push({
+      key,
+      productId: item.productId,
+      productName: item.productName,
+      unitPriceMinor: item.unitPriceMinor,
+      quantity: item.quantity,
+      addonIds,
+      addonNames: modifiers.map((m) => m.addonName),
+    });
+  }
+
+  return {
+    cart: lines.length > 0 ? { branchId: order.branchId, lines } : EMPTY_CART,
+    unavailable,
+  };
 }

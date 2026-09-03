@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ScrollView, Text, TextInput, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
@@ -8,6 +8,7 @@ import { Card, Screen } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 import { CartBadge, EmptyState, ErrorState, PressableScale, Skeleton } from '../motion';
 import { RootStackParamList } from '../navigation/types';
+import { countProducts, filterMenu } from '../util/menu-search';
 import { formatSar } from '../util/money';
 import { useTheme } from '../theme/theme';
 import type { MenuProduct } from '../api/types';
@@ -19,6 +20,11 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const { cart, count, dispatch } = useCart();
   const { branchId, branchName } = route.params;
   const { data, loading, error, reload } = useAsync(() => api.menu(branchId), [branchId]);
+  const [query, setQuery] = useState('');
+
+  // Filtering is a pure function over the loaded menu — no refetch per keystroke.
+  const categories = useMemo(() => filterMenu(data?.categories ?? [], query), [data, query]);
+  const searching = query.trim().length > 0;
 
   const add = (product: MenuProduct): void => {
     // The button is hidden for a sold-out item, but the guard is the rule —
@@ -63,8 +69,48 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
       ) : !data || data.categories.length === 0 ? (
         <EmptyState title="Menu is empty" message="This branch has nothing available right now." />
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: count > 0 ? 96 : 24 }}>
-          {data.categories.map((category) => (
+        <ScrollView
+          contentContainerStyle={{ padding: 16, paddingBottom: count > 0 ? 96 : 24 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: theme.colors.surfaceAlt,
+              borderRadius: theme.radius.md,
+              paddingHorizontal: 12,
+              marginBottom: 14,
+            }}
+          >
+            <Text style={{ fontSize: 16, marginRight: 8 }}>🔎</Text>
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search the menu"
+              placeholderTextColor={theme.colors.textMuted}
+              accessibilityLabel="Search the menu"
+              returnKeyType="search"
+              style={{ flex: 1, paddingVertical: 12, color: theme.colors.text, fontSize: 15 }}
+            />
+            {searching ? (
+              <PressableScale accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery('')}>
+                <Text style={{ color: theme.colors.textMuted, fontSize: 18, paddingHorizontal: 4 }}>✕</Text>
+              </PressableScale>
+            ) : null}
+          </View>
+
+          {searching ? (
+            <Text style={{ color: theme.colors.textMuted, marginBottom: 10 }}>
+              {countProducts(categories)} result{countProducts(categories) === 1 ? '' : 's'} for “{query.trim()}”
+            </Text>
+          ) : null}
+
+          {searching && categories.length === 0 ? (
+            <EmptyState title="Nothing matched" message={`No dishes match “${query.trim()}”.`} />
+          ) : null}
+
+          {categories.map((category) => (
             <View key={category.id} style={{ marginBottom: 20 }}>
               <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800', marginBottom: 10 }}>
                 {category.name}

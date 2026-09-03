@@ -88,13 +88,29 @@ export interface PriceQuote {
   vatRate: string;
 }
 
+export interface OrderItemModifier {
+  id: string;
+  /** Null once the add-on has been deleted from the catalogue. */
+  addonId: string | null;
+  addonName: string;
+  quantity: number;
+}
+
 export interface OrderItem {
   id: string;
+  /**
+   * Null once the product has been deleted from the catalogue. The snapshot
+   * fields are the record of what was sold, so a catalogue change never
+   * rewrites an order — which means reordering has to cope with a line whose
+   * product no longer exists.
+   */
+  productId: string | null;
   productName: string;
   variantName: string | null;
   quantity: number;
   unitPriceMinor: number;
   lineTotalMinor: number;
+  modifiers?: OrderItemModifier[];
 }
 
 export interface Order {
@@ -174,4 +190,79 @@ export interface DeliveryTracking {
     lastLocationAt: string | null;
     user: { fullName: string };
   } | null;
+}
+
+// --- Customer config (public bootstrap) ------------------------------------
+
+export type BannerAction =
+  | 'NONE'
+  | 'PRODUCT'
+  | 'CATEGORY'
+  | 'BRANCH'
+  | 'EXTERNAL_URL'
+  | 'OFFERS';
+
+export interface Banner {
+  id: string;
+  name: string;
+  imageUrl: string;
+  imageUrlAr?: string | null;
+  title: string;
+  titleAr?: string | null;
+  description?: string | null;
+  buttonText?: string | null;
+  action: BannerAction;
+  targetId?: string | null;
+  targetUrl?: string | null;
+  priority: number;
+}
+
+export type HomepageSectionKind = string;
+
+export interface HomepageSection {
+  id: string;
+  kind: HomepageSectionKind;
+  title: string | null;
+  titleAr: string | null;
+  position: number;
+  enabled: boolean;
+}
+
+export interface Promotion {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
+/**
+ * One public call that carries everything the home screen needs — banners, the
+ * owner's homepage section order, live promotions and the feature flags. The
+ * owner configures all of it in the admin app, so anything not rendered here
+ * is configuration with no effect.
+ */
+export interface CustomerConfig {
+  version: number;
+  features: Record<string, boolean>;
+  banners: Banner[];
+  promotions: Promotion[];
+  homepageSections: HomepageSection[];
+}
+
+// --- Coupon-aware quote -----------------------------------------------------
+
+export interface AppliedCoupon {
+  couponId: string;
+  code: string;
+  discountMinor: number;
+}
+
+/**
+ * The authenticated quote. An unusable code does **not** fail the request: the
+ * base price comes back with `couponError` set, so the totals never disappear
+ * while someone is fixing a typo.
+ */
+export interface CouponQuote {
+  quote: PriceQuote;
+  coupon: AppliedCoupon | null;
+  couponError: string | null;
 }

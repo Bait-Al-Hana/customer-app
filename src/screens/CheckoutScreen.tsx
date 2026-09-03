@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, TextInput, View } from 'react-native';
 
 import { ApiError } from '../api/http';
 import { Address } from '../api/types';
@@ -38,10 +38,22 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   const [busy, setBusy] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
 
-  const { data: quote, loading, error, reload } = useAsync(
-    () => api.quote({ branchId, type, items }),
-    [branchId, JSON.stringify(items), type],
+  /** The code being typed, and the one actually sent to the server. */
+  const [couponDraft, setCouponDraft] = useState('');
+  const [appliedCode, setAppliedCode] = useState<string | null>(null);
+
+  // The coupon-aware quote. A coupon is evaluated against *this* customer, so
+  // it cannot be priced by the anonymous endpoint — and an unusable code is not
+  // an error: the base price comes back with `couponError` set, so the totals
+  // never disappear while someone fixes a typo.
+  const { data: priced, loading, error, reload } = useAsync(
+    () => api.quoteWithCoupon({ branchId, type, items, couponCode: appliedCode ?? undefined }),
+    [branchId, JSON.stringify(items), type, appliedCode],
   );
+
+  const quote = priced?.quote ?? null;
+  const coupon = priced?.coupon ?? null;
+  const couponError = priced?.couponError ?? null;
 
   // Addresses, reloaded whenever the screen regains focus (e.g. after adding one).
   const addresses = useAsync<Address[]>(() => api.listAddresses(), []);
@@ -71,6 +83,9 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
         paymentMethod: method,
         items,
         customerAddressId: isDelivery ? addressId ?? undefined : undefined,
+        // Only send a code the server actually accepted. It is validated again
+        // on placement — this screen never decides a discount.
+        couponCode: coupon?.code,
       });
       dispatch({ type: 'CLEAR' });
       if (method === PAYMENT_METHOD.CASH_ON_DELIVERY) {
@@ -170,6 +185,78 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
         ) : null}
 
         <Card>
+          <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 16, marginBottom: 10 }}>
+            Promo code
+          </Text>
+          {coupon ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View>
+                <Text style={{ color: theme.colors.success, fontWeight: '800' }}>{coupon.code} applied</Text>
+                <Text style={{ color: theme.colors.textMuted, fontSize: 13, marginTop: 2 }}>
+                  You save {formatSar(coupon.discountMinor)}
+                </Text>
+              </View>
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel="Remove promo code"
+                onPress={() => {
+                  setAppliedCode(null);
+                  setCouponDraft('');
+                }}
+              >
+                <Text style={{ color: theme.colors.accent, fontWeight: '700' }}>Remove</Text>
+              </PressableScale>
+            </View>
+          ) : (
+            <>
+              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                <TextInput
+                  value={couponDraft}
+                  onChangeText={setCouponDraft}
+                  placeholder="Enter a code"
+                  placeholderTextColor={theme.colors.textMuted}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  accessibilityLabel="Promo code"
+                  style={{
+                    flex: 1,
+                    backgroundColor: theme.colors.surfaceAlt,
+                    borderRadius: theme.radius.md,
+                    paddingHorizontal: 12,
+                    paddingVertical: 12,
+                    color: theme.colors.text,
+                    fontSize: 15,
+                  }}
+                />
+                <PressableScale
+                  accessibilityRole="button"
+                  accessibilityLabel="Apply promo code"
+                  onPress={() => setAppliedCode(couponDraft.trim().toUpperCase())}
+                  style={{
+                    backgroundColor: couponDraft.trim() ? theme.colors.primary : theme.colors.surfaceAlt,
+                    borderRadius: theme.radius.md,
+                    paddingVertical: 12,
+                    paddingHorizontal: 18,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: couponDraft.trim() ? theme.colors.onPrimary : theme.colors.textMuted,
+                      fontWeight: '700',
+                    }}
+                  >
+                    Apply
+                  </Text>
+                </PressableScale>
+              </View>
+              {couponError ? (
+                <Text style={{ color: theme.colors.danger, marginTop: 8, fontSize: 13 }}>{couponError}</Text>
+              ) : null}
+            </>
+          )}
+        </Card>
+
+        <Card>
           <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 16, marginBottom: 12 }}>Order total</Text>
           {loading ? (
             <View style={{ gap: 8 }}>
@@ -182,7 +269,9 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
           ) : quote ? (
             <>
               {row('Subtotal', formatSar(quote.subtotalMinor))}
-              {quote.discountMinor > 0 ? row('Discount', `- ${formatSar(quote.discountMinor)}`) : null}
+              {quote.discountMinor > 0
+                ? row(coupon ? `Discount (${coupon.code})` : 'Discount', `- ${formatSar(quote.discountMinor)}`)
+                : null}
               {quote.deliveryFeeMinor > 0 ? row('Delivery', formatSar(quote.deliveryFeeMinor)) : null}
               {row('VAT (incl.)', formatSar(quote.vatMinor))}
               <View style={{ height: 1, backgroundColor: theme.colors.border, marginVertical: 6 }} />

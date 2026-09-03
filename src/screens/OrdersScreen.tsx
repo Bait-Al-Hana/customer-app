@@ -1,12 +1,13 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthProvider';
+import { useReorder } from '../cart/useReorder';
 import { Card, Screen } from '../components/ui';
 import { STATUS_META } from '../features/order/order-status.model';
 import { useAsync } from '../hooks/useAsync';
-import { EmptyState, ErrorState, PressableScale, Skeleton } from '../motion';
+import { EmptyState, ErrorState, PressableScale, Skeleton, Toast } from '../motion';
 import { RootStackParamList } from '../navigation/types';
 import { formatSar } from '../util/money';
 import { StatusTone } from '../features/order/order-status.model';
@@ -30,6 +31,21 @@ export function OrdersScreen({ navigation }: NativeStackScreenProps<RootStackPar
   const { api } = useAuth();
   const { data, loading, error, reload } = useAsync(() => api.myOrders(), []);
   const orders = data?.data ?? [];
+  const reorder = useReorder();
+  const [toast, setToast] = useState<{ message: string; tone: StatusTone } | null>(null);
+
+  const orderAgain = (order: (typeof orders)[number]): void => {
+    const { ok, unavailable } = reorder(order);
+    if (!ok) {
+      setToast({ message: 'Nothing from that order is on the menu any more.', tone: 'danger' });
+      return;
+    }
+    if (unavailable.length > 0) {
+      // Say what was left out rather than handing over a quietly smaller cart.
+      setToast({ message: `Added. ${unavailable.join(', ')} is no longer available.`, tone: 'warning' });
+    }
+    navigation.navigate('Cart');
+  };
 
   return (
     <Screen title="My orders" onBack={() => navigation.goBack()}>
@@ -63,13 +79,39 @@ export function OrdersScreen({ navigation }: NativeStackScreenProps<RootStackPar
                       <Text style={{ color: theme.colors.onPrimary, fontSize: 12, fontWeight: '700' }}>{meta.label}</Text>
                     </View>
                   </View>
-                  <Text style={{ color: theme.colors.textMuted, marginTop: 6 }}>{formatSar(order.totalMinor)}</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                    <Text style={{ color: theme.colors.textMuted }}>{formatSar(order.totalMinor)}</Text>
+                    {/* Reordering is the most common thing a customer wants from
+                        this list, so it is one tap from here rather than a
+                        rebuild of the cart by hand. */}
+                    <PressableScale
+                      accessibilityRole="button"
+                      accessibilityLabel={`Order ${order.orderNumber} again`}
+                      onPress={() => orderAgain(order)}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: theme.colors.primary,
+                        borderRadius: theme.radius.pill,
+                        paddingVertical: 6,
+                        paddingHorizontal: 14,
+                      }}
+                    >
+                      <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 13 }}>Order again</Text>
+                    </PressableScale>
+                  </View>
                 </Card>
               </PressableScale>
             );
           })}
         </ScrollView>
       )}
+
+      <Toast
+        visible={toast !== null}
+        message={toast?.message ?? ''}
+        tone={toast?.tone}
+        onHide={() => setToast(null)}
+      />
     </Screen>
   );
 }

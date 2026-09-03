@@ -4,6 +4,8 @@ import { ScrollView, Text, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthProvider';
 import { Card, Screen } from '../components/ui';
+import { BannerCarousel } from '../features/home/BannerCarousel';
+import { bannerTitle, visibleBanners } from '../features/home/home-config';
 import { useAsync } from '../hooks/useAsync';
 import { EmptyState, ErrorState, PressableScale, Skeleton, Stagger } from '../motion';
 import { RootStackParamList } from '../navigation/types';
@@ -15,6 +17,13 @@ export function BranchesScreen({ navigation }: NativeStackScreenProps<RootStackP
   const theme = useTheme();
   const { api, signOut } = useAuth();
   const { data, loading, error, reload } = useAsync(() => api.listBranches(), []);
+
+  // The owner's home-screen configuration: banners and their section. Loaded
+  // separately and never allowed to block the branch list — a failed banner
+  // fetch must not stop someone ordering, so its error is simply no banners.
+  const config = useAsync(() => api.customerConfig(), []);
+  const banners = visibleBanners(config.data ?? null);
+  const bannersTitle = bannerTitle(config.data ?? null);
 
   const signOutButton = (
     <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
@@ -41,6 +50,21 @@ export function BranchesScreen({ navigation }: NativeStackScreenProps<RootStackP
         <EmptyState title="No branches yet" message="Please check back soon." />
       ) : (
         <ScrollView contentContainerStyle={{ padding: 20, gap: 12 }}>
+          {banners.length > 0 ? (
+            <View style={{ marginBottom: 8 }}>
+              {bannersTitle ? (
+                <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800', marginBottom: 10 }}>
+                  {bannersTitle}
+                </Text>
+              ) : null}
+              <BannerCarousel banners={banners} />
+            </View>
+          ) : null}
+
+          <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800', marginBottom: 2 }}>
+            Order from
+          </Text>
+
           <Stagger>
             {data.map((branch) => (
               <PressableScale

@@ -1,6 +1,17 @@
 import { OrderType, PaymentMethod } from '../types/backend';
 import { ApiClient } from './http';
-import { Address, AuthTokens, Branch, DeliveryTracking, Menu, Order, Payment, PriceQuote } from './types';
+import {
+  Address,
+  AuthTokens,
+  Branch,
+  CouponQuote,
+  CustomerConfig,
+  DeliveryTracking,
+  Menu,
+  Order,
+  Payment,
+  PriceQuote,
+} from './types';
 
 export interface AddressInput {
   label?: string;
@@ -42,6 +53,16 @@ export class Api {
     return this.http.request('/auth/refresh', { method: 'POST', body: { refreshToken }, public: true });
   }
 
+  // --- Bootstrap (public) ---------------------------------------------------
+  /**
+   * Everything the home screen renders: banners, the owner's homepage section
+   * order, live promotions and the feature flags — in one public call, so the
+   * first screen is one request rather than four.
+   */
+  customerConfig(): Promise<CustomerConfig> {
+    return this.http.request('/customer/config', { public: true });
+  }
+
   // --- Catalog (public) -----------------------------------------------------
   listBranches(): Promise<Branch[]> {
     // `/customer/branches`, not `/branches`: the latter is the staff resource
@@ -61,6 +82,23 @@ export class Api {
    */
   quote(input: { branchId: string; type: OrderType; items: OrderItemInput[] }): Promise<PriceQuote> {
     return this.http.request('/pricing/quote', { method: 'POST', body: input });
+  }
+
+  /**
+   * Prices the cart **with a coupon applied**, for the customer signed in.
+   *
+   * A separate call from {@link quote} because a coupon is evaluated against
+   * *this* customer — their past usage, their eligibility — so it cannot be
+   * priced by the anonymous pricing endpoint. An unusable code is not an error:
+   * the base price comes back with `couponError` set.
+   */
+  quoteWithCoupon(input: {
+    branchId: string;
+    type: OrderType;
+    items: OrderItemInput[];
+    couponCode?: string;
+  }): Promise<CouponQuote> {
+    return this.http.request('/customer/orders/quote', { method: 'POST', body: input });
   }
 
   // --- Customer orders (authenticated) --------------------------------------
