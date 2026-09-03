@@ -13,6 +13,7 @@ import { useAsync } from '../hooks/useAsync';
 import { PressableScale, Toast } from '../motion';
 import { MainTabParamList, RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
+import { APP_VERSION } from '../version';
 
 interface Row {
   glyph: string;
@@ -131,7 +132,7 @@ export function AccountScreen(): React.JSX.Element {
 
         <Button label="Log out" variant="danger" onPress={() => signOut()} />
         <AppText variant="caption" color="textMuted" center>
-          بيت الهناء · v0.1.0
+          بيت الهناء · v{APP_VERSION}
         </AppText>
       </ScrollView>
     </Screen>

@@ -1,6 +1,6 @@
 {
   "name": "@bait-al-hana/customer-app",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Bait Al Hana customer ordering app — React Native (Expo).",
   "main": "index.ts",
