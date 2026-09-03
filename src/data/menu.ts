@@ -44,6 +44,7 @@ export function toFoodCard(p: MenuProduct, tag?: string): FoodCardData {
     rating: ratingFor(p.id),
     ratingCount: ratingCountFor(p.id),
     tag,
+    isAvailable: p.isAvailable,
   };
 }
 

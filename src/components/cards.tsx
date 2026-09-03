@@ -23,6 +23,7 @@ export interface FoodCardData {
   rating?: number;
   ratingCount?: number;
   tag?: string;
+  isAvailable?: boolean;
 }
 
 /** A vertical food card for horizontal rails (Popular, Recommended). Fixed width. */
@@ -101,18 +102,17 @@ export function FoodListItem({
   onAdd,
   favorite,
   onToggleFavorite,
-  unavailable,
 }: {
   data: FoodCardData;
   onPress: () => void;
-  onAdd?: (() => void) | undefined;
+  onAdd: () => void;
   favorite?: boolean;
   onToggleFavorite?: () => void;
-  unavailable?: boolean;
 }): React.JSX.Element {
   const theme = useTheme();
+  const unavailable = data.isAvailable === false;
   return (
-    <PressableScale accessibilityRole="button" accessibilityLabel={data.name} onPress={onPress}>
+    <PressableScale accessibilityRole="button" accessibilityLabel={data.name} onPress={onPress} style={{ opacity: unavailable ? 0.6 : 1 }}>
       <Card padded={false} style={{ overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', padding: 12, gap: 12 }}>
           <FoodImage uri={data.imageUrl} glyph={glyphFor(data.name)} height={92} style={{ width: 92 }} radius={theme.radius.md} />
@@ -122,7 +122,7 @@ export function FoodListItem({
                 <AppText variant="h3" numberOfLines={1} style={{ fontSize: 15, flex: 1 }}>
                   {data.name}
                 </AppText>
-                {unavailable ? <Badge label="Unavailable" tone="neutral" /> : null}
+                {unavailable ? <Badge label="Unavailable" tone="danger" solid /> : null}
               </View>
               {data.description ? (
                 <AppText variant="bodySmall" color="textMuted" numberOfLines={2} style={{ marginTop: 2 }}>
@@ -136,10 +136,14 @@ export function FoodListItem({
               ) : null}
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-              <AppText variant="price" color="primary">
+              <AppText variant="price" color={unavailable ? 'textMuted' : 'primary'}>
                 {formatSar(data.priceMinor)}
               </AppText>
-              {onAdd ? <AddButton onPress={onAdd} size={36} accessibilityLabel={`Add ${data.name}`} /> : null}
+              {unavailable ? (
+                <AppText variant="caption" color="danger" style={{ fontSize: 11 }}>Unavailable now</AppText>
+              ) : (
+                <AddButton onPress={onAdd} size={36} accessibilityLabel={`Add ${data.name}`} />
+              )}
             </View>
           </View>
           {onToggleFavorite ? (
