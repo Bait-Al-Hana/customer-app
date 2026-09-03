@@ -64,8 +64,16 @@ export function OrdersScreen({ navigation }: NativeStackScreenProps<RootStackPar
           {orders.map((order) => {
             const meta = STATUS_META[order.status];
             return (
-              <PressableScale key={order.id} accessibilityRole="button" onPress={() => navigation.navigate('OrderTracking', { orderId: order.id })}>
-                <Card>
+              // The card and the reorder button are SIBLINGS, never nested.
+              // A pressable inside a pressable is invalid markup (a <button>
+              // cannot contain a <button>) and the outer one swallows the tap,
+              // so "Order again" opened the order instead of reordering it.
+              <Card key={order.id}>
+                <PressableScale
+                  accessibilityRole="button"
+                  accessibilityLabel={`View order ${order.orderNumber}`}
+                  onPress={() => navigation.navigate('OrderTracking', { orderId: order.id })}
+                >
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <View>
                       <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{order.orderNumber}</Text>
@@ -79,28 +87,29 @@ export function OrdersScreen({ navigation }: NativeStackScreenProps<RootStackPar
                       <Text style={{ color: theme.colors.onPrimary, fontSize: 12, fontWeight: '700' }}>{meta.label}</Text>
                     </View>
                   </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-                    <Text style={{ color: theme.colors.textMuted }}>{formatSar(order.totalMinor)}</Text>
-                    {/* Reordering is the most common thing a customer wants from
-                        this list, so it is one tap from here rather than a
-                        rebuild of the cart by hand. */}
-                    <PressableScale
-                      accessibilityRole="button"
-                      accessibilityLabel={`Order ${order.orderNumber} again`}
-                      onPress={() => orderAgain(order)}
-                      style={{
-                        borderWidth: 1,
-                        borderColor: theme.colors.primary,
-                        borderRadius: theme.radius.pill,
-                        paddingVertical: 6,
-                        paddingHorizontal: 14,
-                      }}
-                    >
-                      <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 13 }}>Order again</Text>
-                    </PressableScale>
-                  </View>
-                </Card>
-              </PressableScale>
+                  <Text style={{ color: theme.colors.textMuted, marginTop: 6 }}>{formatSar(order.totalMinor)}</Text>
+                </PressableScale>
+
+                {/* Reordering is the most common thing a customer wants from
+                    this list, so it is one tap from here rather than a rebuild
+                    of the cart by hand. */}
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 }}>
+                  <PressableScale
+                    accessibilityRole="button"
+                    accessibilityLabel={`Order ${order.orderNumber} again`}
+                    onPress={() => orderAgain(order)}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.colors.primary,
+                      borderRadius: theme.radius.pill,
+                      paddingVertical: 6,
+                      paddingHorizontal: 14,
+                    }}
+                  >
+                    <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 13 }}>Order again</Text>
+                  </PressableScale>
+                </View>
+              </Card>
             );
           })}
         </ScrollView>

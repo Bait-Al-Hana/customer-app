@@ -81,6 +81,37 @@ build that is a blank view escapable only by force-quitting. The fallback shows
 no stack trace: it says the order is safe and offers Try again. Colours are
 hard-coded because the theme provider is one of the things that can throw.
 
+## Running it on web
+
+`npm run web` (or `npx expo start --web`) runs the app in a browser — useful for
+seeing a change without a device. Three dependencies make that possible
+(`react-dom`, `react-native-web`, `@expo/metro-runtime`), pinned to the versions
+Expo SDK 51 bundles.
+
+**Web is a development and demo surface, not a shipping target.** The customer
+app ships as the native build.
+
+`react-native-maps` is native-only — it reaches into `react-native/Libraries` by
+deep path for codegen'd native commands, and those files have no web variant, so
+importing it breaks the web bundle entirely. `src/maps/AppMap.web.tsx` is the
+platform-specific replacement Metro picks for `platform=web`; it renders the
+same "map unavailable" placeholder the app already shows without a Maps key, and
+keeps `react-native-maps` out of the web graph. Its exported types mirror
+`AppMap.tsx` exactly.
+
+In this sandbox the Expo CLI needs `EXPO_OFFLINE=1` (its version-check API is
+unreachable), and the backend's `CORS_ALLOWED_ORIGINS` must include
+`http://localhost:8081`.
+
+## Nested pressables
+
+**A pressable inside a pressable is invalid markup and the outer one swallows
+the tap.** The orders list learned this the hard way: "Order again" sat inside
+the card's pressable, so tapping it opened the order instead of reordering. The
+card body and the action are siblings inside the `Card` now. React logs it as
+`validateDOMNesting: <button> cannot appear as a descendant of <button>` — worth
+watching for when adding an action to a tappable row.
+
 ## Screens are mounted in tests
 
 `test/components/screens.spec.tsx` mounts every screen against a stubbed API.

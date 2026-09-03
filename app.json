@@ -8,7 +8,9 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "icon": "./assets/logo.jpeg",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "splash": {
       "image": "./assets/logo.jpeg",
       "resizeMode": "contain",
@@ -34,13 +36,19 @@
     "plugins": [
       [
         "expo-location",
-        { "locationWhenInUsePermission": "Allow Bait Al Hana to use your location to set your delivery address." }
+        {
+          "locationWhenInUsePermission": "Allow Bait Al Hana to use your location to set your delivery address."
+        }
       ]
     ],
     "extra": {
       "//": "API base URL is injected per environment; never hard-code secrets.",
       "apiBaseUrl": "http://localhost:3000/api/v1",
       "googleMapsApiKey": ""
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/logo.jpeg"
     }
   }
 }
