@@ -21,6 +21,11 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const { data, loading, error, reload } = useAsync(() => api.menu(branchId), [branchId]);
 
   const add = (product: MenuProduct): void => {
+    // The button is hidden for a sold-out item, but the guard is the rule —
+    // a disabled control is only an affordance.
+    if (!product.isAvailable) {
+      return;
+    }
     dispatch({
       type: 'ADD',
       branchId,
@@ -66,7 +71,10 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
               </Text>
               <View style={{ gap: 10 }}>
                 {category.products.map((product) => (
-                  <Card key={product.id}>
+                  // A sold-out item stays on the menu, dimmed and marked, so the
+                  // customer can see the restaurant does make it — it just
+                  // cannot be added, rather than being refused at checkout.
+                  <Card key={product.id} style={{ opacity: product.isAvailable ? 1 : 0.5 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <View style={{ flex: 1, paddingRight: 12 }}>
                         <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>{product.name}</Text>
@@ -79,21 +87,38 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
                           {formatSar(product.priceMinor)}
                         </Text>
                       </View>
-                      <PressableScale
-                        accessibilityRole="button"
-                        accessibilityLabel={`Add ${product.name}`}
-                        onPress={() => add(product)}
-                        style={{
-                          backgroundColor: theme.colors.primary,
-                          width: 40,
-                          height: 40,
-                          borderRadius: 20,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Text style={{ color: theme.colors.onPrimary, fontSize: 24, fontWeight: '700' }}>+</Text>
-                      </PressableScale>
+                      {product.isAvailable ? (
+                        <PressableScale
+                          accessibilityRole="button"
+                          accessibilityLabel={`Add ${product.name}`}
+                          onPress={() => add(product)}
+                          style={{
+                            backgroundColor: theme.colors.primary,
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Text style={{ color: theme.colors.onPrimary, fontSize: 24, fontWeight: '700' }}>+</Text>
+                        </PressableScale>
+                      ) : (
+                        <View
+                          accessible
+                          accessibilityLabel={`${product.name} is sold out`}
+                          style={{
+                            backgroundColor: theme.colors.surfaceAlt,
+                            borderRadius: theme.radius.pill,
+                            paddingVertical: 6,
+                            paddingHorizontal: 10,
+                          }}
+                        >
+                          <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '700' }}>
+                            Sold out
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   </Card>
                 ))}

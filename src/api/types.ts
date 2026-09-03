@@ -48,6 +48,16 @@ export interface MenuProduct {
   imageUrl: string | null;
   priceMinor: number;
   taxClass: string;
+  /**
+   * Whether this branch is currently selling the product.
+   *
+   * The menu deliberately lists the whole catalogue and flags what the branch
+   * cannot make right now — a dish that vanishes entirely reads as
+   * discontinued. The flag must be honoured before an item is added to the
+   * cart: the backend rejects an unavailable item at *placement*, so ignoring
+   * it means the customer builds a whole order and is refused at checkout.
+   */
+  isAvailable: boolean;
   variants: { id: string; name: string; priceMinor: number; isDefault: boolean }[];
   modifierGroups: MenuModifierGroup[];
 }
