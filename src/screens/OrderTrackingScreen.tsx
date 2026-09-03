@@ -11,7 +11,7 @@ import { ErrorState, Skeleton } from '../motion';
 import { ORDER_STATUS, ORDER_TYPE, OrderStatus } from '../types/backend';
 import type { DeliveryTracking } from '../api/types';
 import { RootStackParamList } from '../navigation/types';
-import { formatSar } from '../util/money';
+import { formatSar, vatLabel } from '../util/money';
 import { useTheme } from '../theme/theme';
 
 /** Statuses that are still moving — worth polling for live updates. */
@@ -26,6 +26,19 @@ const ACTIVE: OrderStatus[] = [
 ];
 
 const POLL_MS = 8000;
+
+/** One label/amount line in the order summary. */
+function SummaryRow({ label, value, tone }: { label: string; value: string; tone?: 'positive' }): React.JSX.Element {
+  const theme = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+      <Text style={{ color: theme.colors.textMuted }}>{label}</Text>
+      <Text style={{ color: tone === 'positive' ? theme.colors.success : theme.colors.textMuted }}>
+        {value}
+      </Text>
+    </View>
+  );
+}
 
 /** Live order tracking via the shared OrderStatusTracker, polling while active. */
 export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'OrderTracking'>): React.JSX.Element {
@@ -63,7 +76,20 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
         <ErrorState title="Couldn’t load your order" message={error.message} actionLabel="Retry" onAction={reload} />
       ) : order ? (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-          <Text style={{ color: theme.colors.textMuted }}>Order {order.orderNumber}</Text>
+          <Card>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <Text style={{ color: theme.colors.textMuted }}>Order</Text>
+              <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 18 }}>{order.orderNumber}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 4 }}>
+              <Text style={{ color: theme.colors.textMuted }}>Reference</Text>
+              {/* Selectable so it can be long-pressed and copied into a message
+                  to the restaurant — this is the number support asks for. */}
+              <Text selectable style={{ color: theme.colors.text, fontVariant: ['tabular-nums'], letterSpacing: 0.5 }}>
+                {order.referenceId}
+              </Text>
+            </View>
+          </Card>
           <OrderStatusTracker status={order.status} type={order.type} />
 
           {(() => {
@@ -103,6 +129,18 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
                 <Text style={{ color: theme.colors.textMuted }}>{formatSar(item.lineTotalMinor)}</Text>
               </View>
             ))}
+            <View style={{ height: 1, backgroundColor: theme.colors.border, marginVertical: 6 }} />
+            {/* Every figure below is the backend's snapshot for this order. The
+                app never computes a payable amount — it only formats one. */}
+            <SummaryRow label="Subtotal" value={formatSar(order.subtotalMinor)} />
+            {order.discountMinor > 0 ? (
+              <SummaryRow label="Discount" value={`-${formatSar(order.discountMinor)}`} tone="positive" />
+            ) : null}
+            {order.deliveryFeeMinor > 0 ? (
+              <SummaryRow label="Delivery" value={formatSar(order.deliveryFeeMinor)} />
+            ) : null}
+            {order.chargesMinor ? <SummaryRow label="Charges" value={formatSar(order.chargesMinor)} /> : null}
+            <SummaryRow label={`VAT${vatLabel(order.vatRate)}`} value={formatSar(order.vatMinor)} />
             <View style={{ height: 1, backgroundColor: theme.colors.border, marginVertical: 6 }} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ color: theme.colors.text, fontWeight: '800' }}>Total</Text>

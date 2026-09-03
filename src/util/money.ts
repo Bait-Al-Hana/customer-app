@@ -22,3 +22,22 @@ export function formatMinor(amountMinor: number): string {
 export function formatSar(amountMinor: number): string {
   return `SAR ${formatMinor(amountMinor)}`;
 }
+
+/**
+ * Formats a snapshotted VAT rate for a receipt line, e.g. "0.1500" → " (15%)".
+ *
+ * The rate is read off the order rather than from a constant here: a historic
+ * order must keep showing the rate it was actually charged, even after the
+ * rate changes. Returns an empty string when the order carries no rate, so the
+ * line degrades to a plain "VAT" instead of showing a wrong number.
+ */
+export function vatLabel(vatRate: string | undefined): string {
+  if (!vatRate) {
+    return '';
+  }
+  const rate = Number(vatRate);
+  if (!Number.isFinite(rate)) {
+    return '';
+  }
+  return ` (${Number((rate * 100).toFixed(2))}%)`;
+}

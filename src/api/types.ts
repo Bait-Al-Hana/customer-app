@@ -89,7 +89,19 @@ export interface OrderItem {
 
 export interface Order {
   id: string;
+  /**
+   * The branch's own running order number — its first order is "1000000",
+   * its next "1000001". It is unique only within that branch, so it is what
+   * the customer and the counter say out loud, never what identifies the
+   * order to support.
+   */
   orderNumber: string;
+  /**
+   * Globally unique 12-digit reference. This is the handle to quote when
+   * asking about an order: unlike `orderNumber` it identifies exactly one
+   * order across every branch.
+   */
+  referenceId: string;
   branchId: string;
   type: OrderType;
   status: OrderStatus;
@@ -97,8 +109,11 @@ export interface Order {
   subtotalMinor: number;
   discountMinor: number;
   deliveryFeeMinor: number;
+  chargesMinor?: number;
   vatMinor: number;
   totalMinor: number;
+  /** VAT rate the backend actually applied, e.g. "0.1500". Snapshotted. */
+  vatRate?: string;
   items: OrderItem[];
   placedAt: string;
 }

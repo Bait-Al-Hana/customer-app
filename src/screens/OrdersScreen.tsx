@@ -51,7 +51,14 @@ export function OrdersScreen({ navigation }: NativeStackScreenProps<RootStackPar
               <PressableScale key={order.id} accessibilityRole="button" onPress={() => navigation.navigate('OrderTracking', { orderId: order.id })}>
                 <Card>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{order.orderNumber}</Text>
+                    <View>
+                      <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{order.orderNumber}</Text>
+                      {/* The globally unique reference — the number to quote when
+                          asking about this order, since order numbers repeat across branches. */}
+                      <Text style={{ color: theme.colors.textMuted, fontSize: 12, marginTop: 2 }}>
+                        Ref {order.referenceId}
+                      </Text>
+                    </View>
                     <View style={{ backgroundColor: toneColor(theme, meta.tone), borderRadius: theme.radius.pill, paddingVertical: 3, paddingHorizontal: 10 }}>
                       <Text style={{ color: theme.colors.onPrimary, fontSize: 12, fontWeight: '700' }}>{meta.label}</Text>
                     </View>
