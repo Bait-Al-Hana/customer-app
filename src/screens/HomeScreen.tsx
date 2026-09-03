@@ -57,7 +57,7 @@ export function HomeScreen(): React.JSX.Element {
     : 'Add your delivery address';
 
   const addToCart = (product: MenuProduct): void => {
-    if (!branchId) {
+    if (!branchId || product.isAvailable === false) {
       return;
     }
     if (cart.branchId && cart.branchId !== branchId) {

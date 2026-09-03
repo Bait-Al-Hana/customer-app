@@ -84,16 +84,14 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
                 <Stagger>
                   {category.products.map((product) => {
                     const card = toFoodCard(product);
-                    const unavailable = product.isAvailable === false;
                     return (
-                      <View key={product.id} style={[{ marginBottom: 10 }, unavailable && { opacity: 0.55 }]}>
+                      <View key={product.id} style={{ marginBottom: 10 }}>
                         <FoodListItem
                           data={card}
                           onPress={() => openProduct(product)}
-                          onAdd={unavailable ? undefined : () => add(product)}
+                          onAdd={() => add(product)}
                           favorite={favorites.isFavorite(product.id)}
                           onToggleFavorite={() => favorites.toggle(card)}
-                          unavailable={unavailable}
                         />
                       </View>
                     );
