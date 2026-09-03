@@ -81,6 +81,17 @@ build that is a blank view escapable only by force-quitting. The fallback shows
 no stack trace: it says the order is safe and offers Try again. Colours are
 hard-coded because the theme provider is one of the things that can throw.
 
+## Screens are mounted in tests
+
+`test/components/screens.spec.tsx` mounts every screen against a stubbed API.
+The pure tests cover the arithmetic and the backend's contract suites cover the
+requests; neither covers a screen *rendering*, which is where a blank page comes
+from. The fixtures are deliberately awkward — a null district, a sold-out dish,
+an order with no delivery, an order with no reference, a rejected coupon, empty
+lists — because a screen that only renders against tidy data is not actually
+known to work. Add a case here when a screen starts reading a new nullable
+field.
+
 ## Pure logic is tested
 
 Cart maths (`cart/cart.ts`), menu search (`util/menu-search.ts`), home config
