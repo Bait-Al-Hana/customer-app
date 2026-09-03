@@ -51,8 +51,14 @@ export class Api {
     return this.http.request(`/branches/${branchId}/menu`, { public: true });
   }
 
+  /**
+   * Prices the cart. **Authenticated** — pricing is not a public endpoint, and
+   * sending this without the token returns 401, which surfaces as "Couldn't
+   * price your order" and blocks checkout entirely. The whole shopping flow is
+   * behind sign-in, so the token is always available here.
+   */
   quote(input: { branchId: string; type: OrderType; items: OrderItemInput[] }): Promise<PriceQuote> {
-    return this.http.request('/pricing/quote', { method: 'POST', body: input, public: true });
+    return this.http.request('/pricing/quote', { method: 'POST', body: input });
   }
 
   // --- Customer orders (authenticated) --------------------------------------
