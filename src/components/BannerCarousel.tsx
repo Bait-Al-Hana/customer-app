@@ -61,6 +61,11 @@ export function BannerCarousel({ banners }: { banners: Banner[] }): React.JSX.El
         decelerationRate="fast"
         renderItem={({ item }) => (
           <View
+            // A banner is an image and nothing else, so without this it is
+            // invisible to a screen reader — and untestable, since there is no
+            // text on screen to find it by.
+            accessibilityRole="image"
+            accessibilityLabel={item.title}
             style={{
               width: BANNER_WIDTH,
               height: BANNER_HEIGHT,

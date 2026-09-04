@@ -79,6 +79,20 @@ export interface PriceQuote {
   vatRate: string;
 }
 
+/**
+ * The coupon-aware quote from `POST /customer/orders/quote`.
+ *
+ * A code that does not apply is **not** an error response: the backend returns
+ * the base price plus `couponError`, so the totals stay on screen while
+ * someone fixes a typo. `coupon` is non-null only for a code that actually
+ * priced — which is the only kind that should reach placement.
+ */
+export interface OrderQuote {
+  quote: PriceQuote;
+  coupon: { code: string; couponId: string; discountMinor: number } | null;
+  couponError: string | null;
+}
+
 export interface OrderItem {
   id: string;
   productName: string;

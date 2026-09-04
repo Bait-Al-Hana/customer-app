@@ -11,6 +11,7 @@ import {
   Menu,
   NotificationItem,
   Order,
+  OrderQuote,
   Payment,
   PriceQuote,
 } from './types';
@@ -101,6 +102,25 @@ export class Api {
    */
   quote(input: { branchId: string; type: OrderType; items: OrderItemInput[] }): Promise<PriceQuote> {
     return this.http.request('/pricing/quote', { method: 'POST', body: input });
+  }
+
+  /**
+   * Prices the cart **with a coupon**, for checkout.
+   *
+   * Separate from `quote()` on purpose. `/pricing/quote` has no `couponCode`
+   * field at all and the backend runs `forbidNonWhitelisted`, so sending one
+   * there is a 400, not a discount. This route evaluates the code against this
+   * customer and returns the base price plus a `couponError` when it does not
+   * apply — read-only, no usage is recorded; the claim happens atomically at
+   * placement.
+   */
+  quoteOrder(input: {
+    branchId: string;
+    type: OrderType;
+    items: OrderItemInput[];
+    couponCode?: string;
+  }): Promise<OrderQuote> {
+    return this.http.request('/customer/orders/quote', { method: 'POST', body: input });
   }
 
   // --- Customer orders (authenticated) --------------------------------------

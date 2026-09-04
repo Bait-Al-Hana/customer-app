@@ -109,3 +109,38 @@ export class ErrorBoundary extends React.Component<Props, State> {
     );
   }
 }
+
+/**
+ * Wraps one screen in its own boundary.
+ *
+ * The root boundary in `App.tsx` keeps the app off a blank view, but it takes
+ * the whole app down with the one screen that threw — the customer loses their
+ * place and navigates back from the start. Per screen, the failure stays where
+ * it happened and "Try again" returns them to the previous screen, which is
+ * almost always one that works.
+ *
+ * `key`ing on the screen name matters: without it React reuses the boundary
+ * instance across screens and a caught error persists onto the next one.
+ */
+export function withErrorBoundary<P extends { navigation?: { goBack: () => void; canGoBack?: () => boolean } }>(
+  name: string,
+  Screen: React.ComponentType<P>,
+): React.ComponentType<P> {
+  function Wrapped(props: P): React.JSX.Element {
+    const nav = props.navigation;
+    return (
+      <ErrorBoundary
+        key={name}
+        onReset={() => {
+          if (nav && (nav.canGoBack ? nav.canGoBack() : true)) {
+            nav.goBack();
+          }
+        }}
+      >
+        <Screen {...props} />
+      </ErrorBoundary>
+    );
+  }
+  Wrapped.displayName = `WithErrorBoundary(${name})`;
+  return Wrapped as React.ComponentType<P>;
+}
