@@ -28,6 +28,7 @@ interface Call {
   method: string;
   isPublic: boolean;
   headers: Record<string, string>;
+  body?: Record<string, unknown>;
 }
 
 function recorder(): { api: Api; calls: Call[] } {
@@ -35,13 +36,19 @@ function recorder(): { api: Api; calls: Call[] } {
   const http = {
     request: (
       path: string,
-      options?: { method?: string; public?: boolean; headers?: Record<string, string> },
+      options?: {
+        method?: string;
+        public?: boolean;
+        headers?: Record<string, string>;
+        body?: unknown;
+      },
     ) => {
       calls.push({
         path,
         method: options?.method ?? 'GET',
         isPublic: options?.public === true,
         headers: options?.headers ?? {},
+        body: options?.body as Record<string, unknown> | undefined,
       });
       return Promise.resolve(undefined as never);
     },
@@ -156,5 +163,35 @@ describe('customer endpoint contract', () => {
 
       expect(call.isPublic).toBe(true);
     });
+  });
+});
+
+/**
+ * A coupon has to go to the route whose DTO declares one.
+ *
+ * `/pricing/quote` has no `couponCode` field and the backend runs
+ * `forbidNonWhitelisted`, so a coupon sent there is a 400 — not a discount.
+ * Checkout that priced through it showed `discountMinor: 0` every time, so the
+ * customer approved one total and was charged another.
+ */
+describe('coupon pricing goes to the coupon-aware route', () => {
+  const ITEMS = [{ productId: 'p1', quantity: 1 }];
+
+  it('never sends a coupon to /pricing/quote', async () => {
+    const { api, calls } = recorder();
+    await api.quote({ branchId: 'b1', type: 'PICKUP', items: ITEMS });
+
+    expect(calls[0]?.path).toBe('/pricing/quote');
+    expect(calls[0]?.body).not.toHaveProperty('couponCode');
+  });
+
+  it('sends the coupon on /customer/orders/quote, with the token', async () => {
+    const { api, calls } = recorder();
+    await api.quoteOrder({ branchId: 'b1', type: 'PICKUP', items: ITEMS, couponCode: 'EID20' });
+
+    expect(calls[0]?.path).toBe('/customer/orders/quote');
+    expect(calls[0]?.method).toBe('POST');
+    expect(calls[0]?.isPublic).toBe(false);
+    expect(calls[0]?.body).toMatchObject({ couponCode: 'EID20' });
   });
 });

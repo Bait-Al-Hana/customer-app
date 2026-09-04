@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { ApiError } from '../api/http';
-import { Address, Branch } from '../api/types';
+import { Address, Branch, OrderQuote } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
 import { toOrderItems } from '../cart/cart';
@@ -48,10 +48,20 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   const branchesReq = useAsync<Branch[]>(() => api.listBranches().catch(() => []), []);
   const branch = branchesReq.data?.find((b) => b.id === branchId) ?? null;
 
-  const { data: quote, loading, error, reload } = useAsync(
-    () => api.quote({ branchId, type, items }),
-    [branchId, JSON.stringify(items), type],
+  // Prices *with* the coupon, so the total on screen is the total charged.
+  // `/pricing/quote` has no coupon field at all, so a checkout that used it
+  // showed a discount of zero and the customer only discovered the real price
+  // after placing — or, for a code that had since expired, hit a failure on the
+  // very last press instead of while there was still time to fix it.
+  const { data: priced, loading, error, reload } = useAsync<OrderQuote>(
+    () => api.quoteOrder({ branchId, type, items, couponCode: couponCode ?? undefined }),
+    [branchId, JSON.stringify(items), type, couponCode],
   );
+  const quote = priced?.quote ?? null;
+  const couponError = priced?.couponError ?? null;
+  // Only a code the server actually priced is sent with the order. A code that
+  // failed here must not stay silently attached to the placement.
+  const appliedCoupon = priced?.coupon?.code ?? null;
 
   const addresses = useAsync<Address[]>(() => api.listAddresses(), []);
   const reloadAddresses = addresses.reload;
@@ -95,7 +105,7 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
         paymentMethod: method,
         items,
         customerAddressId: isDelivery ? addressId ?? undefined : undefined,
-        couponCode: couponCode ?? undefined,
+        couponCode: appliedCoupon ?? undefined,
         customerNotes: notes || undefined,
       }, idempotencyKey);
       dispatch({ type: 'CLEAR' });
@@ -206,11 +216,17 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
             ) : quote ? (
               <>
                 <PriceRow label="Subtotal" value={formatSar(quote.subtotalMinor)} />
-                {quote.discountMinor > 0 ? <PriceRow label={`Discount${couponCode ? ` (${couponCode})` : ''}`} value={`- ${formatSar(quote.discountMinor)}`} tone="discount" /> : null}
+                {quote.discountMinor > 0 ? <PriceRow label={`Discount${appliedCoupon ? ` (${appliedCoupon})` : ''}`} value={`- ${formatSar(quote.discountMinor)}`} tone="discount" /> : null}
                 {quote.deliveryFeeMinor > 0 ? <PriceRow label="Delivery fee" value={formatSar(quote.deliveryFeeMinor)} /> : null}
                 <PriceRow label={`VAT (${quote.vatRate}%, incl.)`} value={formatSar(quote.vatMinor)} />
                 <Divider style={{ marginVertical: 6 }} />
                 <PriceRow label="Total" value={formatSar(quote.totalMinor)} emphasis />
+                {couponError ? (
+                  <AppText variant="caption" color="danger" style={{ marginTop: 8 }}>
+                    {couponCode ? `${couponCode}: ` : ''}
+                    {couponError} — the price above is without it.
+                  </AppText>
+                ) : null}
               </>
             ) : null}
           </Card>
