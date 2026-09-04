@@ -8,11 +8,11 @@ import { Address, Branch, CustomerProfile, OrderQuote } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
 import { toOrderItems } from '../cart/cart';
-import { AppText, Card, OrderSummaryRows, PaymentMethodCard, Screen } from '../components';
+import { AppText, BillSummary, Card, PaymentMethodCard, Screen } from '../components';
 import { AddressCard } from '../components';
 import { BillIcon, ChevronRight, ClockIcon, PhoneIcon, PinIcon, ScooterIcon } from '../components/icons';
 import { useAsync } from '../hooks/useAsync';
-import { ErrorState, FadeIn, PressableScale, PulseButton, Shimmer, Toast } from '../motion';
+import { BottomSheet, ErrorState, FadeIn, PressableScale, PulseButton, Shimmer, Toast } from '../motion';
 import { ORDER_TYPE, OrderType, PAYMENT_METHOD, PaymentMethod } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
 import { correctedType, fulfilmentOptions } from '../util/fulfilment';
@@ -355,8 +355,7 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
                   ? `Includes ${formatSar(quote.vatMinor)} VAT at ${quote.vatRate}%`
                   : 'Pricing your order…'
               }
-              onPress={() => setBillOpen((v) => !v)}
-              chevronOpen={billOpen}
+              onPress={() => setBillOpen(true)}
             />
 
             {/* Deliberately outside the collapsible panel. A code that did not
@@ -371,25 +370,6 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
               </AppText>
             ) : null}
 
-            {billOpen ? (
-              <View style={{ paddingHorizontal: 14, paddingBottom: 14 }}>
-                {error ? (
-                  <ErrorState title="Couldn't price your order" message={error.message} actionLabel="Retry" onAction={reload} />
-                ) : quote ? (
-                  <>
-                    {/* The backend's own itemised list, so this summary, the
-                        branch view and the owner view show the same numbers. */}
-                    <OrderSummaryRows quote={quote} rows={priced?.breakdown} couponLabel={appliedCoupon} />
-                  </>
-                ) : (
-                  <View style={{ gap: 8 }}>
-                    <Shimmer height={16} />
-                    <Shimmer width="70%" height={16} />
-                    <Shimmer width="50%" height={20} />
-                  </View>
-                )}
-              </View>
-            ) : null}
           </Card>
         </FadeIn>
 
@@ -449,6 +429,34 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
           Your card information is never stored by us.
         </AppText>
       </ScrollView>
+
+      {/* The bill, on its own sheet. It is the thing a customer opens when they
+          want to check a number, so it gets the whole screen's attention rather
+          than being an accordion inside a card they are also reading. */}
+      <BottomSheet visible={billOpen} onClose={() => setBillOpen(false)}>
+        <View style={{ padding: 20, gap: 16 }}>
+          <AppText variant="h1">Bill Summary</AppText>
+          {error ? (
+            <ErrorState
+              title="Couldn't price your order"
+              message={error.message}
+              actionLabel="Retry"
+              onAction={reload}
+            />
+          ) : quote ? (
+            <BillSummary quote={quote} rows={priced?.breakdown} couponLabel={appliedCoupon} />
+          ) : (
+            <View style={{ gap: 8 }}>
+              <Shimmer height={16} />
+              <Shimmer width="70%" height={16} />
+              <Shimmer width="50%" height={20} />
+            </View>
+          )}
+          <AppText variant="caption" color="textMuted" center>
+            Prices include VAT. This is an order summary, not a tax invoice.
+          </AppText>
+        </View>
+      </BottomSheet>
 
       {/* The pay bar: what you are paying with on the left, what you are paying
           on the right. It stays put while the page scrolls, so the amount is
@@ -534,14 +542,12 @@ function DetailRow({
   subtitle,
   onPress,
   last,
-  chevronOpen,
 }: {
   icon: React.ReactNode;
   title: React.ReactNode;
   subtitle?: string | null;
   onPress?: () => void;
   last?: boolean;
-  chevronOpen?: boolean;
 }): React.JSX.Element {
   const theme = useTheme();
 
@@ -567,9 +573,7 @@ function DetailRow({
         ) : null}
       </View>
       {onPress ? (
-        <View style={{ transform: [{ rotate: chevronOpen ? '90deg' : '0deg' }] }}>
-          <ChevronRight color={theme.colors.textMuted} />
-        </View>
+        <ChevronRight color={theme.colors.textMuted} />
       ) : null}
     </View>
   );

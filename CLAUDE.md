@@ -115,17 +115,31 @@ back to the menu — not a rejection on the final press. An address outside the
 branch radius disables the button, because that one is not fixable from the
 checkout screen with that address.
 
-## Order totals come from the backend's own breakdown
+## The Bill Summary
 
-`OrderSummaryRows` (`components/OrderSummaryRows.tsx`) renders the itemised
-list the backend built, rather than reassembling one from the quote's columns —
-so this summary, the branch view and the owner view cannot disagree, and a row
-the backend starts sending appears here with no change.
+`BillSummary` (`components/BillSummary.tsx`) renders the itemised list the
+backend built, rather than reassembling one from the quote's columns — so this
+summary, the branch view and the owner view cannot disagree, and any fee the
+owner adds (a platform fee, a service charge) appears by its own name with no
+change to this app.
 
-**Rows carry `included`.** Prices are VAT-inclusive: the VAT line says how much
-of the total *is* tax, it does not add to it. A summary that summed every row
-would overstate every order by 15%. There is a fallback to the quote's columns
-for an older backend, so checkout never shows an empty summary.
+It opens as a **sheet** from the bill row, not as an accordion inside a card.
+It is the thing a customer opens when they want to check a number, so it gets
+the screen's attention rather than competing with the rest of the checkout.
+
+Three things it must keep getting right:
+
+- **A saving is a strikethrough, not a subtraction.** `strikethroughMinor` is
+  what the row would have cost; it sits immediately beside what it did. The
+  total saved is stated once under the bill — deliberately outside the column,
+  so nobody adds it in.
+- **VAT does not add to the total.** Prices are VAT-inclusive, so the VAT row
+  says how much of the amount *is* tax. Rows the backend marks `included` render
+  muted and labelled: a customer adding the column must not arrive at a number
+  15% above what they are paying.
+- **The fallback exists for an older backend**, so checkout never shows an empty
+  summary — and it labels VAT "included" rather than repeating the mistake of
+  listing it as an addition.
 
 ## The app shows delivery prices only
 

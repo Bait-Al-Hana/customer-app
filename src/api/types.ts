@@ -104,17 +104,15 @@ export interface PriceQuote {
  */
 /** One line of the order total, exactly as the backend built it. */
 export interface BreakdownRow {
-  kind:
-    | 'ITEMS'
-    | 'DISCOUNT'
-    | 'DELIVERY_BASE'
-    | 'DELIVERY_DISTANCE'
-    | 'CHARGE'
-    | 'VAT'
-    | 'TOTAL';
+  kind: 'ITEMS' | 'DELIVERY_BASE' | 'DELIVERY_DISTANCE' | 'CHARGE' | 'VAT' | 'TOTAL';
   label: string;
   detail: string | null;
   amountMinor: number;
+  /**
+   * What this row would have cost without a discount, rendered struck through
+   * beside the amount. Absent when nothing was discounted.
+   */
+  strikethroughMinor?: number;
   /**
    * True when this row is **already inside** the total and must not be added
    * to it — the VAT line, because prices are VAT-inclusive. A summary that
