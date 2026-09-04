@@ -13,6 +13,7 @@ import { STATUS_META } from '../features/order/order-status.model';
 import type { DeliveryTracking } from '../api/types';
 import { RootStackParamList } from '../navigation/types';
 import { formatSar } from '../util/money';
+import { driverProgress, freshnessLabel } from '../util/driverProgress';
 import { useTheme } from '../theme/theme';
 
 /** Statuses that are still moving — worth polling for live updates. */
@@ -159,6 +160,19 @@ function DeliveryPanel({ tracking, orderNumber }: { tracking: DeliveryTracking |
     markers.push({ id: 'dest', latitude: addrLat, longitude: addrLng, kind: 'customer', title: 'Delivery address' });
   }
   const focus = markers[0];
+  // Distance and an estimate from the driver's latest ping — and nothing at
+  // all when there has not been one, or when it is too old to trust.
+  const progress = driverProgress(
+    tracking?.driver
+      ? {
+          latitude: driverLat,
+          longitude: driverLng,
+          lastLocationAt: tracking.driver.lastLocationAt,
+        }
+      : null,
+    tracking?.addressSnapshot ?? null,
+  );
+  const freshness = freshnessLabel(progress.fixAgeMs);
   const driverName = tracking?.driver?.user.fullName ?? 'Your driver';
   const vehicle = tracking?.driver?.vehicleType ?? null;
 
@@ -178,14 +192,48 @@ function DeliveryPanel({ tracking, orderNumber }: { tracking: DeliveryTracking |
           </AppText>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
+          {/* Derived from the driver's latest ping, and absent when there has
+              not been one. This said a hard-coded "~15 min" to every customer
+              on every order — a number nobody had worked out, on a screen whose
+              whole job is telling the truth about where the food is. */}
           <AppText variant="caption" color="textMuted">
-            Arriving in
+            {progress.etaMinutes !== null ? 'Arriving in' : 'On its way'}
           </AppText>
           <AppText variant="h3" color="primary" style={{ fontSize: 15 }}>
-            ~15 min
+            {progress.etaMinutes !== null
+              ? `about ${progress.etaMinutes} min`
+              : progress.distanceKm !== null
+                ? `${progress.distanceKm} km away`
+                : '—'}
           </AppText>
         </View>
       </View>
+
+      {/* How far away, and how fresh that is. A position on a map with no age
+          on it is the thing customers misread: a driver who lost signal five
+          minutes ago looks parked outside somebody else's house. */}
+      {progress.distanceKm !== null || freshness ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            paddingHorizontal: 16,
+            paddingBottom: 12,
+          }}
+        >
+          {progress.distanceKm !== null ? (
+            <AppText variant="bodySmall" weight="700">
+              {progress.distanceKm} km away
+            </AppText>
+          ) : null}
+          {freshness ? (
+            <AppText variant="caption" color={progress.live ? 'textMuted' : 'danger'}>
+              {progress.live ? freshness : `last seen ${freshness.replace('updated ', '')}`}
+            </AppText>
+          ) : null}
+        </View>
+      ) : null}
 
       <View style={{ height: 200 }}>
         {markers.length > 0 ? (

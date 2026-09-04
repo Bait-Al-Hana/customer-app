@@ -7,6 +7,7 @@ import { ApiError } from '../api/http';
 import { Address, Branch, CustomerProfile, OrderQuote } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
+import { useFulfilment } from '../fulfilment/FulfilmentProvider';
 import { toOrderItems } from '../cart/cart';
 import { AppText, BillSummary, Card, PaymentMethodCard, Screen } from '../components';
 import { AddressCard } from '../components';
@@ -32,10 +33,18 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   const theme = useTheme();
   const { api } = useAuth();
   const { cart, couponCode, notes, dispatch, idempotencyKey } = useCart();
+  const { mode: fulfilmentMode, setMode: setFulfilmentMode } = useFulfilment();
 
   const items = toOrderItems(cart);
   const branchId = cart.branchId ?? '';
-  const [type, setType] = useState<OrderType>(route.params.type);
+  // The mode the customer chose on home. Checkout still lets them change it
+  // where the branch does both — but the change writes back, so home, the
+  // prices and the placement never disagree about what this order is.
+  const [type, setTypeState] = useState<OrderType>(route.params.type ?? fulfilmentMode);
+  const setType = (next: OrderType): void => {
+    setTypeState(next);
+    setFulfilmentMode(next);
+  };
   const [addressId, setAddressId] = useState<string | null>(null);
   const [method, setMethod] = useState<PaymentMethod>(PAYMENT_METHOD.CARD);
   const [busy, setBusy] = useState(false);

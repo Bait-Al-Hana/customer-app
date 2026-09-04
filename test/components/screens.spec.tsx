@@ -97,6 +97,7 @@ import { AddressesScreen } from '../../src/screens/AddressesScreen';
 import { CartScreen } from '../../src/screens/CartScreen';
 import { CheckoutScreen } from '../../src/screens/CheckoutScreen';
 import { FavoritesScreen } from '../../src/screens/FavoritesScreen';
+import { FulfilmentProvider } from '../../src/fulfilment/FulfilmentProvider';
 import { HomeScreen } from '../../src/screens/HomeScreen';
 import { LocationSetupScreen } from '../../src/screens/LocationSetupScreen';
 import { LoyaltyScreen } from '../../src/screens/LoyaltyScreen';
@@ -110,6 +111,10 @@ import { OtpScreen } from '../../src/screens/OtpScreen';
 import { PaymentProcessingScreen } from '../../src/screens/PaymentProcessingScreen';
 import { PhoneScreen } from '../../src/screens/PhoneScreen';
 import { ProductScreen } from '../../src/screens/ProductScreen';
+import { HelpScreen } from '../../src/screens/HelpScreen';
+import { LegalScreen } from '../../src/screens/LegalScreen';
+import { NotificationSettingsScreen } from '../../src/screens/NotificationSettingsScreen';
+import { PaymentMethodsScreen } from '../../src/screens/PaymentMethodsScreen';
 import { ProfileScreen } from '../../src/screens/ProfileScreen';
 import { SearchScreen } from '../../src/screens/SearchScreen';
 
@@ -128,7 +133,9 @@ function wrap(ui: React.ReactElement) {
     >
       <MotionProvider>
         <CartProvider>
-          <FavoritesProvider>{ui}</FavoritesProvider>
+          <FulfilmentProvider>
+            <FavoritesProvider>{ui}</FavoritesProvider>
+          </FulfilmentProvider>
         </CartProvider>
       </MotionProvider>
     </SafeAreaProvider>,
@@ -223,6 +230,21 @@ beforeEach(() => {
         priority: 1,
       },
     ],
+    // One published offer, shaped exactly as the backend sends it: an owner's
+    // coupon with its artwork and the code the checkout will accept.
+    offers: [
+      {
+        id: 'off1',
+        code: 'HANA20',
+        name: 'Twenty off',
+        description: 'Twenty percent off your order',
+        imageUrl: 'https://example.test/offer.png',
+        discountType: 'PERCENTAGE',
+        discountValue: 20,
+        minSpendMinor: 5000,
+        validUntil: '2030-01-01T00:00:00.000Z',
+      },
+    ],
   });
   mockApi.listBranches.mockResolvedValue([SPARSE_BRANCH]);
   mockApi.menu.mockResolvedValue(MENU);
@@ -279,6 +301,19 @@ describe('every screen mounts without throwing', () => {
     ],
     ['Notifications', () => <NotificationsScreen navigation={navigation} route={route('Notifications')} />],
     ['Profile', () => <ProfileScreen navigation={navigation} route={route('Profile')} />],
+    // The four screens that used to be "coming soon" toasts. They mount here
+    // for the same reason as every other one: a row that leads to a blank
+    // screen is worse than the toast it replaced.
+    [
+      'NotificationSettings',
+      () => (
+        <NotificationSettingsScreen navigation={navigation} route={route('NotificationSettings')} />
+      ),
+    ],
+    ['PaymentMethods', () => <PaymentMethodsScreen navigation={navigation} route={route('PaymentMethods')} />],
+    ['Help', () => <HelpScreen navigation={navigation} route={route('Help')} />],
+    ['Legal (privacy)', () => <LegalScreen navigation={navigation} route={route('Legal', { document: 'privacy' })} />],
+    ['Legal (terms)', () => <LegalScreen navigation={navigation} route={route('Legal', { document: 'terms' })} />],
     [
       'OrderSuccess',
       () => (
@@ -322,16 +357,25 @@ describe('screens survive what the backend actually returns', () => {
     expect(view.toJSON()).toBeTruthy();
   });
 
-  it('renders an admin-published banner on the home screen', async () => {
-    const { findByLabelText } = wrap(<HomeScreen />);
+  it('renders an admin-published banner on Offers — and not on home', async () => {
+    // A banner published in the admin panel still reaches the customer, but on
+    // the Offers tab: on home the artwork pushed the food below the fold, which
+    // is the one thing that screen exists to show (owner, 2026-09-04).
+    const offers = wrap(<OffersScreen />);
+    expect(await offers.findByLabelText('Ramadan offers')).toBeTruthy();
 
-    // The last hop that used to be missing entirely: a banner published in the
-    // admin panel reaching a customer's phone. It renders as an image only —
-    // its title, description and button text are never drawn, and its `action`
-    // and `targetId` go nowhere, so it is decoration a customer cannot tap.
-    // Found by this test; recorded in PENDING_AUDIT_ITEMS.md rather than
-    // widened into a redesign here.
-    expect(await findByLabelText('Ramadan offers')).toBeTruthy();
+    const home = wrap(<HomeScreen />);
+    await waitFor(() => expect(mockApi.listBranches).toHaveBeenCalled());
+    expect(home.queryByLabelText('Ramadan offers')).toBeNull();
+  });
+
+  it('shows an owner-published offer with the code the checkout will accept', async () => {
+    // The offers page used to list hard-coded copy with invented codes, so
+    // every code a customer tapped was rejected at checkout. An offer is now
+    // the coupon itself.
+    const { findByText } = wrap(<OffersScreen />);
+
+    expect(await findByText('HANA20')).toBeTruthy();
   });
 
   it('renders a menu that contains an empty category', async () => {

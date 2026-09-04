@@ -22,7 +22,16 @@ interface Row {
   onPress: () => void;
 }
 
-/** Account: profile summary and the app's settings/links. */
+/**
+ * Account: profile summary and everywhere else in the app.
+ *
+ * **Every row goes somewhere.** Six of them used to raise "coming soon", which
+ * on a screen a customer opens looking for help is a dead end wearing the
+ * clothes of a feature. Payment methods, notification settings, help and the
+ * two legal documents are real screens now, and the catch-all "Settings" row is
+ * gone rather than kept as a bucket with nothing in it — everything it would
+ * have contained has its own row here.
+ */
 export function AccountScreen(): React.JSX.Element {
   const theme = useTheme();
   const { api, signOut } = useAuth();
@@ -35,8 +44,6 @@ export function AccountScreen(): React.JSX.Element {
   const reloadProfile = profile.reload;
   // Reflect a name edited on the Profile screen when returning here.
   useFocusEffect(useCallback(() => reloadProfile(), [reloadProfile]));
-
-  const soon = (what: string) => () => setToast(`${what} — coming soon`);
 
   const sections: { title: string; rows: Row[] }[] = [
     {
@@ -53,17 +60,20 @@ export function AccountScreen(): React.JSX.Element {
       title: 'Preferences',
       rows: [
         { glyph: '📍', label: 'Saved addresses', onPress: () => rootNav.navigate('Addresses') },
-        { glyph: '💳', label: 'Payment methods', onPress: soon('Payment methods') },
-        { glyph: '🔕', label: 'Notification settings', onPress: soon('Notification settings') },
-        { glyph: '⚙️', label: 'Settings', onPress: soon('Settings') },
+        { glyph: '💳', label: 'Payment methods', onPress: () => rootNav.navigate('PaymentMethods') },
+        {
+          glyph: '🔔',
+          label: 'Notification settings',
+          onPress: () => rootNav.navigate('NotificationSettings'),
+        },
       ],
     },
     {
       title: 'Support & legal',
       rows: [
-        { glyph: '💬', label: 'Help & support', onPress: soon('Help & support') },
-        { glyph: '🔒', label: 'Privacy policy', onPress: soon('Privacy policy') },
-        { glyph: '📄', label: 'Terms of service', onPress: soon('Terms of service') },
+        { glyph: '💬', label: 'Help & support', onPress: () => rootNav.navigate('Help') },
+        { glyph: '🔒', label: 'Privacy policy', onPress: () => rootNav.navigate('Legal', { document: 'privacy' }) },
+        { glyph: '📄', label: 'Terms of service', onPress: () => rootNav.navigate('Legal', { document: 'terms' }) },
       ],
     },
   ];

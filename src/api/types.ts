@@ -9,6 +9,8 @@ export interface Branch {
   id: string;
   name: string;
   nameAr: string | null;
+  /** The branch's published number, for "call the branch about my order". */
+  phone: string | null;
   addressLine: string;
   district: string | null;
   city: string;
@@ -254,9 +256,34 @@ export interface Banner {
   priority: number;
 }
 
+/**
+ * An offer the owner published: a real coupon, with its artwork and its code.
+ *
+ * The card the customer taps carries the very code the checkout accepts, so
+ * there is no second discount path in this app that could drift from what the
+ * server actually applies. The app never computes what an offer is worth — it
+ * shows the code, and the backend prices the order.
+ */
+export interface Offer {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  /** Artwork the owner uploaded for this offer. */
+  imageUrl?: string;
+  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FREE_DELIVERY';
+  discountValue: number;
+  maxDiscountMinor?: number;
+  /** Minimum basket the coupon needs, when it carries that rule. */
+  minSpendMinor?: number;
+  validUntil: string;
+}
+
 export interface CustomerConfig {
   version: string;
   banners: Banner[];
+  /** Absent on a backend that predates published offers. */
+  offers?: Offer[];
 }
 
 export interface DeliveryTracking {

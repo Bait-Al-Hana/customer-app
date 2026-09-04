@@ -1,44 +1,41 @@
-import * as SecureStore from 'expo-secure-store';
-
 import { AuthTokens } from '../api/types';
+import { getItem, removeItem, setItem } from '../util/deviceStore';
 
 /**
- * Persists auth tokens in the device secure store (Keychain / Keystore).
+ * Persists auth tokens so a signed-in customer stays signed in.
  *
- * Tokens are the only sensitive thing the app stores, and they live in the OS
- * secure store, never in plain async storage. Every call is defensive: a
- * storage failure degrades to "logged out" rather than crashing.
+ * The store underneath is `deviceStore` — Keychain / Keystore on native,
+ * `localStorage` on web. That distinction is the whole of why a customer used
+ * to be signed out every time they closed the app on the web build:
+ * `expo-secure-store` is a native module, every call on web threw, and because
+ * each one was defensively wrapped the failure was completely silent. Nothing
+ * was ever written, so nothing was ever restored.
+ *
+ * Sessions are long-lived on purpose: the refresh token is good for 30 days and
+ * the app exchanges it automatically on the first 401, so a returning customer
+ * lands on the menu rather than on the phone-number screen. Signing out is the
+ * only thing that ends it, and it revokes the family server-side rather than
+ * merely forgetting it here.
  */
 const ACCESS_KEY = 'baitalhana.accessToken';
 const REFRESH_KEY = 'baitalhana.refreshToken';
 
 export async function saveTokens(tokens: AuthTokens): Promise<void> {
-  try {
-    await SecureStore.setItemAsync(ACCESS_KEY, tokens.accessToken);
-    await SecureStore.setItemAsync(REFRESH_KEY, tokens.refreshToken);
-  } catch {
-    // Non-fatal: the session simply won't survive a restart.
-  }
+  await setItem(ACCESS_KEY, tokens.accessToken);
+  await setItem(REFRESH_KEY, tokens.refreshToken);
 }
 
 export async function loadTokens(): Promise<AuthTokens | null> {
-  try {
-    const accessToken = await SecureStore.getItemAsync(ACCESS_KEY);
-    const refreshToken = await SecureStore.getItemAsync(REFRESH_KEY);
-    if (accessToken && refreshToken) {
-      return { accessToken, refreshToken };
-    }
-  } catch {
-    // Ignore — treat as no stored session.
+  const accessToken = await getItem(ACCESS_KEY);
+  const refreshToken = await getItem(REFRESH_KEY);
+
+  if (accessToken && refreshToken) {
+    return { accessToken, refreshToken };
   }
   return null;
 }
 
 export async function clearTokens(): Promise<void> {
-  try {
-    await SecureStore.deleteItemAsync(ACCESS_KEY);
-    await SecureStore.deleteItemAsync(REFRESH_KEY);
-  } catch {
-    // Ignore.
-  }
+  await removeItem(ACCESS_KEY);
+  await removeItem(REFRESH_KEY);
 }

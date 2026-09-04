@@ -7,7 +7,7 @@ import { estimatedTotalMinor } from '../cart/cart';
 import { AppText, Button, Card, Divider, PriceRow, Screen } from '../components';
 import { FoodImage, glyphFor } from '../components/FoodImage';
 import { EmptyState, FadeIn, MotiCard, PressableScale, PulseButton, QuantityStepper, Stagger, SwipeAction, Toast } from '../motion';
-import { ORDER_TYPE } from '../types/backend';
+import { useFulfilment } from '../fulfilment/FulfilmentProvider';
 import { RootStackParamList } from '../navigation/types';
 import { formatSar } from '../util/money';
 import { useTheme } from '../theme/theme';
@@ -16,6 +16,10 @@ import { useTheme } from '../theme/theme';
 export function CartScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'Cart'>): React.JSX.Element {
   const theme = useTheme();
   const { cart, count, dispatch, couponCode, setCouponCode, notes, setNotes } = useCart();
+  // Checkout opens on the mode the customer chose on home. It used to open on
+  // pickup unconditionally, so a delivery customer met a pickup total and had
+  // to notice the tab to fix it.
+  const { mode } = useFulfilment();
   const [couponInput, setCouponInput] = useState('');
   const [toast, setToast] = useState<string | null>(null);
 
@@ -168,7 +172,7 @@ export function CartScreen({ navigation }: NativeStackScreenProps<RootStackParam
       </ScrollView>
 
       <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface }}>
-        <PulseButton label={`Go to checkout · ${formatSar(estimatedTotalMinor(cart))}`} onPress={() => navigation.navigate('Checkout', { type: ORDER_TYPE.PICKUP })} />
+        <PulseButton label={`Go to checkout · ${formatSar(estimatedTotalMinor(cart))}`} onPress={() => navigation.navigate('Checkout', { type: mode })} />
       </View>
     </Screen>
   );

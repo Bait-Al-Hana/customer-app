@@ -44,5 +44,10 @@ export type RootStackParamList = {
   PaymentProcessing: { orderId: string; orderNumber: string; method: PaymentMethod };
   OrderTracking: { orderId: string };
   Notifications: undefined;
+  NotificationSettings: undefined;
   Profile: undefined;
+  PaymentMethods: undefined;
+  Help: undefined;
+  /** The privacy notice or the terms — same screen, different document. */
+  Legal: { document: 'privacy' | 'terms' };
 };
