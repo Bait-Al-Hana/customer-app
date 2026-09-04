@@ -53,6 +53,23 @@ export class Api {
     return this.http.request('/auth/customer/otp/verify', { method: 'POST', body: { phone, code }, public: true });
   }
 
+  /**
+   * Revokes the session family server-side. Public (it takes the refresh token
+   * in the body and reveals nothing about whether it existed) and idempotent.
+   *
+   * Clearing tokens on the device alone is not signing out: the refresh token
+   * stays valid until it expires, so anyone holding a copy — a shared handset,
+   * a restored backup — can keep minting access tokens for an account the
+   * customer believes they have left.
+   */
+  logout(refreshToken: string): Promise<void> {
+    return this.http.request('/auth/logout', {
+      method: 'POST',
+      body: { refreshToken },
+      public: true,
+    });
+  }
+
   refresh(refreshToken: string): Promise<AuthTokens> {
     return this.http.request('/auth/refresh', { method: 'POST', body: { refreshToken }, public: true });
   }
@@ -95,8 +112,17 @@ export class Api {
     items: OrderItemInput[];
     couponCode?: string;
     customerNotes?: string;
-  }): Promise<Order> {
-    return this.http.request('/customer/orders', { method: 'POST', body: input });
+  }, idempotencyKey?: string): Promise<Order> {
+    return this.http.request('/customer/orders', {
+      method: 'POST',
+      body: input,
+      // The backend places the order once per key and replays the stored
+      // result afterwards, so a request that times out mid-flight can be
+      // retried without the kitchen cooking the same order twice. The key is
+      // owned by the cart (see `CartProvider`), never generated here — one
+      // minted per call would make every retry a new order.
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    });
   }
 
   myOrders(): Promise<{ data: Order[] }> {

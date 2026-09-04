@@ -86,7 +86,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
       ready,
       isAuthenticated,
       signIn: (tokens) => setTokens(tokens),
-      signOut: () => setTokens(null),
+      signOut: async () => {
+        // Revoke server-side first, then clear locally. Best-effort: a
+        // customer tapping Sign out on a dead connection must still end up
+        // signed out on the device, so a failed revoke never blocks it.
+        const refreshToken = tokensRef.current?.refreshToken;
+        if (refreshToken) {
+          try {
+            await api.logout(refreshToken);
+          } catch {
+            // Ignored on purpose — see above.
+          }
+        }
+        await setTokens(null);
+      },
     }),
     [api, ready, isAuthenticated],
   );

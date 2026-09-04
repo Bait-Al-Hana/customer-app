@@ -35,7 +35,7 @@ function checkoutStep(type: OrderType, addressId: string | null, quote: unknown)
 export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'Checkout'>): React.JSX.Element {
   const theme = useTheme();
   const { api } = useAuth();
-  const { cart, couponCode, notes, dispatch } = useCart();
+  const { cart, couponCode, notes, dispatch, idempotencyKey } = useCart();
 
   const items = toOrderItems(cart);
   const branchId = cart.branchId ?? '';
@@ -97,7 +97,7 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
         customerAddressId: isDelivery ? addressId ?? undefined : undefined,
         couponCode: couponCode ?? undefined,
         customerNotes: notes || undefined,
-      });
+      }, idempotencyKey);
       dispatch({ type: 'CLEAR' });
       if (method === PAYMENT_METHOD.CASH_ON_DELIVERY) {
         navigation.replace('OrderSuccess', { orderId: order.id, orderNumber: order.orderNumber, method });

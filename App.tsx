@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from './src/auth/AuthProvider';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { CartProvider } from './src/cart/CartProvider';
 import { FavoritesProvider } from './src/favorites/FavoritesProvider';
 import { MotionProvider } from './src/motion';
@@ -24,20 +25,27 @@ export default function App(): React.JSX.Element {
   const [launched, setLaunched] = useState(false);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <MotionProvider>
-          <AuthProvider>
-            <CartProvider>
-              <FavoritesProvider>
-                <StatusBar style="auto" />
-                <RootNavigator />
-                {!launched ? <LaunchScreen onFinish={() => setLaunched(true)} /> : null}
-              </FavoritesProvider>
-            </CartProvider>
-          </AuthProvider>
-        </MotionProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    // Outermost, deliberately outside every provider: the motion, auth and
+    // cart providers are among the things that can throw, and a boundary
+    // nested inside them goes down with them. React unmounts the whole tree on
+    // an uncaught render error, which in a release build is a blank view the
+    // customer can only escape by force-quitting.
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <MotionProvider>
+            <AuthProvider>
+              <CartProvider>
+                <FavoritesProvider>
+                  <StatusBar style="auto" />
+                  <RootNavigator />
+                  {!launched ? <LaunchScreen onFinish={() => setLaunched(true)} /> : null}
+                </FavoritesProvider>
+              </CartProvider>
+            </AuthProvider>
+          </MotionProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
