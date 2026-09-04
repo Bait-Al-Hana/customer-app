@@ -22,6 +22,7 @@ export { GradientSurface } from './GradientSurface';
 export { FoodImage, glyphFor } from './FoodImage';
 export { FavoriteButton } from './FavoriteButton';
 export { AddButton } from './AddButton';
+export { OrderSummaryRows } from './OrderSummaryRows';
 export { SuccessCheck } from './SuccessState';
 export {
   FoodCard,

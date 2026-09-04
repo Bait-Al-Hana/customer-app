@@ -80,6 +80,53 @@ that can throw, and a boundary inside them goes down with them. React unmounts
 the whole tree on an uncaught render error, which in a release build is a blank
 view the customer can only escape by force-quitting.
 
+## The app is pinned to the light theme
+
+`useTheme()` returns the light palette unconditionally (owner decision,
+2026-09-04). It used to follow `useColorScheme()`, which is the whole of why
+the app "looked dark" when nobody had chosen a dark design: a customer whose
+phone was in dark mode got the dark palette by accident. The brand is a warm
+cream ground with food photography on it, and the dark palette was never
+art-directed to carry that.
+
+`app.json` sets `userInterfaceStyle: "light"` and `App.tsx` sets
+`<StatusBar style="dark" />` for the same reason — `"auto"` would put white
+status-bar glyphs on a cream background.
+
+The dark palette is **kept**, and `buildTheme('dark')` still builds it, so
+making this a real user-facing choice later is a small change rather than a
+rewrite. `test/unit/theme.spec.ts` holds both: that the light ground is warm
+(the logo's magenta needs something to be loud against — the old `#FCF7FA`
+leaned magenta too) and that the dark palette still builds.
+
+## The quote must carry the delivery address
+
+`quoteOrder` sends `customerAddressId` whenever one is chosen, and the address
+is in the re-quote dependency list. The delivery fee is priced from the
+distance between the branch and that address (5 SAR base covering 5 km, then
+3 SAR per further km), so **a quote without it comes back at the base fee only
+and the customer meets the real fee at placement** — the same "price changed at
+the last second" failure that made checkout switch from `/pricing/quote` to
+`/customer/orders/quote` in the first place.
+
+Checkout also surfaces `delivery.blockers` while the basket is still open. A
+basket under the 40 SAR delivery minimum gets "Add 15.00 more" and a button
+back to the menu — not a rejection on the final press. An address outside the
+branch radius disables the button, because that one is not fixable from the
+checkout screen with that address.
+
+## Order totals come from the backend's own breakdown
+
+`OrderSummaryRows` (`components/OrderSummaryRows.tsx`) renders the itemised
+list the backend built, rather than reassembling one from the quote's columns —
+so this summary, the branch view and the owner view cannot disagree, and a row
+the backend starts sending appears here with no change.
+
+**Rows carry `included`.** Prices are VAT-inclusive: the VAT line says how much
+of the total *is* tax, it does not add to it. A summary that summed every row
+would overstate every order by 15%. There is a fallback to the quote's columns
+for an older backend, so checkout never shows an empty summary.
+
 ## Money rules
 
 App displays totals; the backend prices. No total is ever computed here.

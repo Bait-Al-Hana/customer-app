@@ -8,7 +8,7 @@ import { Address, Branch, OrderQuote } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
 import { toOrderItems } from '../cart/cart';
-import { AppText, Card, Divider, PaymentMethodCard, PriceRow, Screen } from '../components';
+import { AppText, Card, OrderSummaryRows, PaymentMethodCard, Screen } from '../components';
 import { AddressCard } from '../components';
 import { useAsync } from '../hooks/useAsync';
 import { ErrorState, FadeIn, PressableScale, PulseButton, Shimmer, StepIndicator, Toast } from '../motion';
@@ -53,12 +53,36 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   // showed a discount of zero and the customer only discovered the real price
   // after placing — or, for a code that had since expired, hit a failure on the
   // very last press instead of while there was still time to fix it.
+  // The address is part of the price, not just the destination: the delivery
+  // fee is 5 SAR plus 3 SAR for each km past the first 5, measured from this
+  // branch to this address. A quote sent without it comes back at the base fee
+  // and the customer meets the real fee only when the order is placed — the
+  // same "price changed at the last second" failure the coupon-aware quote was
+  // introduced to prevent. So it is sent, and it is in the dependency list.
   const { data: priced, loading, error, reload } = useAsync<OrderQuote>(
-    () => api.quoteOrder({ branchId, type, items, couponCode: couponCode ?? undefined }),
-    [branchId, JSON.stringify(items), type, couponCode],
+    () =>
+      api.quoteOrder({
+        branchId,
+        type,
+        items,
+        couponCode: couponCode ?? undefined,
+        customerAddressId: type === ORDER_TYPE.DELIVERY ? (addressId ?? undefined) : undefined,
+      }),
+    [branchId, JSON.stringify(items), type, couponCode, addressId],
   );
   const quote = priced?.quote ?? null;
   const couponError = priced?.couponError ?? null;
+  // Delivery can be refused for two reasons the customer can act on. Surfacing
+  // them here — while the basket is still open — is the whole point of a quote
+  // that returns totals instead of throwing: "add 15.00 more" is a thing you
+  // can do, "your order was rejected" on the last press is not.
+  const blocker = priced?.delivery?.blockers?.[0] ?? null;
+  const blockerMessage =
+    blocker === null
+      ? null
+      : blocker.code === 'BELOW_MINIMUM'
+        ? `Delivery orders start at ${formatSar(blocker.minOrderMinor)}. Add ${formatSar(blocker.shortfallMinor)} more to continue.`
+        : `This address is ${blocker.distanceKm} km away and this branch delivers up to ${blocker.maxRadiusKm} km. Choose pickup, or a nearer address.`;
   // Only a code the server actually priced is sent with the order. A code that
   // failed here must not stay silently attached to the placement.
   const appliedCoupon = priced?.coupon?.code ?? null;
@@ -215,12 +239,15 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
               <ErrorState title="Couldn't price your order" message={error.message} actionLabel="Retry" onAction={reload} />
             ) : quote ? (
               <>
-                <PriceRow label="Subtotal" value={formatSar(quote.subtotalMinor)} />
-                {quote.discountMinor > 0 ? <PriceRow label={`Discount${appliedCoupon ? ` (${appliedCoupon})` : ''}`} value={`- ${formatSar(quote.discountMinor)}`} tone="discount" /> : null}
-                {quote.deliveryFeeMinor > 0 ? <PriceRow label="Delivery fee" value={formatSar(quote.deliveryFeeMinor)} /> : null}
-                <PriceRow label={`VAT (${quote.vatRate}%, incl.)`} value={formatSar(quote.vatMinor)} />
-                <Divider style={{ marginVertical: 6 }} />
-                <PriceRow label="Total" value={formatSar(quote.totalMinor)} emphasis />
+                {/* The backend's own itemised list, so this summary, the branch
+                    view and the owner view show the same numbers — and so a row
+                    the backend adds later appears here with no change. Falls
+                    back to the quote's columns on an older backend. */}
+                <OrderSummaryRows
+                  quote={quote}
+                  rows={priced?.breakdown}
+                  couponLabel={appliedCoupon}
+                />
                 {couponError ? (
                   <AppText variant="caption" color="danger" style={{ marginTop: 8 }}>
                     {couponCode ? `${couponCode}: ` : ''}
@@ -250,26 +277,43 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
         </FadeIn>
 
         <AppText variant="caption" color="textMuted" center style={{ paddingHorizontal: 12 }}>
-          Payment is confirmed by our server — never by this screen alone. No card details are stored in this app.
+          Your card information is never stored by us.
         </AppText>
       </ScrollView>
 
       <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface }}>
+        {blockerMessage ? (
+          <AppText variant="bodySmall" color="danger" style={{ marginBottom: 10 }}>
+            {blockerMessage}
+          </AppText>
+        ) : null}
         <PulseButton
           label={
             needsAddress
               ? 'Add a delivery address'
-              : method === PAYMENT_METHOD.CASH_ON_DELIVERY
-                ? quote
-                  ? `Place order · ${formatSar(quote.totalMinor)}`
-                  : 'Place order'
-                : quote
-                  ? `Pay · ${formatSar(quote.totalMinor)}`
-                  : 'Pay'
+              : blocker?.code === 'BELOW_MINIMUM'
+                ? `Add ${formatSar(blocker.shortfallMinor)} more`
+                : method === PAYMENT_METHOD.CASH_ON_DELIVERY
+                  ? quote
+                    ? `Place order · ${formatSar(quote.totalMinor)}`
+                    : 'Place order'
+                  : quote
+                    ? `Pay · ${formatSar(quote.totalMinor)}`
+                    : 'Pay'
           }
-          onPress={needsAddress ? () => navigation.navigate('AddAddress') : placeOrder}
+          onPress={
+            needsAddress
+              ? () => navigation.navigate('AddAddress')
+              : blocker?.code === 'BELOW_MINIMUM'
+                ? // Back to the menu is the action, not a dead button: the
+                  // customer has been told what to do, so let them do it.
+                  () => navigation.goBack()
+                : placeOrder
+          }
           busy={busy}
-          disabled={!quote || !!error}
+          // Out of range is not fixable from this screen with this address, so
+          // the button is disabled; being under the minimum is, so it is not.
+          disabled={!quote || !!error || blocker?.code === 'OUT_OF_RANGE'}
         />
       </View>
     </Screen>

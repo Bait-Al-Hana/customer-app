@@ -37,7 +37,11 @@ export default function App(): React.JSX.Element {
             <AuthProvider>
               <CartProvider>
                 <FavoritesProvider>
-                  <StatusBar style="auto" />
+                  {/* Dark glyphs, because the app is pinned to the light
+                      theme — "auto" would follow the OS and put white icons on
+                      a cream background for anyone whose phone is in dark
+                      mode. See src/theme/theme.ts. */}
+                  <StatusBar style="dark" />
                   <RootNavigator />
                   {!launched ? <LaunchScreen onFinish={() => setLaunched(true)} /> : null}
                 </FavoritesProvider>

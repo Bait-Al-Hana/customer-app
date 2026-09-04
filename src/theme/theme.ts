@@ -7,7 +7,7 @@
  * `docs/customer-ui-ux.md` for the design system this encodes.
  */
 
-import { useColorScheme, type TextStyle } from 'react-native';
+import { type TextStyle } from 'react-native';
 
 /** The named text roles. One ramp, used everywhere — screens never hand-roll font sizes. */
 export type TypographyToken =
@@ -78,14 +78,26 @@ const MAGENTA = '#E5178B';
 const ORANGE = '#F47C20';
 const BLUE = '#2E63A6';
 
+/**
+ * The light palette — a warm cream ground with white cards on top.
+ *
+ * Cream rather than pure white, and warm rather than the pink-tinted wash this
+ * used to be: the logo's magenta is the loudest thing on any screen, and a
+ * background that also leans magenta leaves nothing to be loud against. Warming
+ * the ground toward the logo's orange gives the magenta somewhere to sit, and
+ * reads as appetite rather than as a form.
+ *
+ * Cards stay pure white so they lift off the ground without needing a heavy
+ * shadow, which is what keeps a food list feeling light rather than boxed.
+ */
 const light: Theme['colors'] = {
-  background: '#FCF7FA',
+  background: '#FFFAF3',
   surface: '#FFFFFF',
-  surfaceAlt: '#F6EEF3',
-  surfaceSunken: '#F0E6EE',
-  border: '#EBDCE5',
-  text: '#1E1A1C',
-  textMuted: '#6E6167',
+  surfaceAlt: '#FDF3E8',
+  surfaceSunken: '#F7EADC',
+  border: '#F0E3D4',
+  text: '#241C18',
+  textMuted: '#7A6A5F',
   primary: MAGENTA,
   primarySoft: 'rgba(229,23,139,0.10)',
   onPrimary: '#FFFFFF',
@@ -100,12 +112,12 @@ const light: Theme['colors'] = {
   warningSoft: 'rgba(224,134,0,0.14)',
   rating: '#F5A623',
   progress: MAGENTA,
-  skeleton: '#EFE6EC',
-  skeletonHighlight: '#F8F1F5',
-  backdrop: 'rgba(30,20,26,0.45)',
-  imageScrim: 'rgba(20,12,18,0.28)',
+  skeleton: '#F3E7D9',
+  skeletonHighlight: '#FBF4EB',
+  backdrop: 'rgba(36,28,24,0.45)',
+  imageScrim: 'rgba(24,16,10,0.28)',
   launch: '#FFFFFF',
-  shadow: '#2A1220',
+  shadow: '#7A4A22',
 };
 
 const dark: Theme['colors'] = {
@@ -184,8 +196,20 @@ export function buildTheme(scheme: 'light' | 'dark'): Theme {
   return { scheme, colors, ...BASE, shadow: makeShadow(colors.shadow) };
 }
 
-/** The active theme, following the OS light/dark setting. */
+/**
+ * The active theme.
+ *
+ * **Deliberately pinned to light** (owner decision, 2026-09-04). This used to
+ * follow `useColorScheme()`, which meant a customer whose phone was in dark
+ * mode saw the dark palette — and that is the whole of why the app "looked
+ * dark" when nobody had chosen a dark design. The brand is a warm cream ground
+ * with food photography on it; the dark palette was never art-directed to carry
+ * that, and half the audience was getting it by accident.
+ *
+ * The dark palette is kept, and `buildTheme('dark')` still builds it, so
+ * turning this back into a real user-facing choice is a small change rather
+ * than a rewrite. What is not kept is the OS deciding it silently.
+ */
 export function useTheme(): Theme {
-  const scheme = useColorScheme();
-  return buildTheme(scheme === 'dark' ? 'dark' : 'light');
+  return buildTheme('light');
 }
