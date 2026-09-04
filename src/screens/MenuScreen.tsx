@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
 import { AppText, Chip, FoodListItem, Screen } from '../components';
 import { toFoodCard } from '../data/menu';
+import { menuPriceMinor } from '../util/menuPrice';
 import { useFavorites } from '../favorites/FavoritesProvider';
 import { FloatingCart } from '../components/FloatingCart';
 import { useAsync } from '../hooks/useAsync';
@@ -39,7 +40,16 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
     dispatch({
       type: 'ADD',
       branchId,
-      line: { productId: product.id, productName: product.name, unitPriceMinor: product.priceMinor, addonIds: [], addonNames: [] },
+      line: {
+        productId: product.id,
+        productName: product.name,
+        // The same price the card shows. A quick-add that stored the pickup
+        // price would make the cart estimate disagree with the menu the
+        // customer just read.
+        unitPriceMinor: menuPriceMinor(product),
+        addonIds: [],
+        addonNames: [],
+      },
     });
   };
   const openProduct = (product: MenuProduct): void => navigation.navigate('Product', { branchId, product });

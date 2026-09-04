@@ -15,6 +15,7 @@ import { useAsync } from '../hooks/useAsync';
 import { ErrorState, FadeIn, PressableScale, PulseButton, Shimmer, Toast } from '../motion';
 import { ORDER_TYPE, OrderType, PAYMENT_METHOD, PaymentMethod } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
+import { correctedType, fulfilmentOptions } from '../util/fulfilment';
 import { formatSar } from '../util/money';
 import { useTheme } from '../theme/theme';
 
@@ -121,6 +122,17 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
       setMethod(methods[0] ?? PAYMENT_METHOD.CARD);
     }
   }, [methods, method]);
+
+  // What this branch actually offers, and whether the customer is on a type it
+  // will accept. Both are pure rules in ../util/fulfilment, tested there.
+  const { offersPickup, offersDelivery, showsChoice, closed } = fulfilmentOptions(branch);
+
+  useEffect(() => {
+    const corrected = correctedType(branch, type);
+    if (corrected !== null) {
+      setType(corrected);
+    }
+  }, [branch, type]);
 
   const isDelivery = type === ORDER_TYPE.DELIVERY;
   const needsAddress = isDelivery && !addressId;
@@ -229,12 +241,31 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
           </FadeIn>
         ) : null}
 
-        <FadeIn translateY={8} delay={40}>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            {typeTab(ORDER_TYPE.PICKUP, 'Pickup', '🏪', branch ? branch.acceptsPickup : true)}
-            {typeTab(ORDER_TYPE.DELIVERY, 'Delivery', '🛵', branch ? branch.acceptsDelivery : true)}
-          </View>
-        </FadeIn>
+        {/* Only what this branch offers. With one option there is no choice to
+            present, so the row becomes a statement rather than a pair of tabs
+            one of which cannot be pressed. */}
+        {showsChoice ? (
+          <FadeIn translateY={8} delay={40}>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {typeTab(ORDER_TYPE.PICKUP, 'Pickup', '🏪', true)}
+              {typeTab(ORDER_TYPE.DELIVERY, 'Delivery', '🛵', true)}
+            </View>
+          </FadeIn>
+        ) : offersDelivery || offersPickup ? (
+          <FadeIn translateY={8} delay={40}>
+            <AppText variant="bodySmall" color="textMuted">
+              {offersDelivery
+                ? 'This branch delivers only — pickup is not available here right now.'
+                : 'This branch is pickup only — it is not delivering right now.'}
+            </AppText>
+          </FadeIn>
+        ) : (
+          <FadeIn translateY={8} delay={40}>
+            <AppText variant="bodySmall" color="danger">
+              This branch is not taking orders right now. Try another branch.
+            </AppText>
+          </FadeIn>
+        )}
 
         {/* One card carrying the whole order at a glance: when, where, who,
             how much. Each row opens the thing it describes. */}
@@ -475,7 +506,13 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
             busy={busy}
             // Out of range is not fixable from this screen with this address, so
             // the button is disabled; being under the minimum is, so it is not.
-            disabled={!quote || !!error || blocker?.code === 'OUT_OF_RANGE'}
+            disabled={
+              !quote ||
+              !!error ||
+              blocker?.code === 'OUT_OF_RANGE' ||
+              // Neither fulfilment type on offer: there is nothing to place.
+              closed
+            }
           />
         </View>
       </View>

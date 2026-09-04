@@ -31,7 +31,12 @@ export type RootStackParamList = {
   Product: { branchId: string; product: MenuProduct };
   Cart: undefined;
   Checkout: { type: OrderType };
-  AddAddress: undefined;
+  /**
+   * Asked once after sign-in. Optional coordinates carry a pin whose written
+   * address could not be read, so the customer supplies only the words.
+   */
+  LocationSetup: undefined;
+  AddAddress: { latitude?: number; longitude?: number } | undefined;
   Addresses: undefined;
   Favorites: undefined;
   Loyalty: undefined;

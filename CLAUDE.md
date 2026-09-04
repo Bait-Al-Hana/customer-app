@@ -127,6 +127,72 @@ of the total *is* tax, it does not add to it. A summary that summed every row
 would overstate every order by 15%. There is a fallback to the quote's columns
 for an older backend, so checkout never shows an empty summary.
 
+## The app shows delivery prices only
+
+Owner decision (2026-09-04). `menuPriceMinor` (`src/util/menuPrice.ts`) is the
+single place it is applied — the card, the product screen and the quick-add all
+go through it, because a price that changes between the list and the item is the
+one customers notice.
+
+The consequence is deliberate: **a customer who switches to pickup at checkout
+sees the total go down.** That is the safe direction. The reverse — browsing at
+pickup prices and being charged delivery prices — is what gets disputed at the
+door.
+
+`deliveryPriceMinor` is absent on a backend that predates the uplift, so the
+pickup price stands in. With the uplift at 0% the two are equal, which is what
+makes this safe to ship before the owner sets a percentage.
+
+## Pickup off means gone, not greyed out
+
+`src/util/fulfilment.ts`, pure and tested. An owner who switches pickup off for
+a branch has decided that branch does not do pickup; a disabled tab still says
+the option exists and looks like something broken, and a customer who cannot
+press it has no way to tell which. So the tab is **not rendered**, and the
+screen states which service the branch runs.
+
+Hiding it is not enough on its own: `correctedType` moves a customer who
+arrives already on the pickup tab — from a deep link, or because the branch
+changed after the menu loaded — so they are not left on a choice placement will
+refuse. A branch with neither option gets a plain "not taking orders" and a
+disabled button, and nobody is moved anywhere, because switching them to a type
+that is also refused is a different dead end rather than a fix.
+
+While the branch is still loading both are assumed, so the tabs do not flicker
+in and out on a slow connection. The server refuses an unsupported type at
+placement regardless.
+
+## Location is asked for at onboarding, not at checkout
+
+`LocationSetupScreen` is the first screen after an OTP sign-in
+(`AuthProvider.justOnboarded`, which is true only for a session that started
+with a sign-in in this launch — never a restored one). The delivery fee depends
+on distance, so an address is part of the price, not a formality collected at
+the end: a customer who only meets the field at checkout has already chosen
+what to eat before finding out what delivery costs, or that the branch does not
+reach them.
+
+**Skipping is a first-class outcome.** A location prompt that traps someone on
+the first screen of a food app loses the order outright, so Skip is plain and
+visible, a denied permission routes to manual entry rather than arguing, and the
+home header's "Add your delivery address" is still there afterwards.
+
+A pin whose written address cannot be read is **not discarded** — `AddAddress`
+opens on it (`route.params.latitude/longitude`) so the customer supplies only
+the words. The coordinates are the part that decides the fee and guides the
+driver.
+
+`toAddress` (`src/util/geocode.ts`) flattens the reverse-geocode result, which
+is loosely specified and differs by platform: Android often puts the number
+inside `street` as well as in `streetNumber`, and in Saudi Arabia the district
+is frequently what a driver actually navigates by. It returns null rather than
+saving an address like ", , " — which looks fine in a list and is useless to
+the person holding the bag.
+
+`AddAddress` leaves via `canGoBack() ? goBack() : replace('Tabs')`. Onboarding
+reaches it with `replace`, so there is nothing beneath it and a plain `goBack`
+would strand the customer on the address form.
+
 ## The checkout layout
 
 Modelled on the delivery-app checkout pattern the owner asked for

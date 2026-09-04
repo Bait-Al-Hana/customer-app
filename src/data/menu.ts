@@ -10,6 +10,7 @@
  */
 
 import { FoodCardData } from '../components/cards';
+import { defaultVariantPriceMinor, menuPriceMinor } from '../util/menuPrice';
 import { Menu, MenuProduct } from '../api/types';
 import { ratingCountFor, ratingFor } from './ratings';
 
@@ -39,7 +40,9 @@ export function toFoodCard(p: MenuProduct, tag?: string): FoodCardData {
     id: p.id,
     name: p.name,
     description: p.description,
-    priceMinor: p.priceMinor,
+    // Delivery price. The app shows delivery prices only (owner, 2026-09-04)
+    // and this is the single place that decision is applied to a card.
+    priceMinor: menuPriceMinor(p),
     imageUrl: p.imageUrl,
     rating: ratingFor(p.id),
     ratingCount: ratingCountFor(p.id),
@@ -85,6 +88,5 @@ export function recommendedProducts(menu: Menu | null | undefined, n = 8): FlatP
 
 /** The default variant's price, or the base price when there are no variants. */
 export function basePriceMinor(p: MenuProduct): number {
-  const def = p.variants?.find((v) => v.isDefault) ?? p.variants?.[0];
-  return def?.priceMinor ?? p.priceMinor;
+  return defaultVariantPriceMinor(p);
 }

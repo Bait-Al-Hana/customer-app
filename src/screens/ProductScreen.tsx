@@ -14,6 +14,7 @@ import { RootStackParamList } from '../navigation/types';
 import type { MenuModifierGroup } from '../api/types';
 import { useTheme } from '../theme/theme';
 import { formatSar } from '../util/money';
+import { menuPriceMinor } from '../util/menuPrice';
 
 /** Product detail with size, add-ons, notes and a sticky add-to-cart CTA. */
 export function ProductScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'Product'>): React.JSX.Element {
@@ -32,7 +33,9 @@ export function ProductScreen({ route, navigation }: NativeStackScreenProps<Root
   const [instructions, setInstructions] = useState('');
 
   const variant = product.variants?.find((v) => v.id === variantId) ?? null;
-  const basePrice = variant?.priceMinor ?? product.priceMinor;
+  // Delivery price throughout, matching the list the customer came from — a
+  // price that changes between the list and the item is the one people notice.
+  const basePrice = variant ? menuPriceMinor(variant) : menuPriceMinor(product);
 
   const selectedAddons = useMemo(() => {
     const map = new Map<string, { id: string; name: string; priceMinor: number }>();
@@ -147,14 +150,16 @@ export function ProductScreen({ route, navigation }: NativeStackScreenProps<Root
             >
               {product.variants.map((v) => {
                 const active = v.id === variantId;
-                const delta = v.priceMinor - (defaultVariant?.priceMinor ?? product.priceMinor);
+                const delta =
+                  menuPriceMinor(v) -
+                  (defaultVariant ? menuPriceMinor(defaultVariant) : menuPriceMinor(product));
                 return (
                   <OptionRow
                     key={v.id}
                     single
                     selected={active}
                     label={v.name}
-                    trailing={delta !== 0 ? `${delta > 0 ? '+' : '−'} ${formatSar(Math.abs(delta))}` : formatSar(v.priceMinor)}
+                    trailing={delta !== 0 ? `${delta > 0 ? '+' : '−'} ${formatSar(Math.abs(delta))}` : formatSar(menuPriceMinor(v))}
                     onPress={() => setVariantId(v.id)}
                   />
                 );

@@ -98,6 +98,7 @@ import { CartScreen } from '../../src/screens/CartScreen';
 import { CheckoutScreen } from '../../src/screens/CheckoutScreen';
 import { FavoritesScreen } from '../../src/screens/FavoritesScreen';
 import { HomeScreen } from '../../src/screens/HomeScreen';
+import { LocationSetupScreen } from '../../src/screens/LocationSetupScreen';
 import { LoyaltyScreen } from '../../src/screens/LoyaltyScreen';
 import { MenuScreen } from '../../src/screens/MenuScreen';
 import { NotificationsScreen } from '../../src/screens/NotificationsScreen';
@@ -272,6 +273,10 @@ describe('every screen mounts without throwing', () => {
     ['Addresses', () => <AddressesScreen navigation={navigation} route={route('Addresses')} />],
     ['Favorites', () => <FavoritesScreen navigation={navigation} route={route('Favorites')} />],
     ['Loyalty', () => <LoyaltyScreen navigation={navigation} route={route('Loyalty')} />],
+    [
+      'LocationSetup',
+      () => <LocationSetupScreen navigation={navigation} route={route('LocationSetup')} />,
+    ],
     ['Notifications', () => <NotificationsScreen navigation={navigation} route={route('Notifications')} />],
     ['Profile', () => <ProfileScreen navigation={navigation} route={route('Profile')} />],
     [

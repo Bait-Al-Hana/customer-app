@@ -46,10 +46,25 @@ export interface MenuProduct {
   nameAr: string | null;
   description: string | null;
   imageUrl: string | null;
+  /** The pickup price — the catalogue price with no delivery uplift. */
   priceMinor: number;
+  /**
+   * The delivery price: the same item with the branch's delivery uplift folded
+   * in. **This is the price the app shows.** Absent on an older backend, in
+   * which case the pickup price stands in — see `menuPriceMinor`.
+   */
+  deliveryPriceMinor?: number;
   taxClass: string;
   isAvailable: boolean;
-  variants: { id: string; name: string; priceMinor: number; isDefault: boolean }[];
+  /** When a timed stock-out ends, or null. Null also means "no time promised". */
+  unavailableUntil?: string | null;
+  variants: {
+    id: string;
+    name: string;
+    priceMinor: number;
+    deliveryPriceMinor?: number;
+    isDefault: boolean;
+  }[];
   modifierGroups: MenuModifierGroup[];
 }
 
