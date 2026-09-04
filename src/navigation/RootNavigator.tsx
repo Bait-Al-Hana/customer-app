@@ -23,6 +23,10 @@ import { PaymentProcessingScreen } from '../screens/PaymentProcessingScreen';
 import { PhoneScreen } from '../screens/PhoneScreen';
 import { ProductScreen } from '../screens/ProductScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { NotificationSettingsScreen } from '../screens/NotificationSettingsScreen';
+import { PaymentMethodsScreen } from '../screens/PaymentMethodsScreen';
+import { HelpScreen } from '../screens/HelpScreen';
+import { LegalScreen } from '../screens/LegalScreen';
 import { useTheme } from '../theme/theme';
 
 /**
@@ -116,6 +120,13 @@ export function RootNavigator(): React.JSX.Element {
           <RootStack.Screen name="OrderTracking" component={guard('OrderTracking', OrderTrackingScreen)} />
           <RootStack.Screen name="Notifications" component={guard('Notifications', NotificationsScreen)} />
           <RootStack.Screen name="Profile" component={guard('Profile', ProfileScreen)} />
+          <RootStack.Screen
+            name="NotificationSettings"
+            component={guard('NotificationSettings', NotificationSettingsScreen)}
+          />
+          <RootStack.Screen name="PaymentMethods" component={guard('PaymentMethods', PaymentMethodsScreen)} />
+          <RootStack.Screen name="Help" component={guard('Help', HelpScreen)} />
+          <RootStack.Screen name="Legal" component={guard('Legal', LegalScreen)} />
         </RootStack.Navigator>
       )}
     </NavigationContainer>

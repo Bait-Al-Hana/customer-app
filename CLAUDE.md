@@ -157,6 +157,75 @@ door.
 pickup price stands in. With the uplift at 0% the two are equal, which is what
 makes this safe to ship before the owner sets a percentage.
 
+## Staying signed in is a platform problem, not a policy one
+
+`src/util/deviceStore.ts` is the one key/value store: Keychain / Keystore on
+native, `localStorage` on **web**. That distinction is the whole reason a
+customer used to be signed out every time they closed the app on the Vercel
+build — `expo-secure-store` is a native module, every call on web throws, and
+`tokenStore` wrapped each one defensively, so the failure was silent. Nothing
+was ever written and nothing was ever restored.
+
+The refresh token is good for 30 days and the client exchanges it on the first
+401, so a returning customer lands on the menu. Signing out is the only thing
+that ends a session, and it revokes the family server-side.
+
+`localStorage` is a weaker store than the Keychain and cannot be anything else
+on the web: it holds this app's own session tokens, the refresh token is
+revocable, and that is the trade. Don't "fix" it by dropping persistence.
+
+## Delivery or pickup decides the branch
+
+`FulfilmentProvider` holds the mode (and, for pickup, the chosen branch); the
+rule itself is pure and tested in `src/util/branchChoice.ts`. Owner decision
+(2026-09-04), and the halves are deliberately different:
+
+- **Pickup — the customer chooses.** Every branch that does pickup is listed in
+  a sheet on home, nearest first when we know where they are.
+- **Delivery — the app chooses and it is not changeable.** The nearest branch to
+  their address delivers, because that is the one that arrives hot and it is
+  what the fee is measured from. `resolveBranch` recomputes it from the address
+  every time rather than remembering one, so a new address moves the branch.
+
+When distance cannot be measured — no saved address with a pin, or branches with
+no coordinates — it still shows a branch and flags `needsAddress`, so the screen
+asks for an address instead of claiming a nearest branch it did not work out.
+Refusing to serve someone over our own missing data is the more expensive error;
+so is lying about how the branch was picked.
+
+The mode lives above the screens because it decides three things that must not
+disagree: which branch, which prices (delivery prices carry the owner's uplift),
+and what checkout places. The cart used to open checkout on `PICKUP`
+unconditionally, so a delivery customer met a pickup total.
+
+## Home shows food; Offers shows offers
+
+No banners on home (owner, 2026-09-04) — on a phone the artwork pushed the menu
+below the fold, which is the one thing that screen exists for. Banners and
+offers both live on the Offers tab now, and the "Order from" strip of every
+branch is gone: half the time that choice is not the customer's to make.
+
+**Every offer is a real coupon the owner published** (`/customer/config` →
+`offers`), with the owner's own artwork and the code the checkout accepts. The
+hard-coded `PROMO_BANNERS`/`OFFERS` in `src/data/content.ts` are deleted — they
+carried invented codes, so every one was refused at checkout. Never reintroduce
+marketing copy with a coupon code in it: if a code is shown, a coupon behind it
+must exist.
+
+## Every Account row goes somewhere
+
+Six rows used to raise "coming soon". They are real screens now — payment
+methods (what is accepted, read from the live branches; no saved cards, because
+none exist anywhere in the platform), notification settings, help (branch phone
+numbers straight from the API, plus the questions the counter actually gets),
+and the privacy notice and terms.
+
+Two rules those screens keep: **no control that does not control anything** —
+notification settings has no toggles because the backend has no per-customer
+preference yet, and a switch that moved nothing would be worse than the row it
+replaced — and the legal pages say on the page that they are the working version
+pending the restaurant's own legal review. Don't quietly delete that line.
+
 ## Pickup off means gone, not greyed out
 
 `src/util/fulfilment.ts`, pure and tested. An owner who switches pickup off for
