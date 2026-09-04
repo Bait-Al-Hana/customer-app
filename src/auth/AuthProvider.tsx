@@ -11,6 +11,16 @@ interface AuthContextValue {
   /** True once the stored session has been read (avoids an auth-flash on launch). */
   ready: boolean;
   isAuthenticated: boolean;
+  /**
+   * True only for a session that started with an OTP sign-in in this launch,
+   * not one restored from the secure store.
+   *
+   * It exists so the app can ask a **newly onboarded** customer for their
+   * location once, and never nag a returning one who chose to skip. A flag on
+   * disk would be the wrong shape: skipping is a decision about this customer,
+   * not about this install.
+   */
+  justOnboarded: boolean;
   /** Store the tokens returned by OTP verification and mark the session active. */
   signIn: (tokens: AuthTokens) => Promise<void>;
   signOut: () => Promise<void>;
@@ -30,6 +40,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const [ready, setReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [justOnboarded, setJustOnboarded] = useState(false);
   const tokensRef = useRef<AuthTokens | null>(null);
 
   const setTokens = async (tokens: AuthTokens | null): Promise<void> => {
@@ -85,7 +96,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
       api,
       ready,
       isAuthenticated,
-      signIn: (tokens) => setTokens(tokens),
+      justOnboarded,
+      signIn: async (tokens) => {
+        // Set before the tokens, so the navigator picks the onboarding route
+        // in the same render that swaps to the authenticated stack rather than
+        // showing the tabs first and jumping.
+        setJustOnboarded(true);
+        await setTokens(tokens);
+      },
       signOut: async () => {
         // Revoke server-side first, then clear locally. Best-effort: a
         // customer tapping Sign out on a dead connection must still end up
@@ -98,10 +116,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
             // Ignored on purpose — see above.
           }
         }
+        setJustOnboarded(false);
         await setTokens(null);
       },
     }),
-    [api, ready, isAuthenticated],
+    [api, ready, isAuthenticated, justOnboarded],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

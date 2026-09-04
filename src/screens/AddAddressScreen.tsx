@@ -21,15 +21,25 @@ import {
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
 
-export function AddAddressScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'AddAddress'>): React.JSX.Element {
+export function AddAddressScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'AddAddress'>): React.JSX.Element {
   const theme = useTheme();
   const { api } = useAuth();
+  // Onboarding can hand over a pin whose written address could not be read.
+  // The coordinates are the part that decides the fee and guides the driver,
+  // so they are carried in rather than made the customer's problem again.
+  const handedPin =
+    typeof route.params?.latitude === 'number' && typeof route.params?.longitude === 'number'
+      ? { latitude: route.params.latitude, longitude: route.params.longitude }
+      : null;
+
   const [label, setLabel] = useState('Home');
   const [line1, setLine1] = useState('');
   const [city, setCity] = useState('Riyadh');
   const [notes, setNotes] = useState('');
-  const [region, setRegion] = useState<Region>(DEFAULT_REGION);
-  const [pin, setPin] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [region, setRegion] = useState<Region>(
+    handedPin ? { ...handedPin, latitudeDelta: 0.01, longitudeDelta: 0.01 } : DEFAULT_REGION,
+  );
+  const [pin, setPin] = useState<{ latitude: number; longitude: number } | null>(handedPin);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
@@ -54,6 +64,17 @@ export function AddAddressScreen({ navigation }: NativeStackScreenProps<RootStac
     }
   };
 
+  // Onboarding reaches this screen with `replace`, so there is nothing beneath
+  // it to go back to. Falling through to the tabs is what stops a customer
+  // being stranded on the address form with no way out.
+  const leave = (): void => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.replace('Tabs');
+  };
+
   const save = async (): Promise<void> => {
     setBusy(true);
     setError(null);
@@ -66,7 +87,7 @@ export function AddAddressScreen({ navigation }: NativeStackScreenProps<RootStac
         latitude: pin?.latitude,
         longitude: pin?.longitude,
       });
-      navigation.goBack();
+      leave();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not save the address.');
       setBusy(false);
@@ -77,7 +98,7 @@ export function AddAddressScreen({ navigation }: NativeStackScreenProps<RootStac
   const currentStep = pin ? (valid ? 2 : 1) : 0;
 
   return (
-    <Screen title="Add address" onBack={() => navigation.goBack()}>
+    <Screen title="Add address" onBack={leave}>
       <Toast visible={!!error} message={error ?? ''} tone="danger" onHide={() => setError(null)} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
         <FadeIn translateY={6}>

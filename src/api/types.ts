@@ -46,10 +46,25 @@ export interface MenuProduct {
   nameAr: string | null;
   description: string | null;
   imageUrl: string | null;
+  /** The pickup price — the catalogue price with no delivery uplift. */
   priceMinor: number;
+  /**
+   * The delivery price: the same item with the branch's delivery uplift folded
+   * in. **This is the price the app shows.** Absent on an older backend, in
+   * which case the pickup price stands in — see `menuPriceMinor`.
+   */
+  deliveryPriceMinor?: number;
   taxClass: string;
   isAvailable: boolean;
-  variants: { id: string; name: string; priceMinor: number; isDefault: boolean }[];
+  /** When a timed stock-out ends, or null. Null also means "no time promised". */
+  unavailableUntil?: string | null;
+  variants: {
+    id: string;
+    name: string;
+    priceMinor: number;
+    deliveryPriceMinor?: number;
+    isDefault: boolean;
+  }[];
   modifierGroups: MenuModifierGroup[];
 }
 
@@ -87,8 +102,53 @@ export interface PriceQuote {
  * someone fixes a typo. `coupon` is non-null only for a code that actually
  * priced — which is the only kind that should reach placement.
  */
+/** One line of the order total, exactly as the backend built it. */
+export interface BreakdownRow {
+  kind: 'ITEMS' | 'DELIVERY_BASE' | 'DELIVERY_DISTANCE' | 'CHARGE' | 'VAT' | 'TOTAL';
+  label: string;
+  detail: string | null;
+  amountMinor: number;
+  /**
+   * What this row would have cost without a discount, rendered struck through
+   * beside the amount. Absent when nothing was discounted.
+   */
+  strikethroughMinor?: number;
+  /**
+   * True when this row is **already inside** the total and must not be added
+   * to it — the VAT line, because prices are VAT-inclusive. A summary that
+   * summed every row would overstate every order by 15%.
+   */
+  included: boolean;
+  /** True when the row reduces the total, so it renders with a minus sign. */
+  negative: boolean;
+}
+
+/** How the delivery fee for this quote was reached. Null on a pickup order. */
+export interface DeliveryQuote {
+  /** Road-adjusted km, or null when the address has no map pin. */
+  distanceKm: number | null;
+  baseFeeMinor: number;
+  baseFeeCoversKm: number;
+  chargeableKm: number;
+  perKmFeeMinor: number;
+  distanceFeeMinor: number;
+  deliveryFeeMinor: number;
+  minOrderMinor: number;
+  /** How much more the basket needs to reach the minimum. 0 when met. */
+  shortfallMinor: number;
+  maxRadiusKm: number | null;
+  blockers: (
+    | { code: 'OUT_OF_RANGE'; distanceKm: number; maxRadiusKm: number }
+    | { code: 'BELOW_MINIMUM'; shortfallMinor: number; minOrderMinor: number }
+  )[];
+}
+
 export interface OrderQuote {
   quote: PriceQuote;
+  /** Present from the delivery-pricing release; absent on an older backend. */
+  delivery?: DeliveryQuote | null;
+  /** Present from the delivery-pricing release; absent on an older backend. */
+  breakdown?: BreakdownRow[];
   coupon: { code: string; couponId: string; discountMinor: number } | null;
   couponError: string | null;
 }

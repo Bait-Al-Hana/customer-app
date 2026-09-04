@@ -14,6 +14,7 @@ import { CheckoutScreen } from '../screens/CheckoutScreen';
 import { FavoritesScreen } from '../screens/FavoritesScreen';
 import { LoyaltyScreen } from '../screens/LoyaltyScreen';
 import { MenuScreen } from '../screens/MenuScreen';
+import { LocationSetupScreen } from '../screens/LocationSetupScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { OrderSuccessScreen } from '../screens/OrderSuccessScreen';
 import { OrderTrackingScreen } from '../screens/OrderTrackingScreen';
@@ -63,7 +64,7 @@ function navTheme(background: string, card: string, text: string, primary: strin
 export function RootNavigator(): React.JSX.Element {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, justOnboarded } = useAuth();
 
   const slide = reduceMotion ? 'none' : 'slide_from_right';
   const slideUp = reduceMotion ? 'none' : 'slide_from_bottom';
@@ -86,8 +87,22 @@ export function RootNavigator(): React.JSX.Element {
           <AuthStack.Screen name="Otp" component={guard('Otp', OtpScreen)} />
         </AuthStack.Navigator>
       ) : (
-        <RootStack.Navigator screenOptions={{ headerShown: false, animation: slide, contentStyle: { backgroundColor: theme.colors.background } }}>
+        /* A customer who has just signed in is asked for their location before
+           anything else: the delivery fee depends on distance, so meeting the
+           address field only at checkout means choosing food before finding out
+           what delivery costs — or that the branch does not reach them at all.
+           A restored session goes straight to the tabs; skipping is a decision
+           about the customer, not something to re-ask on every launch. */
+        <RootStack.Navigator
+          initialRouteName={justOnboarded ? 'LocationSetup' : 'Tabs'}
+          screenOptions={{ headerShown: false, animation: slide, contentStyle: { backgroundColor: theme.colors.background } }}
+        >
           <RootStack.Screen name="Tabs" component={guard('Tabs', MainTabs)} />
+          <RootStack.Screen
+            name="LocationSetup"
+            component={guard('LocationSetup', LocationSetupScreen)}
+            options={{ gestureEnabled: false }}
+          />
           <RootStack.Screen name="Menu" component={guard('Menu', MenuScreen)} />
           <RootStack.Screen name="Product" component={guard('Product', ProductScreen)} options={{ animation: slideUp }} />
           <RootStack.Screen name="Cart" component={guard('Cart', CartScreen)} options={{ animation: slideUp }} />

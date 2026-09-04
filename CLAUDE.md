@@ -80,6 +80,159 @@ that can throw, and a boundary inside them goes down with them. React unmounts
 the whole tree on an uncaught render error, which in a release build is a blank
 view the customer can only escape by force-quitting.
 
+## The app is pinned to the light theme
+
+`useTheme()` returns the light palette unconditionally (owner decision,
+2026-09-04). It used to follow `useColorScheme()`, which is the whole of why
+the app "looked dark" when nobody had chosen a dark design: a customer whose
+phone was in dark mode got the dark palette by accident. The brand is a warm
+cream ground with food photography on it, and the dark palette was never
+art-directed to carry that.
+
+`app.json` sets `userInterfaceStyle: "light"` and `App.tsx` sets
+`<StatusBar style="dark" />` for the same reason — `"auto"` would put white
+status-bar glyphs on a cream background.
+
+The dark palette is **kept**, and `buildTheme('dark')` still builds it, so
+making this a real user-facing choice later is a small change rather than a
+rewrite. `test/unit/theme.spec.ts` holds both: that the light ground is warm
+(the logo's magenta needs something to be loud against — the old `#FCF7FA`
+leaned magenta too) and that the dark palette still builds.
+
+## The quote must carry the delivery address
+
+`quoteOrder` sends `customerAddressId` whenever one is chosen, and the address
+is in the re-quote dependency list. The delivery fee is priced from the
+distance between the branch and that address (5 SAR base covering 5 km, then
+3 SAR per further km), so **a quote without it comes back at the base fee only
+and the customer meets the real fee at placement** — the same "price changed at
+the last second" failure that made checkout switch from `/pricing/quote` to
+`/customer/orders/quote` in the first place.
+
+Checkout also surfaces `delivery.blockers` while the basket is still open. A
+basket under the 40 SAR delivery minimum gets "Add 15.00 more" and a button
+back to the menu — not a rejection on the final press. An address outside the
+branch radius disables the button, because that one is not fixable from the
+checkout screen with that address.
+
+## The Bill Summary
+
+`BillSummary` (`components/BillSummary.tsx`) renders the itemised list the
+backend built, rather than reassembling one from the quote's columns — so this
+summary, the branch view and the owner view cannot disagree, and any fee the
+owner adds (a platform fee, a service charge) appears by its own name with no
+change to this app.
+
+It opens as a **sheet** from the bill row, not as an accordion inside a card.
+It is the thing a customer opens when they want to check a number, so it gets
+the screen's attention rather than competing with the rest of the checkout.
+
+Three things it must keep getting right:
+
+- **A saving is a strikethrough, not a subtraction.** `strikethroughMinor` is
+  what the row would have cost; it sits immediately beside what it did. The
+  total saved is stated once under the bill — deliberately outside the column,
+  so nobody adds it in.
+- **VAT does not add to the total.** Prices are VAT-inclusive, so the VAT row
+  says how much of the amount *is* tax. Rows the backend marks `included` render
+  muted and labelled: a customer adding the column must not arrive at a number
+  15% above what they are paying.
+- **The fallback exists for an older backend**, so checkout never shows an empty
+  summary — and it labels VAT "included" rather than repeating the mistake of
+  listing it as an addition.
+
+## The app shows delivery prices only
+
+Owner decision (2026-09-04). `menuPriceMinor` (`src/util/menuPrice.ts`) is the
+single place it is applied — the card, the product screen and the quick-add all
+go through it, because a price that changes between the list and the item is the
+one customers notice.
+
+The consequence is deliberate: **a customer who switches to pickup at checkout
+sees the total go down.** That is the safe direction. The reverse — browsing at
+pickup prices and being charged delivery prices — is what gets disputed at the
+door.
+
+`deliveryPriceMinor` is absent on a backend that predates the uplift, so the
+pickup price stands in. With the uplift at 0% the two are equal, which is what
+makes this safe to ship before the owner sets a percentage.
+
+## Pickup off means gone, not greyed out
+
+`src/util/fulfilment.ts`, pure and tested. An owner who switches pickup off for
+a branch has decided that branch does not do pickup; a disabled tab still says
+the option exists and looks like something broken, and a customer who cannot
+press it has no way to tell which. So the tab is **not rendered**, and the
+screen states which service the branch runs.
+
+Hiding it is not enough on its own: `correctedType` moves a customer who
+arrives already on the pickup tab — from a deep link, or because the branch
+changed after the menu loaded — so they are not left on a choice placement will
+refuse. A branch with neither option gets a plain "not taking orders" and a
+disabled button, and nobody is moved anywhere, because switching them to a type
+that is also refused is a different dead end rather than a fix.
+
+While the branch is still loading both are assumed, so the tabs do not flicker
+in and out on a slow connection. The server refuses an unsupported type at
+placement regardless.
+
+## Location is asked for at onboarding, not at checkout
+
+`LocationSetupScreen` is the first screen after an OTP sign-in
+(`AuthProvider.justOnboarded`, which is true only for a session that started
+with a sign-in in this launch — never a restored one). The delivery fee depends
+on distance, so an address is part of the price, not a formality collected at
+the end: a customer who only meets the field at checkout has already chosen
+what to eat before finding out what delivery costs, or that the branch does not
+reach them.
+
+**Skipping is a first-class outcome.** A location prompt that traps someone on
+the first screen of a food app loses the order outright, so Skip is plain and
+visible, a denied permission routes to manual entry rather than arguing, and the
+home header's "Add your delivery address" is still there afterwards.
+
+A pin whose written address cannot be read is **not discarded** — `AddAddress`
+opens on it (`route.params.latitude/longitude`) so the customer supplies only
+the words. The coordinates are the part that decides the fee and guides the
+driver.
+
+`toAddress` (`src/util/geocode.ts`) flattens the reverse-geocode result, which
+is loosely specified and differs by platform: Android often puts the number
+inside `street` as well as in `streetNumber`, and in Saudi Arabia the district
+is frequently what a driver actually navigates by. It returns null rather than
+saving an address like ", , " — which looks fine in a list and is useless to
+the person holding the bag.
+
+`AddAddress` leaves via `canGoBack() ? goBack() : replace('Tabs')`. Onboarding
+reaches it with `replace`, so there is nothing beneath it and a plain `goBack`
+would strand the customer on the address form.
+
+## The checkout layout
+
+Modelled on the delivery-app checkout pattern the owner asked for
+(2026-09-04): the saving stated first, one card carrying **when / where / who /
+how much**, and a sticky pay bar with the method on the left and the amount on
+the button.
+
+Three things about it are deliberate:
+
+- **The bill row shows the total *and* how much of it is VAT, collapsed.**
+  Prices are VAT-inclusive, so the tax is inside the total, and a customer who
+  cannot see how much of it is tax has to take our word for the number. The
+  full itemised breakdown is one tap away and never more than that.
+- **A rejected coupon message renders outside the collapsible panel.** It
+  changes what the customer is about to pay, so it must be visible whether or
+  not they thought to open the bill. That is the whole reason the backend
+  returns a priced quote plus `couponError` rather than failing the request —
+  and a screen test holds it, because collapsing it away was exactly the
+  regression this rewrite introduced first time.
+- **The delivery note says *our own team*, not a partner.** We run our own
+  fleet; there is no delivery partner in this platform, and the copy must never
+  imply one.
+
+Nothing from the reference screenshot that is not ours was carried over: no
+partner offers, no wallet balance, no donation line.
+
 ## Money rules
 
 App displays totals; the backend prices. No total is ever computed here.

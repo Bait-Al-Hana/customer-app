@@ -119,6 +119,15 @@ export class Api {
     type: OrderType;
     items: OrderItemInput[];
     couponCode?: string;
+    /**
+     * The address this would be delivered to. **Send it whenever one is
+     * chosen**: the delivery fee is priced from its distance to the branch, so
+     * a quote without it comes back at the base fee only and the customer
+     * discovers the real fee when the order is placed — the exact "price
+     * changed at the last second" failure the coupon-aware quote exists to
+     * prevent.
+     */
+    customerAddressId?: string;
   }): Promise<OrderQuote> {
     return this.http.request('/customer/orders/quote', { method: 'POST', body: input });
   }

@@ -4,16 +4,18 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { ApiError } from '../api/http';
-import { Address, Branch, OrderQuote } from '../api/types';
+import { Address, Branch, CustomerProfile, OrderQuote } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
 import { toOrderItems } from '../cart/cart';
-import { AppText, Card, Divider, PaymentMethodCard, PriceRow, Screen } from '../components';
+import { AppText, BillSummary, Card, PaymentMethodCard, Screen } from '../components';
 import { AddressCard } from '../components';
+import { BillIcon, ChevronRight, ClockIcon, PhoneIcon, PinIcon, ScooterIcon } from '../components/icons';
 import { useAsync } from '../hooks/useAsync';
-import { ErrorState, FadeIn, PressableScale, PulseButton, Shimmer, StepIndicator, Toast } from '../motion';
+import { BottomSheet, ErrorState, FadeIn, PressableScale, PulseButton, Shimmer, Toast } from '../motion';
 import { ORDER_TYPE, OrderType, PAYMENT_METHOD, PaymentMethod } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
+import { correctedType, fulfilmentOptions } from '../util/fulfilment';
 import { formatSar } from '../util/money';
 import { useTheme } from '../theme/theme';
 
@@ -24,12 +26,6 @@ const METHOD_META: Record<string, { label: string; glyph: string; hint?: string 
   [PAYMENT_METHOD.GOOGLE_PAY]: { label: 'Google Pay', glyph: '🟢' },
   [PAYMENT_METHOD.CASH_ON_DELIVERY]: { label: 'Cash on delivery', glyph: '💵', hint: 'Pay the driver when it arrives' },
 };
-
-function checkoutStep(type: OrderType, addressId: string | null, quote: unknown): number {
-  if (!quote) return 0;
-  if (type === ORDER_TYPE.DELIVERY && !addressId) return 1;
-  return 2;
-}
 
 /** Choose fulfilment, review the server quote, pick a payment method, place order. */
 export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'Checkout'>): React.JSX.Element {
@@ -44,6 +40,13 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   const [method, setMethod] = useState<PaymentMethod>(PAYMENT_METHOD.CARD);
   const [busy, setBusy] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
+  // The bill starts collapsed: the total and how much of it is VAT are on the
+  // row itself, and most customers want the number, not the derivation. The
+  // derivation is one tap away and never more than that.
+  const [billOpen, setBillOpen] = useState(false);
+  // The address picker opens from its row rather than always occupying the
+  // screen — most orders go to the same place every time.
+  const [pickingAddress, setPickingAddress] = useState(false);
 
   const branchesReq = useAsync<Branch[]>(() => api.listBranches().catch(() => []), []);
   const branch = branchesReq.data?.find((b) => b.id === branchId) ?? null;
@@ -53,15 +56,46 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   // showed a discount of zero and the customer only discovered the real price
   // after placing — or, for a code that had since expired, hit a failure on the
   // very last press instead of while there was still time to fix it.
+  // The address is part of the price, not just the destination: the delivery
+  // fee is 5 SAR plus 3 SAR for each km past the first 5, measured from this
+  // branch to this address. A quote sent without it comes back at the base fee
+  // and the customer meets the real fee only when the order is placed — the
+  // same "price changed at the last second" failure the coupon-aware quote was
+  // introduced to prevent. So it is sent, and it is in the dependency list.
   const { data: priced, loading, error, reload } = useAsync<OrderQuote>(
-    () => api.quoteOrder({ branchId, type, items, couponCode: couponCode ?? undefined }),
-    [branchId, JSON.stringify(items), type, couponCode],
+    () =>
+      api.quoteOrder({
+        branchId,
+        type,
+        items,
+        couponCode: couponCode ?? undefined,
+        customerAddressId: type === ORDER_TYPE.DELIVERY ? (addressId ?? undefined) : undefined,
+      }),
+    [branchId, JSON.stringify(items), type, couponCode, addressId],
   );
   const quote = priced?.quote ?? null;
   const couponError = priced?.couponError ?? null;
+  // Delivery can be refused for two reasons the customer can act on. Surfacing
+  // them here — while the basket is still open — is the whole point of a quote
+  // that returns totals instead of throwing: "add 15.00 more" is a thing you
+  // can do, "your order was rejected" on the last press is not.
+  const blocker = priced?.delivery?.blockers?.[0] ?? null;
+  const blockerMessage =
+    blocker === null
+      ? null
+      : blocker.code === 'BELOW_MINIMUM'
+        ? `Delivery orders start at ${formatSar(blocker.minOrderMinor)}. Add ${formatSar(blocker.shortfallMinor)} more to continue.`
+        : `This address is ${blocker.distanceKm} km away and this branch delivers up to ${blocker.maxRadiusKm} km. Choose pickup, or a nearer address.`;
   // Only a code the server actually priced is sent with the order. A code that
   // failed here must not stay silently attached to the placement.
   const appliedCoupon = priced?.coupon?.code ?? null;
+
+  // The name and number the kitchen would call. Shown on the order card
+  // because "who is this for" is part of checking an order over, and a wrong
+  // number is only ever noticed here or at the door.
+  const profile = useAsync<CustomerProfile | null>(() => api.getProfile().catch(() => null), []);
+  const profileName = profile.data?.fullName ?? null;
+  const profilePhone = profile.data?.phone ?? null;
 
   const addresses = useAsync<Address[]>(() => api.listAddresses(), []);
   const reloadAddresses = addresses.reload;
@@ -88,6 +122,17 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
       setMethod(methods[0] ?? PAYMENT_METHOD.CARD);
     }
   }, [methods, method]);
+
+  // What this branch actually offers, and whether the customer is on a type it
+  // will accept. Both are pure rules in ../util/fulfilment, tested there.
+  const { offersPickup, offersDelivery, showsChoice, closed } = fulfilmentOptions(branch);
+
+  useEffect(() => {
+    const corrected = correctedType(branch, type);
+    if (corrected !== null) {
+      setType(corrected);
+    }
+  }, [branch, type]);
 
   const isDelivery = type === ORDER_TYPE.DELIVERY;
   const needsAddress = isDelivery && !addressId;
@@ -130,17 +175,17 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
         onPress={() => setType(t)}
         style={{
           flex: 1,
-          paddingVertical: 14,
+          paddingVertical: 12,
           borderRadius: theme.radius.lg,
           alignItems: 'center',
-          gap: 4,
+          gap: 2,
           borderWidth: 1.5,
           borderColor: active ? theme.colors.primary : theme.colors.border,
           backgroundColor: active ? theme.colors.primarySoft : theme.colors.surface,
           opacity: enabled ? 1 : 0.45,
         }}
       >
-        <AppText style={{ fontSize: 22 }}>{glyph}</AppText>
+        <AppText style={{ fontSize: 20 }}>{glyph}</AppText>
         <AppText variant="bodySmall" weight="700" color={active ? 'primary' : 'text'}>
           {label}
         </AppText>
@@ -148,28 +193,190 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
     );
   };
 
-  const currentStep = checkoutStep(type, addressId, quote);
-  const steps = isDelivery ? ['Type', 'Address', 'Pay'] : ['Type', 'Pay'];
+  const selectedAddress = addresses.data?.find((a) => a.id === addressId) ?? null;
+  const addressLine = selectedAddress
+    ? [selectedAddress.line1, selectedAddress.district, selectedAddress.city].filter(Boolean).join(', ')
+    : null;
+
+  const savedMinor = quote?.discountMinor ?? 0;
+  // What the order would have cost without the discount. Shown struck through
+  // beside the total, which is the only way a saving reads as a saving rather
+  // than as a number we made up.
+  const beforeSavingMinor = quote ? quote.totalMinor + savedMinor : 0;
 
   return (
-    <Screen title="Checkout" onBack={() => navigation.goBack()}>
+    <Screen
+      title={branch?.name ?? 'Checkout'}
+      subtitle={
+        isDelivery
+          ? `${branch?.prepTimeMinutes ?? 30}–${(branch?.prepTimeMinutes ?? 30) + 15} mins${selectedAddress?.label ? ` to ${selectedAddress.label}` : ''}`
+          : 'Collect from the branch'
+      }
+      onBack={() => navigation.goBack()}
+    >
       <Toast visible={!!placeError} message={placeError ?? ''} tone="danger" onHide={() => setPlaceError(null)} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 24 }}>
-        <FadeIn translateY={8}>
-          <StepIndicator steps={steps} current={currentStep} />
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 24 }}>
+        {/* The saving, stated before anything else. It is the reason the
+            customer feels good about this screen, and burying it under the
+            form is why so many checkouts feel like paperwork. */}
+        {savedMinor > 0 ? (
+          <FadeIn translateY={8}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                borderRadius: theme.radius.md,
+                backgroundColor: theme.colors.successSoft,
+              }}
+            >
+              <AppText style={{ fontSize: 18 }}>🎉</AppText>
+              <AppText variant="bodySmall" weight="700" style={{ color: theme.colors.success }}>
+                You saved {formatSar(savedMinor)} on this order
+              </AppText>
+            </View>
+          </FadeIn>
+        ) : null}
+
+        {/* Only what this branch offers. With one option there is no choice to
+            present, so the row becomes a statement rather than a pair of tabs
+            one of which cannot be pressed. */}
+        {showsChoice ? (
+          <FadeIn translateY={8} delay={40}>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {typeTab(ORDER_TYPE.PICKUP, 'Pickup', '🏪', true)}
+              {typeTab(ORDER_TYPE.DELIVERY, 'Delivery', '🛵', true)}
+            </View>
+          </FadeIn>
+        ) : offersDelivery || offersPickup ? (
+          <FadeIn translateY={8} delay={40}>
+            <AppText variant="bodySmall" color="textMuted">
+              {offersDelivery
+                ? 'This branch delivers only — pickup is not available here right now.'
+                : 'This branch is pickup only — it is not delivering right now.'}
+            </AppText>
+          </FadeIn>
+        ) : (
+          <FadeIn translateY={8} delay={40}>
+            <AppText variant="bodySmall" color="danger">
+              This branch is not taking orders right now. Try another branch.
+            </AppText>
+          </FadeIn>
+        )}
+
+        {/* One card carrying the whole order at a glance: when, where, who,
+            how much. Each row opens the thing it describes. */}
+        <FadeIn translateY={8} delay={80}>
+          <Card padded={false} elevated>
+            {isDelivery ? (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: 14,
+                  backgroundColor: theme.colors.surfaceAlt,
+                  borderTopLeftRadius: theme.radius.lg,
+                  borderTopRightRadius: theme.radius.lg,
+                }}
+              >
+                <AppText variant="bodySmall" color="textMuted" style={{ flex: 1 }}>
+                  Delivered by our own team, from our own kitchen. No third party
+                  handles your order or your food.
+                </AppText>
+                <ScooterIcon color={theme.colors.primary} size={30} />
+              </View>
+            ) : null}
+
+            <DetailRow
+              icon={<ClockIcon color={theme.colors.textMuted} />}
+              title={
+                isDelivery
+                  ? `Delivery in ${branch?.prepTimeMinutes ?? 30}–${(branch?.prepTimeMinutes ?? 30) + 15} mins`
+                  : `Ready in about ${branch?.prepTimeMinutes ?? 20} mins`
+              }
+              subtitle={isDelivery ? 'Cooked to order, then straight out' : 'We will hold it warm at the counter'}
+            />
+
+            {isDelivery ? (
+              <DetailRow
+                icon={<PinIcon color={theme.colors.textMuted} size={22} />}
+                title={selectedAddress ? `Delivery at ${selectedAddress.label ?? 'your address'}` : 'Choose a delivery address'}
+                subtitle={addressLine ?? 'We need somewhere to bring it'}
+                onPress={() => setPickingAddress(true)}
+              />
+            ) : (
+              <DetailRow
+                icon={<PinIcon color={theme.colors.textMuted} size={22} />}
+                title={`Collect from ${branch?.name ?? 'the branch'}`}
+                subtitle={[branch?.addressLine, branch?.city].filter(Boolean).join(', ') || 'Branch address'}
+              />
+            )}
+
+            <DetailRow
+              icon={<PhoneIcon color={theme.colors.textMuted} />}
+              title={profileName ?? 'Your contact number'}
+              subtitle={profilePhone ?? 'So the kitchen can reach you'}
+              onPress={() => navigation.navigate('Profile')}
+            />
+
+            <DetailRow
+              icon={<BillIcon color={theme.colors.textMuted} />}
+              last
+              title={
+                loading || !quote ? (
+                  <Shimmer height={18} width={140} radius={6} />
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <AppText variant="h3">Total bill</AppText>
+                    {savedMinor > 0 ? (
+                      <AppText
+                        variant="bodySmall"
+                        color="textMuted"
+                        style={{ textDecorationLine: 'line-through' }}
+                      >
+                        {formatSar(beforeSavingMinor)}
+                      </AppText>
+                    ) : null}
+                    <AppText variant="h3">{formatSar(quote.totalMinor)}</AppText>
+                  </View>
+                )
+              }
+              /* The ask that started this: prices are VAT-inclusive, so the VAT
+                 is inside that total — and a customer who cannot see how much
+                 of it is tax has to take our word for the number. It is stated
+                 here on the collapsed row, and again as its own line when the
+                 breakdown is open. */
+              subtitle={
+                quote
+                  ? `Includes ${formatSar(quote.vatMinor)} VAT at ${quote.vatRate}%`
+                  : 'Pricing your order…'
+              }
+              onPress={() => setBillOpen(true)}
+            />
+
+            {/* Deliberately outside the collapsible panel. A code that did not
+                apply changes what the customer is about to pay, so it has to be
+                visible whether or not they thought to open the bill — the whole
+                reason the backend returns a priced quote plus couponError
+                instead of failing the request. */}
+            {couponError ? (
+              <AppText variant="caption" color="danger" style={{ paddingHorizontal: 14, paddingBottom: 12 }}>
+                {couponCode ? `${couponCode}: ` : ''}
+                {couponError} — the total above is without it.
+              </AppText>
+            ) : null}
+
+          </Card>
         </FadeIn>
 
-        {/* Fulfilment type */}
-        <FadeIn translateY={8} delay={40}>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            {typeTab(ORDER_TYPE.PICKUP, 'Pickup', '🏪', branch ? branch.acceptsPickup : true)}
-            {typeTab(ORDER_TYPE.DELIVERY, 'Delivery', '🛵', branch ? branch.acceptsDelivery : true)}
-          </View>
-        </FadeIn>
-
-        {/* Delivery address */}
-        {isDelivery ? (
-          <FadeIn translateY={8} delay={60}>
+        {/* Address picker, opened from the row above rather than always taking
+            up the screen — most orders go to the same place every time. */}
+        {isDelivery && pickingAddress ? (
+          <FadeIn translateY={8}>
             <View style={{ gap: 10 }}>
               <AppText variant="h3">Deliver to</AppText>
               {addresses.loading ? (
@@ -182,7 +389,10 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
                     line={[a.line1, a.city].filter(Boolean).join(', ')}
                     isDefault={a.isDefault}
                     selected={a.id === addressId}
-                    onPress={() => setAddressId(a.id)}
+                    onPress={() => {
+                      setAddressId(a.id);
+                      setPickingAddress(false);
+                    }}
                   />
                 ))
               ) : (
@@ -199,41 +409,7 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
           </FadeIn>
         ) : null}
 
-        {/* Order summary */}
-        <FadeIn translateY={8} delay={120}>
-          <Card elevated>
-            <AppText variant="h3" style={{ marginBottom: 12 }}>
-              Order summary
-            </AppText>
-            {loading ? (
-              <View style={{ gap: 8 }}>
-                <Shimmer height={16} />
-                <Shimmer width="70%" height={16} />
-                <Shimmer width="50%" height={20} />
-              </View>
-            ) : error ? (
-              <ErrorState title="Couldn't price your order" message={error.message} actionLabel="Retry" onAction={reload} />
-            ) : quote ? (
-              <>
-                <PriceRow label="Subtotal" value={formatSar(quote.subtotalMinor)} />
-                {quote.discountMinor > 0 ? <PriceRow label={`Discount${appliedCoupon ? ` (${appliedCoupon})` : ''}`} value={`- ${formatSar(quote.discountMinor)}`} tone="discount" /> : null}
-                {quote.deliveryFeeMinor > 0 ? <PriceRow label="Delivery fee" value={formatSar(quote.deliveryFeeMinor)} /> : null}
-                <PriceRow label={`VAT (${quote.vatRate}%, incl.)`} value={formatSar(quote.vatMinor)} />
-                <Divider style={{ marginVertical: 6 }} />
-                <PriceRow label="Total" value={formatSar(quote.totalMinor)} emphasis />
-                {couponError ? (
-                  <AppText variant="caption" color="danger" style={{ marginTop: 8 }}>
-                    {couponCode ? `${couponCode}: ` : ''}
-                    {couponError} — the price above is without it.
-                  </AppText>
-                ) : null}
-              </>
-            ) : null}
-          </Card>
-        </FadeIn>
-
-        {/* Payment method */}
-        <FadeIn translateY={8} delay={180}>
+        <FadeIn translateY={8} delay={140}>
           <View style={{ gap: 10 }}>
             <AppText variant="h3">Payment method</AppText>
             {methods.map((m) => (
@@ -250,28 +426,165 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
         </FadeIn>
 
         <AppText variant="caption" color="textMuted" center style={{ paddingHorizontal: 12 }}>
-          Payment is confirmed by our server — never by this screen alone. No card details are stored in this app.
+          Your card information is never stored by us.
         </AppText>
       </ScrollView>
 
-      <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface }}>
-        <PulseButton
-          label={
-            needsAddress
-              ? 'Add a delivery address'
-              : method === PAYMENT_METHOD.CASH_ON_DELIVERY
-                ? quote
-                  ? `Place order · ${formatSar(quote.totalMinor)}`
-                  : 'Place order'
-                : quote
-                  ? `Pay · ${formatSar(quote.totalMinor)}`
-                  : 'Pay'
-          }
-          onPress={needsAddress ? () => navigation.navigate('AddAddress') : placeOrder}
-          busy={busy}
-          disabled={!quote || !!error}
-        />
+      {/* The bill, on its own sheet. It is the thing a customer opens when they
+          want to check a number, so it gets the whole screen's attention rather
+          than being an accordion inside a card they are also reading. */}
+      <BottomSheet visible={billOpen} onClose={() => setBillOpen(false)}>
+        <View style={{ padding: 20, gap: 16 }}>
+          <AppText variant="h1">Bill Summary</AppText>
+          {error ? (
+            <ErrorState
+              title="Couldn't price your order"
+              message={error.message}
+              actionLabel="Retry"
+              onAction={reload}
+            />
+          ) : quote ? (
+            <BillSummary quote={quote} rows={priced?.breakdown} couponLabel={appliedCoupon} />
+          ) : (
+            <View style={{ gap: 8 }}>
+              <Shimmer height={16} />
+              <Shimmer width="70%" height={16} />
+              <Shimmer width="50%" height={20} />
+            </View>
+          )}
+          <AppText variant="caption" color="textMuted" center>
+            Prices include VAT. This is an order summary, not a tax invoice.
+          </AppText>
+        </View>
+      </BottomSheet>
+
+      {/* The pay bar: what you are paying with on the left, what you are paying
+          on the right. It stays put while the page scrolls, so the amount is
+          never something you have to scroll back to find. */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          padding: 14,
+          borderTopWidth: 1,
+          borderTopColor: theme.colors.border,
+          backgroundColor: theme.colors.surface,
+        }}
+      >
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={`Paying with ${METHOD_META[method]?.label ?? method}. Change payment method.`}
+          onPress={() => setMethod(methods[(methods.indexOf(method) + 1) % methods.length] ?? method)}
+          style={{ maxWidth: 130 }}
+        >
+          <AppText variant="overline" color="textMuted">
+            PAY USING
+          </AppText>
+          <AppText variant="bodySmall" weight="700" numberOfLines={1}>
+            {METHOD_META[method]?.label ?? method}
+          </AppText>
+        </PressableScale>
+
+        <View style={{ flex: 1 }}>
+          {blockerMessage ? (
+            <AppText variant="caption" color="danger" style={{ marginBottom: 8 }}>
+              {blockerMessage}
+            </AppText>
+          ) : null}
+          <PulseButton
+            label={
+              needsAddress
+                ? 'Add a delivery address'
+                : blocker?.code === 'BELOW_MINIMUM'
+                  ? `Add ${formatSar(blocker.shortfallMinor)} more`
+                  : quote
+                    ? `${formatSar(quote.totalMinor)}  ·  ${method === PAYMENT_METHOD.CASH_ON_DELIVERY ? 'Place order' : 'Pay'}`
+                    : 'Place order'
+            }
+            onPress={
+              needsAddress
+                ? () => navigation.navigate('AddAddress')
+                : blocker?.code === 'BELOW_MINIMUM'
+                  ? // Back to the menu is the action, not a dead button: the
+                    // customer has been told what to do, so let them do it.
+                    () => navigation.goBack()
+                  : placeOrder
+            }
+            busy={busy}
+            // Out of range is not fixable from this screen with this address, so
+            // the button is disabled; being under the minimum is, so it is not.
+            disabled={
+              !quote ||
+              !!error ||
+              blocker?.code === 'OUT_OF_RANGE' ||
+              // Neither fulfilment type on offer: there is nothing to place.
+              closed
+            }
+          />
+        </View>
       </View>
     </Screen>
+  );
+}
+
+/**
+ * One line of the order-at-a-glance card: an icon, a title, a supporting line,
+ * and a chevron when the row opens something.
+ *
+ * The chevron is the honest part — it appears only on rows that actually do
+ * something when tapped, so a row without one is not a control the customer is
+ * failing to find.
+ */
+function DetailRow({
+  icon,
+  title,
+  subtitle,
+  onPress,
+  last,
+}: {
+  icon: React.ReactNode;
+  title: React.ReactNode;
+  subtitle?: string | null;
+  onPress?: () => void;
+  last?: boolean;
+}): React.JSX.Element {
+  const theme = useTheme();
+
+  const body = (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+        paddingHorizontal: 14,
+        paddingVertical: 14,
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: theme.colors.border,
+      }}
+    >
+      <View style={{ width: 24, alignItems: 'center' }}>{icon}</View>
+      <View style={{ flex: 1, gap: 2 }}>
+        {typeof title === 'string' ? <AppText variant="h3">{title}</AppText> : title}
+        {subtitle ? (
+          <AppText variant="bodySmall" color="textMuted" numberOfLines={2}>
+            {subtitle}
+          </AppText>
+        ) : null}
+      </View>
+      {onPress ? (
+        <ChevronRight color={theme.colors.textMuted} />
+      ) : null}
+    </View>
+  );
+
+  if (!onPress) {
+    return body;
+  }
+
+  return (
+    <PressableScale accessibilityRole="button" onPress={onPress}>
+      {body}
+    </PressableScale>
   );
 }
