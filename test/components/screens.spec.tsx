@@ -347,12 +347,29 @@ describe('screens survive what the backend actually returns', () => {
       couponError: 'This coupon has expired.',
     });
 
-    const { findByText } = wrap(
+    const { findByText, findAllByText } = wrap(
       <CheckoutScreen navigation={navigation} route={route('Checkout', { type: 'PICKUP' })} />,
     );
 
     expect(await findByText(/This coupon has expired/)).toBeTruthy();
-    expect(await findByText('Total')).toBeTruthy();
+    // The amount, not the word "Total": the bill row shows what is payable
+    // without the customer opening anything, and asserting the number rather
+    // than a label keeps this test about the guarantee instead of the wording.
+    // It appears twice on purpose — on the bill row and on the pay button —
+    // so the amount is visible wherever the customer's eye happens to be.
+    expect((await findAllByText(/115\.00/)).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('shows how much of the total is VAT without opening the bill', async () => {
+    // Prices are VAT-inclusive, so the tax is inside the total. A customer who
+    // cannot see how much of it is tax has to take our word for the number.
+    mockApi.quoteOrder.mockResolvedValue({ quote: QUOTE, coupon: null, couponError: null });
+
+    const { findByText } = wrap(
+      <CheckoutScreen navigation={navigation} route={route('Checkout', { type: 'PICKUP' })} />,
+    );
+
+    expect(await findByText(/Includes .*15\.00 VAT at 15%/)).toBeTruthy();
   });
 
   it('tracks an order that has no delivery record yet', async () => {

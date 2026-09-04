@@ -126,3 +126,55 @@ export function BellIcon({ color, size = 22 }: IconProps): React.JSX.Element {
     </Svg>
   );
 }
+
+export function ClockIcon({ color, size = 22 }: IconProps): React.JSX.Element {
+  return (
+    <Svg {...base(size)} fill="none">
+      <Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={2} />
+      <Path d="M12 7v5l3.5 2" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function PhoneIcon({ color, size = 22 }: IconProps): React.JSX.Element {
+  return (
+    <Svg {...base(size)} fill="none">
+      <Path
+        d="M5 4h3.5l1.5 4-2 1.5a12 12 0 005.5 5.5l1.5-2 4 1.5V18a2 2 0 01-2.2 2A15.5 15.5 0 013 6.2 2 2 0 015 4z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function BillIcon({ color, size = 22 }: IconProps): React.JSX.Element {
+  return (
+    <Svg {...base(size)} fill="none">
+      <Path
+        d="M6 3h12v18l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.5V3z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinejoin="round"
+      />
+      <Path d="M9 8h6M9 12h6M9 16h3" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+export function ScooterIcon({ color, size = 22 }: IconProps): React.JSX.Element {
+  return (
+    <Svg {...base(size)} fill="none">
+      <Circle cx={6} cy={17} r={3} stroke={color} strokeWidth={2} />
+      <Circle cx={18} cy={17} r={3} stroke={color} strokeWidth={2} />
+      <Path
+        d="M9 17h6M18 14V8a2 2 0 00-2-2h-2M6 14V9h5l3 5"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}

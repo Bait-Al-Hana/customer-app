@@ -127,6 +127,32 @@ of the total *is* tax, it does not add to it. A summary that summed every row
 would overstate every order by 15%. There is a fallback to the quote's columns
 for an older backend, so checkout never shows an empty summary.
 
+## The checkout layout
+
+Modelled on the delivery-app checkout pattern the owner asked for
+(2026-09-04): the saving stated first, one card carrying **when / where / who /
+how much**, and a sticky pay bar with the method on the left and the amount on
+the button.
+
+Three things about it are deliberate:
+
+- **The bill row shows the total *and* how much of it is VAT, collapsed.**
+  Prices are VAT-inclusive, so the tax is inside the total, and a customer who
+  cannot see how much of it is tax has to take our word for the number. The
+  full itemised breakdown is one tap away and never more than that.
+- **A rejected coupon message renders outside the collapsible panel.** It
+  changes what the customer is about to pay, so it must be visible whether or
+  not they thought to open the bill. That is the whole reason the backend
+  returns a priced quote plus `couponError` rather than failing the request —
+  and a screen test holds it, because collapsing it away was exactly the
+  regression this rewrite introduced first time.
+- **The delivery note says *our own team*, not a partner.** We run our own
+  fleet; there is no delivery partner in this platform, and the copy must never
+  imply one.
+
+Nothing from the reference screenshot that is not ours was carried over: no
+partner offers, no wallet balance, no donation line.
+
 ## Money rules
 
 App displays totals; the backend prices. No total is ever computed here.
