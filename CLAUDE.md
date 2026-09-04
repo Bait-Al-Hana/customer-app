@@ -212,6 +212,36 @@ carried invented codes, so every one was refused at checkout. Never reintroduce
 marketing copy with a coupon code in it: if a code is shown, a coupon behind it
 must exist.
 
+## Order tracking says how far away, not a made-up ETA
+
+`OrderTrackingScreen` showed a hard-coded **"~15 min"** to every customer on
+every order, on the one screen whose entire job is telling the truth about where
+the food is. `src/util/driverProgress.ts` (pure, tested) replaces it with the
+two facts the driver's pings actually support: road-adjusted distance (the same
+1.3 factor the backend prices delivery with) and a conservative estimate from
+it.
+
+What it refuses matters more than what it says:
+
+- **No ETA without a fix**, and **no ETA from a stale one** — a driver whose
+  last ping was ten minutes ago may be at the door or stuck on the ring road,
+  and a confident wrong number is what makes someone ring the branch. Past
+  `STALE_AFTER_MS` the screen shows the last known distance and "last seen 9 min
+  ago" instead.
+- **Never "0 min"** — someone 100 m away is still parking.
+- The age of the position is on screen next to it. A dot on a map with no age
+  reads as live, so a driver who lost signal looks parked outside a stranger's
+  house.
+
+The driver app pings every 30 seconds between pickup and drop-off
+(`driver-app/src/delivery/location-sharing.ts`). Until this, nothing in the
+platform ever sent a position at all.
+
+**No route line, deliberately.** Drawing the road-following polyline needs the
+Directions API, billed per call — cheap once per delivery, expensive per ping.
+If it is added, fetch it **once** when the order goes out for delivery and cache
+it; never per position update.
+
 ## The notification feed reloads on focus
 
 `NotificationsScreen` re-reads on every focus. The feed is written server-side
