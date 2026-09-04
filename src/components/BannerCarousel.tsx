@@ -1,17 +1,30 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Dimensions, FlatList, Image, View, ViewToken } from 'react-native';
+import { FlatList, Image, useWindowDimensions, View, ViewToken } from 'react-native';
 import { useTheme } from '../theme/theme';
 import type { Banner } from '../api/types';
 
 const INTERVAL = 8000;
-const SCREEN_WIDTH = Dimensions.get('window').width;
 const H_PAD = 16;
 const GAP = 12;
-const BANNER_WIDTH = SCREEN_WIDTH - H_PAD * 2;
-const BANNER_HEIGHT = 140;
+/**
+ * Banner artwork is wide, so the card is sized by **ratio**, not by a fixed
+ * height. At 140pt tall on a 358pt-wide phone a 2:1 image was letterboxed into
+ * a strip with grey bars down both sides — the artwork the owner uploaded, shown
+ * smaller than the space it was given. 16:9 fills the width on a phone and is
+ * close enough to the shape most promo artwork is exported in.
+ */
+const BANNER_ASPECT = 16 / 9;
+/** Beyond a tablet's width a full-bleed banner becomes a wall. */
+const MAX_BANNER_WIDTH = 620;
 
 export function BannerCarousel({ banners }: { banners: Banner[] }): React.JSX.Element | null {
   const theme = useTheme();
+  // Read at render, not at module load: a fixed `Dimensions.get()` is captured
+  // once and is then wrong for the rest of the session on a rotated phone and
+  // on every web window that is ever resized.
+  const { width } = useWindowDimensions();
+  const bannerWidth = Math.min(width, MAX_BANNER_WIDTH) - H_PAD * 2;
+  const bannerHeight = Math.round(bannerWidth / BANNER_ASPECT);
   const flatListRef = useRef<FlatList<Banner>>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -57,7 +70,7 @@ export function BannerCarousel({ banners }: { banners: Banner[] }): React.JSX.El
         onScrollBeginDrag={() => { if (timerRef.current) clearInterval(timerRef.current); }}
         onScrollEndDrag={() => startTimer()}
         contentContainerStyle={{ paddingHorizontal: H_PAD }}
-        snapToInterval={BANNER_WIDTH + GAP}
+        snapToInterval={bannerWidth + GAP}
         decelerationRate="fast"
         renderItem={({ item }) => (
           <View
@@ -67,8 +80,8 @@ export function BannerCarousel({ banners }: { banners: Banner[] }): React.JSX.El
             accessibilityRole="image"
             accessibilityLabel={item.title}
             style={{
-              width: BANNER_WIDTH,
-              height: BANNER_HEIGHT,
+              width: bannerWidth,
+              height: bannerHeight,
               borderRadius: theme.radius.xl,
               overflow: 'hidden',
               marginRight: GAP,

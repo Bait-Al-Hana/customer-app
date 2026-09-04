@@ -1,5 +1,6 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import type { NotificationItem } from '../api/types';
@@ -28,6 +29,11 @@ export function NotificationsScreen({ navigation }: NativeStackScreenProps<RootS
   const theme = useTheme();
   const { api } = useAuth();
   const { data, loading, error, reload } = useAsync(() => api.notifications(), []);
+  // Re-read every time the screen is opened. The feed is written server-side as
+  // an order moves, so the copy fetched when the app launched is stale by the
+  // time anyone opens this — and "nothing new here" is exactly the complaint
+  // this screen attracts.
+  useFocusEffect(useCallback(() => reload(), [reload]));
   const items = data?.data ?? [];
 
   return (

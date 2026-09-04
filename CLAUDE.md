@@ -212,6 +212,18 @@ carried invented codes, so every one was refused at checkout. Never reintroduce
 marketing copy with a coupon code in it: if a code is shown, a coupon behind it
 must exist.
 
+## The notification feed reloads on focus
+
+`NotificationsScreen` re-reads on every focus. The feed is written server-side
+as an order moves, so whatever was fetched when the app launched is stale by the
+time anyone opens the screen — and "there's never anything new in here" is
+exactly the complaint this screen attracts.
+
+The other half of that complaint was a backend gap, fixed there: a status with
+no message wrote no notification at all, so a manual-accept branch's customers
+heard nothing between paying and the branch accepting. See the backend's
+`notification-messages.ts`.
+
 ## Every Account row goes somewhere
 
 Six rows used to raise "coming soon". They are real screens now — payment

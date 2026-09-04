@@ -116,11 +116,14 @@ function OfferCard({
   return (
     <Card padded={false} elevated>
       {offer.imageUrl ? (
+        // Sized by ratio, not by a fixed height: at 150pt the owner's artwork
+        // was a strip across the top of the card rather than the banner it was
+        // made as. 16:9 gives it the full width of the card on any screen.
         <Image
           source={{ uri: offer.imageUrl }}
           style={{
             width: '100%',
-            height: 150,
+            aspectRatio: 16 / 9,
             borderTopLeftRadius: theme.radius.lg,
             borderTopRightRadius: theme.radius.lg,
           }}
