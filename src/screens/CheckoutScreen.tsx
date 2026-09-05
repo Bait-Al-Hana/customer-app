@@ -245,6 +245,40 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
       <Toast visible={!!placeError} message={placeError ?? ''} tone="danger" onHide={() => setPlaceError(null)} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 24 }}>
+        {/* Why this order cannot be placed, first and unmissable.
+            It used to appear only in the sticky pay bar, as small red text
+            beside a large button still showing a price — so the first thing a
+            customer read was an amount they could not pay, and the reason was
+            the smallest thing on the screen. What blocks an order belongs above
+            the form that cannot fix it. */}
+        {blockerMessage ? (
+          <FadeIn translateY={8}>
+            <View
+              accessibilityRole="alert"
+              style={{
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                gap: 10,
+                paddingVertical: 12,
+                paddingHorizontal: 14,
+                borderRadius: theme.radius.md,
+                backgroundColor: theme.colors.dangerSoft,
+                borderWidth: 1,
+                borderColor: theme.colors.danger,
+              }}
+            >
+              <AppText style={{ fontSize: 16 }}>⚠️</AppText>
+              <AppText
+                variant="bodySmall"
+                weight="700"
+                style={{ color: theme.colors.danger, flex: 1 }}
+              >
+                {blockerMessage}
+              </AppText>
+            </View>
+          </FadeIn>
+        ) : null}
+
         {/* The saving, stated before anything else. It is the reason the
             customer feels good about this screen, and burying it under the
             form is why so many checkouts feel like paperwork. */}
@@ -534,7 +568,14 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
         </PressableScale>
 
         <View style={{ flex: 1 }}>
-          {blockerMessage ? (
+          {/* Deliberately shorter than the banner above: the pay bar is sticky,
+              so this is the reminder for someone who has scrolled past the
+              explanation, not a second copy of it. */}
+          {blocker?.code === 'OUT_OF_RANGE' ? (
+            <AppText variant="caption" color="danger" style={{ marginBottom: 8 }}>
+              This branch does not deliver that far.
+            </AppText>
+          ) : blockerMessage && blocker?.code !== 'BELOW_MINIMUM' ? (
             <AppText variant="caption" color="danger" style={{ marginBottom: 8 }}>
               {blockerMessage}
             </AppText>
@@ -545,9 +586,17 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
                 ? 'Add a delivery address'
                 : blocker?.code === 'BELOW_MINIMUM'
                   ? `Add ${formatSar(blocker.shortfallMinor)} more`
-                  : quote
-                    ? `${formatSar(quote.totalMinor)}  ·  ${method === PAYMENT_METHOD.CASH_ON_DELIVERY ? 'Place order' : 'Pay'}`
-                    : 'Place order'
+                  : // A button that reads "SAR 11.00 · Pay" while it is disabled
+                    // is the loudest thing on the screen contradicting the one
+                    // line that explains why nothing is happening. Out of range
+                    // is not fixable here with this address, so the button says
+                    // what would fix it instead of quoting a price we will not
+                    // take.
+                    blocker?.code === 'OUT_OF_RANGE'
+                    ? 'Too far to deliver'
+                    : quote
+                      ? `${formatSar(quote.totalMinor)}  ·  ${method === PAYMENT_METHOD.CASH_ON_DELIVERY ? 'Place order' : 'Pay'}`
+                      : 'Place order'
             }
             onPress={
               needsAddress

@@ -115,6 +115,17 @@ back to the menu — not a rejection on the final press. An address outside the
 branch radius disables the button, because that one is not fixable from the
 checkout screen with that address.
 
+**A blocker leads the screen, and the button never offers to take money we will
+refuse.** Both halves were wrong: the only explanation lived in the sticky pay
+bar as small red text, next to a large button still reading "SAR 11.00 · Pay".
+So the first thing a customer read was an amount we were not going to accept,
+and the reason was the smallest thing on screen. The blocker is now a banner
+above the form that cannot fix it, and an out-of-range button says "Too far to
+deliver" — the same shape as the below-minimum button, which already relabelled
+itself to "Add 15.00 more". The pay bar keeps a one-line reminder for someone
+who has scrolled past the banner, deliberately shorter than it rather than a
+second copy.
+
 ## The Bill Summary
 
 `BillSummary` (`components/BillSummary.tsx`) renders the itemised list the

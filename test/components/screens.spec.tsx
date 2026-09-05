@@ -448,6 +448,39 @@ describe('screens survive what the backend actually returns', () => {
     expect(await findByText(/Includes .*15\.00 VAT at 15%/)).toBeTruthy();
   });
 
+  it('leads with the reason an order cannot be placed, and never offers to take the money', async () => {
+    // The complaint this fixes: the only explanation lived in the sticky pay
+    // bar as small red text, beside a large button still reading
+    // "SAR 11.00 · Pay". The first thing a customer read was an amount we were
+    // not going to accept, and the reason was the smallest thing on screen.
+    // A saved address, so the screen gets past "add an address" and reaches the
+    // state this test is about: an address we have, at a distance we refuse.
+    mockApi.listAddresses.mockResolvedValue([
+      { id: 'a1', label: 'Home', line1: 'Subhani', city: 'Riyadh', isDefault: true },
+    ]);
+    mockApi.quoteOrder.mockResolvedValue({
+      quote: QUOTE,
+      delivery: {
+        distanceKm: 4.57,
+        deliveryFeeMinor: 500,
+        minOrderMinor: 0,
+        maxRadiusKm: 1,
+        blockers: [{ code: 'OUT_OF_RANGE', distanceKm: 4.57, maxRadiusKm: 1 }],
+      },
+      coupon: null,
+      couponError: null,
+    });
+
+    const { findByText, queryByText } = wrap(
+      <CheckoutScreen navigation={navigation} route={route('Checkout', { type: 'DELIVERY' })} />,
+    );
+
+    expect(await findByText(/4\.57 km away/)).toBeTruthy();
+    // The button says what would fix it, not a price it will refuse.
+    expect(await findByText(/Too far to deliver/i)).toBeTruthy();
+    expect(queryByText(/·\s*Pay/)).toBeNull();
+  });
+
   it('shows the real bill on the cart, not "calculated at checkout"', async () => {
     // The whole point of this screen changing: the cart used to show an item
     // subtotal and the words "Calculated at checkout" against the delivery fee
