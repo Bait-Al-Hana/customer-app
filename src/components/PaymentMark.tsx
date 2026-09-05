@@ -18,31 +18,44 @@ import { AppText } from './AppText';
  * reading. A payment method a customer cannot recognise at a glance is one they
  * hesitate over on the last screen before paying.
  *
- * ## Official artwork, and what happens until it arrives
+ * ## Official artwork
  *
  * Apple Pay and mada are trademarks with their own brand guidelines: Apple Pay
  * must use the Apple Pay Mark supplied by Apple, and the mada wordmark comes
  * from Saudi Payments / the acquirer. **Neither is redrawn here** — inventing a
  * facsimile of somebody's trademark is the kind of thing this codebase does not
- * do with payment details either.
+ * do with payment details either. The owner supplied both, and they live in
+ * `assets/payment/`, cropped to the mark so the chip is not letterboxing a
+ * field of the source image's own background.
  *
- * So `ART` is the slot for the real files. Drop `apple-pay.png` and `mada.png`
- * (and any card-scheme marks) into `assets/payment/`, add the `require` here,
- * and every checkout picks them up with no other change. Until then each method
- * gets a clean typographic chip in its own colours, which is both honest about
- * what we have and legible on every platform.
+ * A method with no artwork still renders: `Fallback` gives it a legible
+ * typographic chip rather than a hole. Add a card-scheme mark the same way —
+ * the file, and one line in `ART`.
  *
  * Cash and card are ours to draw, so they are drawn — a note and a card, in the
  * same 2px line family as the rest of the icon set.
  */
 
 /**
- * Official artwork, keyed by method. Empty until the licensed files are added
- * to `assets/payment/` — see the note above. Metro resolves `require` at build
- * time, so an entry for a file that does not exist fails the bundle; add the
- * file and the line together.
+ * The official artwork, keyed by method. Supplied by the owner and cropped to
+ * the mark itself, so the chip does not letterbox a wordmark inside a field of
+ * its own background.
+ *
+ * Metro resolves `require` at build time, so an entry for a file that does not
+ * exist fails the bundle: add the file and the line together. A method with no
+ * entry falls through to `Fallback` below and still renders.
  */
-const ART: Partial<Record<PaymentMethod, ImageSourcePropType>> = {};
+const ART: Partial<Record<PaymentMethod, ImageSourcePropType>> = {
+  [PAYMENT_METHOD.APPLE_PAY]: require('../../assets/payment/apple-pay.png'),
+  [PAYMENT_METHOD.MADA]: require('../../assets/payment/mada.png'),
+};
+
+/**
+ * A wordmark is wide; a 40pt square would render it about 14pt tall and
+ * illegible. Methods carrying real artwork get a landscape chip in the
+ * proportion the marks actually are, and the drawn glyphs keep the square.
+ */
+const MARK_ASPECT = 1.5;
 
 export function PaymentMark({
   method,
@@ -57,7 +70,7 @@ export function PaymentMark({
   return (
     <View
       style={{
-        width: size,
+        width: art ? Math.round(size * MARK_ASPECT) : size,
         height: size,
         borderRadius: theme.radius.md,
         backgroundColor: chipBackground(method, theme.colors.surfaceAlt),
@@ -69,9 +82,13 @@ export function PaymentMark({
       }}
     >
       {art ? (
-        // `contain` so a wide wordmark is never cropped — a clipped trademark
-        // is worse than no trademark.
-        <Image source={art} resizeMode="contain" style={{ width: size - 8, height: size - 12 }} />
+        // `contain`, always: a clipped trademark is worse than a small one, and
+        // these marks are supplied at their own proportions.
+        <Image
+          source={art}
+          resizeMode="contain"
+          style={{ width: Math.round(size * MARK_ASPECT) - 10, height: size - 12 }}
+        />
       ) : (
         <Fallback method={method} size={size} />
       )}
@@ -79,9 +96,19 @@ export function PaymentMark({
   );
 }
 
-/** Apple Pay's mark sits on black; everything else on the app's own surface. */
+/**
+ * The ground each mark is drawn for. Apple Pay's is white-on-black and mada's
+ * is drawn for white; putting either on the app's cream surface is the way a
+ * supplied mark ends up looking like a mistake.
+ */
 function chipBackground(method: PaymentMethod, surfaceAlt: string): string {
-  return method === PAYMENT_METHOD.APPLE_PAY ? '#000000' : surfaceAlt;
+  if (method === PAYMENT_METHOD.APPLE_PAY) {
+    return '#000000';
+  }
+  if (method === PAYMENT_METHOD.MADA) {
+    return '#FFFFFF';
+  }
+  return surfaceAlt;
 }
 
 function Fallback({ method, size }: { method: PaymentMethod; size: number }): React.JSX.Element {

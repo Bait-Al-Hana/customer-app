@@ -3,11 +3,12 @@ import React from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthProvider';
-import { AppText, Card, Screen } from '../components';
+import { AppText, Card, PaymentMark, Screen } from '../components';
 import { useAsync } from '../hooks/useAsync';
 import { Skeleton } from '../motion';
 import type { Branch } from '../api/types';
 import { RootStackParamList } from '../navigation/types';
+import { PAYMENT_METHOD, PaymentMethod } from '../types/backend';
 import { useTheme } from '../theme/theme';
 
 /**
@@ -37,17 +38,17 @@ export function PaymentMethodsScreen({
     <Screen title="Payment methods" subtitle="How you can pay for an order" onBack={() => navigation.goBack()}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 40 }}>
         <Method
-          glyph="💳"
+          method={PAYMENT_METHOD.CARD}
           title="Card"
           body="Pay when you place the order. The card details are entered on our payment provider’s secure page — they are never stored in this app or by the restaurant."
         />
         <Method
-          glyph="🏦"
+          method={PAYMENT_METHOD.MADA}
           title="mada"
           body="Saudi debit cards are accepted the same way as any other card at checkout."
         />
         <Method
-          glyph="🍎"
+          method={PAYMENT_METHOD.APPLE_PAY}
           title="Apple Pay"
           body="Offered at checkout on a supported device once the restaurant’s merchant account has it enabled."
         />
@@ -56,7 +57,7 @@ export function PaymentMethodsScreen({
           <Skeleton height={110} radius={theme.radius.lg} />
         ) : (
           <Method
-            glyph="💵"
+            method={PAYMENT_METHOD.CASH_ON_DELIVERY}
             title="Cash on delivery"
             body={
               cashBranches.length === 0
@@ -80,23 +81,20 @@ export function PaymentMethodsScreen({
   );
 }
 
-function Method({ glyph, title, body }: { glyph: string; title: string; body: string }): React.JSX.Element {
-  const theme = useTheme();
+/** The same mark checkout uses, so a method looks like itself on both screens. */
+function Method({
+  method,
+  title,
+  body,
+}: {
+  method: PaymentMethod;
+  title: string;
+  body: string;
+}): React.JSX.Element {
   return (
     <Card>
       <View style={{ flexDirection: 'row', gap: 12 }}>
-        <View
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 21,
-            backgroundColor: theme.colors.surfaceAlt,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <AppText style={{ fontSize: 19 }}>{glyph}</AppText>
-        </View>
+        <PaymentMark method={method} size={38} />
         <View style={{ flex: 1 }}>
           <AppText variant="h3" style={{ fontSize: 15 }}>
             {title}

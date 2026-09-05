@@ -186,11 +186,21 @@ was a private-use character that renders as an **empty box** off Apple
 platforms, and 🏧 (an ATM) is not mada by any reading.
 
 **Apple Pay and mada are trademarks and their artwork is not redrawn here.**
-Apple Pay must use the Apple Pay Mark supplied by Apple; the mada wordmark comes
-from Saudi Payments / the acquirer. `ART` in that file is the slot for the real
-files — drop them into `assets/payment/`, add the `require`, and every checkout
-picks them up. Until then each method gets a legible typographic chip, and card
-and cash are drawn in the app's own icon family because those are ours to draw.
+The owner supplied both and they live in `assets/payment/`, **cropped to the
+mark** — a supplied logo file is mostly its own background, and dropping one
+into a chip unedited letterboxes a small wordmark inside a field of white or
+black. `ART` in `PaymentMark` maps a method to its file; a card-scheme mark is
+added the same way, the file and one line. Card and cash are drawn in the app's
+own icon family because those are ours to draw, and any method without artwork
+still renders a legible typographic chip rather than a hole.
+
+Two details the marks depend on: the chip is **landscape** for an artwork-backed
+method (a wordmark in a 40pt square renders about 14pt tall and unreadable), and
+each sits on **the ground it was drawn for** — black for Apple Pay, white for
+mada. On the app's cream surface either one looks like a mistake.
+
+`PaymentMethodsScreen` uses the same component, so a method looks like itself on
+both screens.
 
 **Apple Pay is offered on iOS only.** Elsewhere it is a method that fails after
 it is chosen, and it would put Apple's mark on a device that cannot honour it.
