@@ -23,6 +23,7 @@ export { FoodImage, glyphFor } from './FoodImage';
 export { FavoriteButton } from './FavoriteButton';
 export { AddButton } from './AddButton';
 export { BillSummary } from './BillSummary';
+export { PaymentMark } from './PaymentMark';
 export { SuccessCheck } from './SuccessState';
 export {
   FoodCard,

@@ -141,6 +141,60 @@ Three things it must keep getting right:
   summary — and it labels VAT "included" rather than repeating the mistake of
   listing it as an addition.
 
+## The cart shows the bill, not an estimate of it
+
+The cart used to print an item subtotal and the words **"Calculated at
+checkout"** against the delivery fee and the VAT. The first time a customer saw
+what they were actually paying was the screen asking them to pay it — and a
+delivery fee that appears at the last second is the failure the coupon-aware
+quote was introduced to prevent everywhere else.
+
+`CartScreen` now makes the same `quoteOrder` call checkout makes and renders the same
+`BillSummary`, so the two screens cannot disagree and any charge the owner adds
+appears here by its own name with no change to this app. Three things about it:
+
+- **It sends the address checkout will itself default to** (the default saved
+  address, else the first). Without it the fee comes back at the base rate —
+  so when there is no saved address the card says so in as many words rather
+  than letting the number move at checkout.
+- **A failed quote must not take the cart down.** It falls back to the item
+  estimate, labelled as one; checkout is where a pricing failure is reported
+  properly and offered a retry.
+- **The footer button carries the server's total** when there is one. It never
+  carries a number this app computed.
+
+## A discount has a name, and the VAT rate is a fraction
+
+`couponLabel` (`src/util/coupon.ts`, pure and tested) renders an applied offer
+as **"Twenty off · HANA20"**. The backend's quote carries the coupon's own
+`name` beside its code; a bill that can only say "HANA20 applied" makes the
+customer remember which deal that was, on the screen where they are checking
+the money. The name is absent on an older backend, so the code stands in.
+
+`formatVatRate` exists because the checkout bill row read **"Includes SAR 6.52
+VAT at 0.15%"**. The backend sends the rate as the decimal fraction it stores
+and snapshots onto every order line; the screen rendered it straight into
+`${rate}%`. The screen test passed because its fixture said `'15'` — a value the
+backend never sends. The fixture is corrected, and a rate above 1 now returns
+null (the clause is dropped) rather than printing "1500%".
+
+## Payment methods are marked, not emoji'd
+
+`PaymentMark` (`src/components/PaymentMark.tsx`) owns the mark beside each
+method. Each used to be a single emoji, and two failed outright: the Apple one
+was a private-use character that renders as an **empty box** off Apple
+platforms, and 🏧 (an ATM) is not mada by any reading.
+
+**Apple Pay and mada are trademarks and their artwork is not redrawn here.**
+Apple Pay must use the Apple Pay Mark supplied by Apple; the mada wordmark comes
+from Saudi Payments / the acquirer. `ART` in that file is the slot for the real
+files — drop them into `assets/payment/`, add the `require`, and every checkout
+picks them up. Until then each method gets a legible typographic chip, and card
+and cash are drawn in the app's own icon family because those are ours to draw.
+
+**Apple Pay is offered on iOS only.** Elsewhere it is a method that fails after
+it is chosen, and it would put Apple's mark on a device that cannot honour it.
+
 ## The app shows delivery prices only
 
 Owner decision (2026-09-04). `menuPriceMinor` (`src/util/menuPrice.ts`) is the

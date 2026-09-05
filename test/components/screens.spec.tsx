@@ -88,7 +88,7 @@ jest.mock('../../src/auth/AuthProvider', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-import { CartProvider } from '../../src/cart/CartProvider';
+import { CartProvider, useCart } from '../../src/cart/CartProvider';
 import { FavoritesProvider } from '../../src/favorites/FavoritesProvider';
 import { MotionProvider } from '../../src/motion';
 import { AccountScreen } from '../../src/screens/AccountScreen';
@@ -193,7 +193,11 @@ const QUOTE = {
   taxableBaseMinor: 10_000,
   vatMinor: 1500,
   totalMinor: 11_500,
-  vatRate: '15',
+  // The rate as the backend actually sends it: a decimal fraction, the way it
+  // is stored and snapshotted onto every order line. This fixture said '15',
+  // which is why a screen that rendered `${vatRate}%` — and printed "VAT at
+  // 0.15%" to every real customer — passed its own test.
+  vatRate: '0.15',
 };
 
 const ORDER = {
@@ -278,6 +282,29 @@ beforeEach(() => {
  * A screen listed here that renders is not proven correct — only proven not to
  * blank the app. That is the specific failure this suite exists to catch.
  */
+
+/**
+ * The cart screen with something in it.
+ *
+ * `CartScreen` renders its empty state with no lines, so the bill — the part
+ * that changed — is only reachable through a cart that has been filled the way
+ * the app fills it, through the reducer.
+ */
+function SeededCart(): React.JSX.Element {
+  const { cart, dispatch } = useCart();
+  React.useEffect(() => {
+    if (cart.lines.length === 0) {
+      dispatch({
+        type: 'ADD',
+        branchId: 'b1',
+        line: { productId: 'p1', productName: 'Chicken Mandi', unitPriceMinor: 5000, addonIds: [], addonNames: [] },
+      });
+    }
+  }, [cart.lines.length, dispatch]);
+
+  return <CartScreen navigation={navigation} route={route('Cart')} />;
+}
+
 describe('every screen mounts without throwing', () => {
   const cases: [string, () => React.ReactElement][] = [
     ['Phone', () => <PhoneScreen navigation={navigation} route={route('Phone')} />],
@@ -419,6 +446,36 @@ describe('screens survive what the backend actually returns', () => {
     );
 
     expect(await findByText(/Includes .*15\.00 VAT at 15%/)).toBeTruthy();
+  });
+
+  it('shows the real bill on the cart, not "calculated at checkout"', async () => {
+    // The whole point of this screen changing: the cart used to show an item
+    // subtotal and the words "Calculated at checkout" against the delivery fee
+    // and the VAT, so the first time a customer saw what they were paying was
+    // the screen asking them to pay it. Every one of these numbers is the
+    // server's — the same priced quote checkout uses.
+    mockApi.quoteOrder.mockResolvedValue({
+      quote: { ...QUOTE, discountMinor: 2000, totalMinor: 9500 },
+      breakdown: [
+        { kind: 'ITEMS', label: 'Items', detail: null, amountMinor: 8000, strikethroughMinor: 10_000, included: false, negative: false },
+        { kind: 'DELIVERY_BASE', label: 'Delivery fee', detail: null, amountMinor: 1500, included: false, negative: false },
+        // A charge the owner added, carried by its own name — this app never
+        // needs to learn about a new fee.
+        { kind: 'CHARGE', label: 'Platform fee', detail: null, amountMinor: 300, included: false, negative: false },
+        { kind: 'VAT', label: 'VAT', detail: '15%, included', amountMinor: 1239, included: true, negative: false },
+        { kind: 'TOTAL', label: 'To pay', detail: null, amountMinor: 9500, included: false, negative: false },
+      ],
+      coupon: { code: 'HANA20', couponId: 'c1', name: 'Twenty off', discountMinor: 2000 },
+      couponError: null,
+    });
+
+    const { findByText, queryByText } = wrap(<SeededCart />);
+
+    expect(await findByText('Platform fee')).toBeTruthy();
+    expect(await findByText('Delivery fee')).toBeTruthy();
+    // The discount says which offer took the money off, not just its code.
+    expect(await findByText(/Twenty off · HANA20/)).toBeTruthy();
+    expect(queryByText(/Calculated at checkout/)).toBeNull();
   });
 
   it('tracks an order that has no delivery record yet', async () => {

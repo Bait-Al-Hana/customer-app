@@ -22,6 +22,7 @@ import {
   SuccessCheck,
 } from '../../src/components';
 import { MotionProvider } from '../../src/motion';
+import { PAYMENT_METHOD } from '../../src/types/backend';
 import type { FoodCardData, PromoBannerData } from '../../src/components';
 
 const wrap = (ui: React.ReactElement) => render(<MotionProvider>{ui}</MotionProvider>);
@@ -77,9 +78,13 @@ describe('app component library (mount)', () => {
         <AddressCard label="Home" line="King Fahd Rd, Riyadh" isDefault selected onPress={() => undefined} />,
       ),
     ).not.toThrow();
-    expect(() =>
-      wrap(<PaymentMethodCard glyph="💳" label="Card" selected onPress={() => undefined} />),
-    ).not.toThrow();
+    // Every method, because each renders a different mark and two of the old
+    // emoji glyphs did not render at all off Apple platforms.
+    for (const method of Object.values(PAYMENT_METHOD)) {
+      expect(() =>
+        wrap(<PaymentMethodCard method={method} label={method} selected onPress={() => undefined} />),
+      ).not.toThrow();
+    }
   });
 
   it('mounts the animated feedback controls and success mark', () => {

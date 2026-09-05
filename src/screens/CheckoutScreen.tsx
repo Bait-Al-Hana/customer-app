@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Platform, ScrollView, View } from 'react-native';
 
 import { ApiError } from '../api/http';
 import { Address, Branch, CustomerProfile, OrderQuote } from '../api/types';
@@ -17,15 +17,21 @@ import { BottomSheet, ErrorState, FadeIn, PressableScale, PulseButton, Shimmer, 
 import { ORDER_TYPE, OrderType, PAYMENT_METHOD, PaymentMethod } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
 import { correctedType, fulfilmentOptions } from '../util/fulfilment';
-import { formatSar } from '../util/money';
+import { couponLabel } from '../util/coupon';
+import { formatSar, formatVatRate } from '../util/money';
 import { useTheme } from '../theme/theme';
 
-const METHOD_META: Record<string, { label: string; glyph: string; hint?: string }> = {
-  [PAYMENT_METHOD.CARD]: { label: 'Credit / debit card', glyph: '💳' },
-  [PAYMENT_METHOD.MADA]: { label: 'mada', glyph: '🏧' },
-  [PAYMENT_METHOD.APPLE_PAY]: { label: 'Apple Pay', glyph: '' },
-  [PAYMENT_METHOD.GOOGLE_PAY]: { label: 'Google Pay', glyph: '🟢' },
-  [PAYMENT_METHOD.CASH_ON_DELIVERY]: { label: 'Cash on delivery', glyph: '💵', hint: 'Pay the driver when it arrives' },
+/**
+ * The name beside each method's mark. The marks themselves live in
+ * `PaymentMark` — this used to carry an emoji per method, and the Apple one was
+ * a private-use character that rendered as an empty box everywhere but iOS.
+ */
+const METHOD_META: Record<string, { label: string; hint?: string }> = {
+  [PAYMENT_METHOD.CARD]: { label: 'Credit / debit card' },
+  [PAYMENT_METHOD.MADA]: { label: 'mada' },
+  [PAYMENT_METHOD.APPLE_PAY]: { label: 'Apple Pay' },
+  [PAYMENT_METHOD.GOOGLE_PAY]: { label: 'Google Pay' },
+  [PAYMENT_METHOD.CASH_ON_DELIVERY]: { label: 'Cash on delivery', hint: 'Pay the driver when it arrives' },
 };
 
 /** Choose fulfilment, review the server quote, pick a payment method, place order. */
@@ -98,6 +104,10 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   // Only a code the server actually priced is sent with the order. A code that
   // failed here must not stay silently attached to the placement.
   const appliedCoupon = priced?.coupon?.code ?? null;
+  // What the bill calls the discount: the offer's name, with the code beside
+  // it. "SAVE20 applied" is a receipt for something the customer has to
+  // remember; the name is what they tapped on the Offers page.
+  const discountLabel = couponLabel(priced?.coupon ?? null);
 
   // The name and number the kitchen would call. Shown on the order card
   // because "who is this for" is part of checking an order over, and a wrong
@@ -118,7 +128,13 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
 
   // Available payment methods: COD only where the branch accepts it.
   const methods = useMemo<PaymentMethod[]>(() => {
-    const base: PaymentMethod[] = [PAYMENT_METHOD.CARD, PAYMENT_METHOD.MADA, PAYMENT_METHOD.APPLE_PAY];
+    const base: PaymentMethod[] = [PAYMENT_METHOD.CARD, PAYMENT_METHOD.MADA];
+    // Apple Pay is offered only where it can actually be completed. Showing it
+    // on Android or the web build is a method that fails after it is chosen —
+    // and it would put Apple's mark on a device that cannot honour it.
+    if (Platform.OS === 'ios') {
+      base.push(PAYMENT_METHOD.APPLE_PAY);
+    }
     if (branch?.acceptsCashOnDelivery) {
       base.push(PAYMENT_METHOD.CASH_ON_DELIVERY);
     }
@@ -243,9 +259,18 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
               }}
             >
               <AppText style={{ fontSize: 18 }}>🎉</AppText>
-              <AppText variant="bodySmall" weight="700" style={{ color: theme.colors.success }}>
-                You saved {formatSar(savedMinor)} on this order
-              </AppText>
+              <View style={{ flex: 1 }}>
+                <AppText variant="bodySmall" weight="700" style={{ color: theme.colors.success }}>
+                  You saved {formatSar(savedMinor)} on this order
+                </AppText>
+                {/* Which offer did it. A saving with no name attached is one
+                    the customer cannot check, and cannot ask about. */}
+                {discountLabel ? (
+                  <AppText variant="caption" style={{ color: theme.colors.success, marginTop: 2 }}>
+                    {discountLabel}
+                  </AppText>
+                ) : null}
+              </View>
             </View>
           </FadeIn>
         ) : null}
@@ -361,7 +386,17 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
                  breakdown is open. */
               subtitle={
                 quote
-                  ? `Includes ${formatSar(quote.vatMinor)} VAT at ${quote.vatRate}%`
+                  ? [
+                      `Includes ${formatSar(quote.vatMinor)} VAT`,
+                      // The rate arrives as the decimal fraction it is stored
+                      // as ("0.15"), so this read "VAT at 0.15%" — a wrong
+                      // number on the one line whose job is showing the
+                      // customer the total can be checked. Dropped entirely
+                      // when it cannot be parsed, rather than printing NaN.
+                      formatVatRate(quote.vatRate) ? `at ${formatVatRate(quote.vatRate)}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')
                   : 'Pricing your order…'
               }
               onPress={() => setBillOpen(true)}
@@ -424,7 +459,7 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
             {methods.map((m) => (
               <PaymentMethodCard
                 key={m}
-                glyph={METHOD_META[m]?.glyph ?? '💳'}
+                method={m}
                 label={METHOD_META[m]?.label ?? m}
                 hint={METHOD_META[m]?.hint}
                 selected={method === m}
@@ -453,7 +488,7 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
               onAction={reload}
             />
           ) : quote ? (
-            <BillSummary quote={quote} rows={priced?.breakdown} couponLabel={appliedCoupon} />
+            <BillSummary quote={quote} rows={priced?.breakdown} couponLabel={discountLabel} />
           ) : (
             <View style={{ gap: 8 }}>
               <Shimmer height={16} />
