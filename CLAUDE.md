@@ -202,8 +202,19 @@ mada. On the app's cream surface either one looks like a mistake.
 `PaymentMethodsScreen` uses the same component, so a method looks like itself on
 both screens.
 
-**Apple Pay is offered on iOS only.** Elsewhere it is a method that fails after
-it is chosen, and it would put Apple's mark on a device that cannot honour it.
+**Apple Pay is offered where it can be honoured — which is a question about the
+browser, not the OS.** `supportsApplePay` (`util/applePay.ts`, pure and tested)
+answers it: native iOS, or the web build in a browser exposing a working
+`window.ApplePaySession`.
+
+This was `Platform.OS === 'ios'`, and that is wrong in the one place it
+mattered. **This app ships as a web build too, and `Platform.OS` there is
+`'web'` — on an iPhone, in Safari, with Apple Pay set up.** So the check hid
+Apple Pay from precisely the devices that support it and showed it on none. The
+platform was wrong in the other direction as well: Chrome on iOS *is* iOS and
+cannot pay. `canMakePayments()` is called inside a try/catch, because it throws
+in an insecure context and in some embedded web views — a missing option beats
+one that dead-ends at the last press.
 
 ## The app shows delivery prices only
 

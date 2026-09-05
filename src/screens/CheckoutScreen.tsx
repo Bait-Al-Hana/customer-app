@@ -17,6 +17,7 @@ import { BottomSheet, ErrorState, FadeIn, PressableScale, PulseButton, Shimmer, 
 import { ORDER_TYPE, OrderType, PAYMENT_METHOD, PaymentMethod } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
 import { correctedType, fulfilmentOptions } from '../util/fulfilment';
+import { applePaySessionGlobal, supportsApplePay } from '../util/applePay';
 import { couponLabel } from '../util/coupon';
 import { formatSar, formatVatRate } from '../util/money';
 import { useTheme } from '../theme/theme';
@@ -129,10 +130,12 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   // Available payment methods: COD only where the branch accepts it.
   const methods = useMemo<PaymentMethod[]>(() => {
     const base: PaymentMethod[] = [PAYMENT_METHOD.CARD, PAYMENT_METHOD.MADA];
-    // Apple Pay is offered only where it can actually be completed. Showing it
-    // on Android or the web build is a method that fails after it is chosen —
-    // and it would put Apple's mark on a device that cannot honour it.
-    if (Platform.OS === 'ios') {
+    // Apple Pay is offered only where it can actually be completed — but
+    // "where" is a question about the browser, not the OS. This was
+    // `Platform.OS === 'ios'`, which is 'web' on the web build even on an
+    // iPhone, so it hid Apple Pay from exactly the devices that have it. See
+    // `util/applePay.ts`.
+    if (supportsApplePay({ os: Platform.OS, applePaySession: applePaySessionGlobal() })) {
       base.push(PAYMENT_METHOD.APPLE_PAY);
     }
     if (branch?.acceptsCashOnDelivery) {
