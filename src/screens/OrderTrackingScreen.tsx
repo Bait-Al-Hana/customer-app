@@ -9,7 +9,7 @@ import { useAsync } from '../hooks/useAsync';
 import { AppMap, DEFAULT_REGION, MapMarker } from '../maps/AppMap';
 import { ErrorState, FadeIn, MotiCard, PulsingDot, Shimmer, StatusBadge } from '../motion';
 import { ORDER_STATUS, ORDER_TYPE, OrderStatus } from '../types/backend';
-import { STATUS_META } from '../features/order/order-status.model';
+import { statusMeta as metaFor } from '../features/order/order-status.model';
 import type { DeliveryTracking } from '../api/types';
 import { RootStackParamList } from '../navigation/types';
 import { formatSar } from '../util/money';
@@ -56,7 +56,7 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
 
   const goHome = (): void => navigation.reset({ index: 0, routes: [{ name: 'Tabs' }] });
   const isActive = order && ACTIVE.includes(order.status);
-  const statusMeta = order ? STATUS_META[order.status] : null;
+  const statusMeta = order ? metaFor(order.status) : null;
 
   return (
     <Screen title="Your order" onBack={() => (navigation.canGoBack() ? navigation.goBack() : goHome())}>
