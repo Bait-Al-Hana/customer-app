@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleProp, View, ViewStyle } from 'react-native';
 
 import { PressableScale } from '../motion';
+import { PaymentMethod } from '../types/backend';
 import { StatusTone } from '../features/order/order-status.model';
 import { useTheme } from '../theme/theme';
 import { formatSar } from '../util/money';
@@ -12,6 +13,7 @@ import { Card } from './ui';
 import { FavoriteButton } from './FavoriteButton';
 import { FoodImage, glyphFor } from './FoodImage';
 import { GradientSurface } from './GradientSurface';
+import { PaymentMark } from './PaymentMark';
 import { Rating } from './primitives';
 
 export interface FoodCardData {
@@ -388,15 +390,21 @@ export function AddressCard({
   );
 }
 
-/** A selectable payment-method row with an icon glyph. */
+/**
+ * A selectable payment-method row, marked with its brand rather than an emoji.
+ *
+ * It used to take a `glyph` string, and two of the five it was given did not
+ * render at all off Apple platforms — see `PaymentMark`, which owns the marks
+ * and the slot the licensed Apple Pay / mada artwork drops into.
+ */
 export function PaymentMethodCard({
-  glyph,
+  method,
   label,
   hint,
   selected,
   onPress,
 }: {
-  glyph: string;
+  method: PaymentMethod;
   label: string;
   hint?: string;
   selected?: boolean;
@@ -418,18 +426,7 @@ export function PaymentMethodCard({
           backgroundColor: selected ? theme.colors.primarySoft : theme.colors.surface,
         }}
       >
-        <View
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: theme.radius.md,
-            backgroundColor: theme.colors.surfaceAlt,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <AppText style={{ fontSize: 20 }}>{glyph}</AppText>
-        </View>
+        <PaymentMark method={method} />
         <View style={{ flex: 1 }}>
           <AppText variant="h3" style={{ fontSize: 15 }}>
             {label}

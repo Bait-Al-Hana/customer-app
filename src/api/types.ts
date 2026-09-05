@@ -151,7 +151,19 @@ export interface OrderQuote {
   delivery?: DeliveryQuote | null;
   /** Present from the delivery-pricing release; absent on an older backend. */
   breakdown?: BreakdownRow[];
-  coupon: { code: string; couponId: string; discountMinor: number } | null;
+  coupon: {
+    code: string;
+    couponId: string;
+    /**
+     * The offer's own name — "Twenty off your first order".
+     *
+     * Absent on a backend that predates it, so every caller falls back to the
+     * code. It is what the bill says took the money off: a customer who tapped
+     * an offer card recognises its name, not the code behind it.
+     */
+    name?: string;
+    discountMinor: number;
+  } | null;
   couponError: string | null;
 }
 
