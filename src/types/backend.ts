@@ -12,6 +12,16 @@
 
 export const ORDER_STATUS = {
   PENDING_PAYMENT: 'PENDING_PAYMENT',
+  /**
+   * The branch has the order and has not accepted it yet.
+   *
+   * Only produced by a branch with `autoAcceptOrders = false`, which is why it
+   * was missing here for so long: an auto-accept branch never emits it, so the
+   * app ran fine against every branch anyone tested with. On a manual-accept
+   * branch it is the status a customer sits in **immediately after paying**, so
+   * every screen that maps a status has to handle it.
+   */
+  AWAITING_ACCEPTANCE: 'AWAITING_ACCEPTANCE',
   CONFIRMED: 'CONFIRMED',
   PREPARING: 'PREPARING',
   READY: 'READY',

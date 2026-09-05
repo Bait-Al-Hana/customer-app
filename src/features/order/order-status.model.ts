@@ -89,6 +89,7 @@ export interface OrderTimeline {
 /** Per-status chip metadata: a label and a colour tone. */
 export const STATUS_META: Record<OrderStatus, { label: string; tone: StatusTone }> = {
   [ORDER_STATUS.PENDING_PAYMENT]: { label: 'Awaiting payment', tone: 'warning' },
+  [ORDER_STATUS.AWAITING_ACCEPTANCE]: { label: 'Sent to the branch', tone: 'progress' },
   [ORDER_STATUS.CONFIRMED]: { label: 'Confirmed', tone: 'progress' },
   [ORDER_STATUS.PREPARING]: { label: 'Preparing', tone: 'progress' },
   [ORDER_STATUS.READY]: { label: 'Ready', tone: 'progress' },
@@ -102,6 +103,30 @@ export const STATUS_META: Record<OrderStatus, { label: string; tone: StatusTone 
   [ORDER_STATUS.PARTIALLY_REFUNDED]: { label: 'Partially refunded', tone: 'warning' },
   [ORDER_STATUS.REFUNDED]: { label: 'Refunded', tone: 'neutral' },
 };
+
+/**
+ * Chip metadata for a status, with a safe fallback for one this build does not
+ * know.
+ *
+ * **Always use this rather than indexing `STATUS_META` directly.** The backend
+ * owns the status list and can add to it, and an app already on a customer's
+ * phone cannot be updated to match. Indexing a `Record` with a value it has no
+ * key for yields `undefined`, and the very next property read unmounts the
+ * React tree — the error boundary catches it, but the customer still cannot
+ * open the screen, and because the order stays in that status it fails again on
+ * every relaunch.
+ *
+ * `AWAITING_ACCEPTANCE` was exactly that: the backend has always emitted it on a
+ * manual-accept branch and this app never listed it.
+ *
+ * "In progress" is the honest fallback. The alternative that looks tidier —
+ * treating an unknown status as pre-journey — is worse in the one direction
+ * that matters: a money-bearing screen must never tell a customer who has
+ * already paid that payment is outstanding.
+ */
+export function statusMeta(status: OrderStatus): { label: string; tone: StatusTone } {
+  return STATUS_META[status] ?? { label: 'In progress', tone: 'progress' };
+}
 
 /** The milestone list for an order type, with pickup's "Collected" relabel. */
 function milestonesFor(type: OrderType): { key: MilestoneKey; label: string }[] {
@@ -120,9 +145,15 @@ function forwardRank(status: OrderStatus): number {
 /**
  * Builds the full timeline for a status + order type.
  *
- * Every branch below is covered by a unit test. The default arm treats any
- * unknown value as "awaiting payment" rather than throwing, so a future backend
- * status can never crash the tracker — it degrades to the safe pre-journey view.
+ * Every branch below is covered by a unit test. A status this build does not
+ * know falls through to the in-progress arm and is labelled through
+ * `statusMeta`, so a future backend status cannot crash the tracker.
+ *
+ * This comment previously described an "unknown -> awaiting payment" default
+ * that the code did not implement: an unmapped status reached
+ * `STATUS_META[status].label` and threw. Both halves are now true — the
+ * fallback exists, and it says "in progress" rather than contradicting a
+ * payment the customer has already made.
  */
 export function buildOrderTimeline(
   status: OrderStatus,
@@ -177,8 +208,8 @@ export function buildOrderTimeline(
       phase: 'refund',
       nodes: milestones.map((m) => ({ ...m, state: 'complete', pulse: false })),
       progress: 1,
-      currentLabel: STATUS_META[status].label,
-      tone: STATUS_META[status].tone,
+      currentLabel: statusMeta(status).label,
+      tone: statusMeta(status).tone,
       accessibilityLabel:
         status === ORDER_STATUS.REFUND_PENDING
           ? 'This delivered order has a refund in progress.'
@@ -220,9 +251,9 @@ export function buildOrderTimeline(
     phase: 'in_progress',
     nodes,
     progress: lastIndex > 0 ? activeIndex / lastIndex : 0,
-    currentLabel: STATUS_META[status].label,
+    currentLabel: statusMeta(status).label,
     tone: 'progress',
-    accessibilityLabel: `Order status: ${STATUS_META[status].label.toLowerCase()}. Step ${
+    accessibilityLabel: `Order status: ${statusMeta(status).label.toLowerCase()}. Step ${
       activeIndex + 1
     } of ${milestones.length}.`,
   };

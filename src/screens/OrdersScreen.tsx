@@ -5,7 +5,7 @@ import { ScrollView, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthProvider';
 import { AppText, OrderCard, Screen } from '../components';
-import { STATUS_META } from '../features/order/order-status.model';
+import { statusMeta } from '../features/order/order-status.model';
 import { useAsync } from '../hooks/useAsync';
 import { EmptyState, ErrorState, PressableScale, Shimmer, Stagger } from '../motion';
 import { ORDER_STATUS, OrderStatus } from '../types/backend';
@@ -93,7 +93,7 @@ export function OrdersScreen(): React.JSX.Element {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingTop: 8, gap: 12, paddingBottom: 120 }}>
           <Stagger>
             {list.map((o) => {
-              const meta = STATUS_META[o.status];
+              const meta = statusMeta(o.status);
               return (
                 <OrderCard
                   key={o.id}
