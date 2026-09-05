@@ -87,7 +87,10 @@ export function PaymentMark({
         <Image
           source={art}
           resizeMode="contain"
-          style={{ width: Math.round(size * MARK_ASPECT) - 10, height: size - 12 }}
+          // Near-flush inside the chip. `contain` already keeps the whole mark,
+          // and every point of padding here is a point the wordmark shrinks by
+          // — mada is the wider of the two and loses most.
+          style={{ width: Math.round(size * MARK_ASPECT) - 6, height: size - 8 }}
         />
       ) : (
         <Fallback method={method} size={size} />

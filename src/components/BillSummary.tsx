@@ -120,12 +120,16 @@ function Row({
             weight={isTotal ? '800' : '400'}
           >
             {row.label}
-            {couponLabel ? (
-              <AppText variant="bodySmall" color="success">
-                {`  ${couponLabel}`}
-              </AppText>
-            ) : null}
           </AppText>
+          {/* The offer's name goes on its own line, not inline after the label.
+              Inline it wrapped mid-phrase on any name longer than a word —
+              "Items Twenty off ·" / "HANA20" — which reads as a layout fault on
+              the row that is meant to explain the saving. */}
+          {couponLabel ? (
+            <AppText variant="caption" color="success" weight="700" style={{ marginTop: 2 }}>
+              {couponLabel}
+            </AppText>
+          ) : null}
           {row.detail ? (
             <AppText variant="caption" color="textMuted" style={{ marginTop: 2 }}>
               {row.detail}
