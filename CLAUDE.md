@@ -341,6 +341,26 @@ explains the amount on the button. It is not an error — the code the customer
 typed is valid, it simply saved less than the standing offer, and it was not
 spent. Colouring it red would tell them a working code is broken.
 
+## Which build is this?
+
+The Account screen footer carries a build marker — short commit and build time.
+`app.config.js` injects them into `extra` (the same route the API URL and the
+Maps key take); `version.ts` reads them; `util/buildInfo.ts` formats them and is
+**pure, importing nothing**, so it runs in the fast logic suite. That split is
+the same one `driver-app/src/util/navigationUrl.ts` makes for `Platform`, and
+for the same reason: a marker rendering "Invalid Date" destroys trust in the one
+signal meant to settle an argument, and no render test would catch it.
+
+It exists because the tracking crash was found, fixed and verified in a browser
+against the real web bundle — and the only question left was one nobody could
+answer by looking at the app: *is this the fixed build?* Until that is settled a
+stale bundle and a live bug are indistinguishable. **When a bug is reported,
+read the marker first.**
+
+A build made outside CI reports `local` rather than claiming a commit — the one
+lie a marker like this cannot afford, since its whole job is saying what is
+actually running.
+
 ## A type is a promise about a local value, not about what the server sends
 
 `DeliveryTracking.driver.user` was typed `{ fullName: string }`, so the tracking
