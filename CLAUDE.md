@@ -298,6 +298,49 @@ carried invented codes, so every one was refused at checkout. Never reintroduce
 marketing copy with a coupon code in it: if a code is shown, a coupon behind it
 must exist.
 
+## An automatic promotion has no code, and therefore no button
+
+`/customer/config` now carries `promotions` alongside `offers`, and they are
+different things. An **offer** is a coupon the customer claims: it has a code,
+and tapping the card attaches it. A **promotion** is a price already being
+charged — the backend applies it to any qualifying basket with nobody typing
+anything.
+
+So `PromotionCard` on the Offers tab carries **no button**. That absence is the
+design, and it follows the rule the Account screens already keep: a control that
+controls nothing is worse than no control at all. A "Use this offer" button here
+would either do nothing or pretend to.
+
+It also never says what a promotion is worth on *this* basket. The server prices
+the order; a number computed here would be a second set of figures to disagree
+with the one on the bill.
+
+`src/util/promotion.ts` is pure and tested. Two rules in it:
+
+- **`branchIds` is empty when a promotion runs everywhere**, not nowhere.
+  Reading it the other way round hides every company-wide offer the owner
+  publishes, and nobody reports it — the tab simply looks quiet. When the basket
+  has settled on a branch, a promotion another branch runs is dropped; when it
+  has not, everything is shown, because an empty Offers tab for someone who has
+  not started an order is exactly when they were browsing for a reason to.
+- **An empty product list means the whole order.** "0 items", or saying nothing,
+  would both read as "this applies to nothing".
+
+## The bill names whatever took the money off
+
+`discountLabel` (`src/util/coupon.ts`) replaces the direct `couponLabel` call on
+the cart and checkout: it names the coupon when one applied, and otherwise the
+promotion. The promotion is the case it exists for — the customer typed nothing,
+so without its name there is nothing on the screen explaining why the total is
+below the menu price, and an unexplained saving is queried as often as an
+unexplained charge.
+
+`couponSuperseded` renders as a **muted** note, next to where `couponError`
+renders in red, and outside the collapsible panel for the same reason: it
+explains the amount on the button. It is not an error — the code the customer
+typed is valid, it simply saved less than the standing offer, and it was not
+spent. Colouring it red would tell them a working code is broken.
+
 ## Order tracking says how far away, not a made-up ETA
 
 `OrderTrackingScreen` showed a hard-coded **"~15 min"** to every customer on

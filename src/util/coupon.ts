@@ -28,3 +28,33 @@ export function couponLabel(
   }
   return `${name} · ${code}`;
 }
+
+/**
+ * What to write beside the discounted row on the bill.
+ *
+ * Two things can take money off, and only one of them is something the customer
+ * did: a coupon they typed, or a standing promotion that applied on its own.
+ * The second is the one that has to be named, because there is nothing else on
+ * the screen to explain why the total moved — an unexplained saving is queried
+ * as often as an unexplained charge.
+ *
+ * They never both apply; the server charges whichever is worth more. The coupon
+ * is checked first anyway, so a backend that predates promotions behaves
+ * exactly as it did.
+ */
+export function discountLabel(
+  quote:
+    | {
+        coupon?: { code: string; name?: string | null } | null;
+        promotion?: { name: string } | null;
+      }
+    | null
+    | undefined,
+): string | null {
+  const fromCoupon = couponLabel(quote?.coupon ?? null);
+  if (fromCoupon) {
+    return fromCoupon;
+  }
+  const promotion = quote?.promotion?.name?.trim();
+  return promotion ? promotion : null;
+}
