@@ -341,6 +341,48 @@ explains the amount on the button. It is not an error — the code the customer
 typed is valid, it simply saved less than the standing offer, and it was not
 spent. Colouring it red would tell them a working code is broken.
 
+## Tracking starts when the food is ready, not when a driver is picked
+
+The delivery panel used to render only from `DRIVER_ASSIGNED`. The backend opens
+the `Delivery` record — drop-off snapshot and all — when the order reaches
+**READY**, which is before anyone has been assigned to carry it, so for that
+whole window a customer watching this screen saw nothing about their delivery at
+all: no destination, no "we're finding a driver", just an order that had
+apparently stopped. That window is exactly when people ring the branch.
+
+`HAS_DELIVERY` now starts at `READY`, and the panel names the state it is in:
+**"Finding a driver"**, not a driver's name with no position and not an em dash
+under "On its way", which reads as a number that failed to load. `awaitingDriver`
+is `!tracking.driver` — the one honest test, since the delivery row exists
+either way.
+
+The tracking call still 404s before the delivery is opened (a pickup order
+legitimately never has one, and the backend's contract suite pins that 404). It
+is caught and read as "not dispatched yet", never surfaced as an error.
+
+## The tracking screen is pushed, not just polled
+
+`src/realtime/RealtimeProvider.tsx` holds one authenticated socket for the
+signed-in customer; `useOrderUpdates` reloads the order on `order.transitioned`.
+
+The eight-second poll is fine for "preparing" and wrong for the two moments a
+customer is actually staring at the screen: the branch accepting the order, and
+a driver being assigned. The backend has emitted into a per-customer room
+(`ROOMS.customer`) since the realtime layer was built — the admin panel and the
+POS were its only clients, and this app polled past it.
+
+Three things to keep:
+
+- **The poll stays**, as the floor, and the hook fires once on every reconnect
+  so a status that changed while the socket was down is not stranded.
+- **Events are filtered to this order.** A customer with two live orders would
+  otherwise refetch the screen they are looking at every time the other moved.
+  An event with no `orderId` (an older backend) is treated as relevant — a
+  needless refetch is cheaper than a screen that never advances.
+- **`useRealtime` deliberately does not throw** without a provider, so a screen
+  with no socket still polls rather than going blank. The screen tests mount
+  without it.
+
 ## Order tracking says how far away, not a made-up ETA
 
 `OrderTrackingScreen` showed a hard-coded **"~15 min"** to every customer on

@@ -21,6 +21,15 @@ interface AuthContextValue {
    * not about this install.
    */
   justOnboarded: boolean;
+  /**
+   * The current access token, read at call time.
+   *
+   * A getter rather than a value on purpose: the tracking socket re-reads it on
+   * every (re)connect so a token refreshed since sign-in is the one presented,
+   * and a revoked one is refused instead of replayed. Exposing the token as
+   * state would re-render every consumer on each refresh for no benefit.
+   */
+  getAccessToken: () => string | null;
   /** Store the tokens returned by OTP verification and mark the session active. */
   signIn: (tokens: AuthTokens) => Promise<void>;
   signOut: () => Promise<void>;
@@ -97,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
       ready,
       isAuthenticated,
       justOnboarded,
+      getAccessToken: () => tokensRef.current?.accessToken ?? null,
       signIn: async (tokens) => {
         // Set before the tokens, so the navigator picks the onboarding route
         // in the same render that swaps to the authenticated stack rather than
