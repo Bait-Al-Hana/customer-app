@@ -184,9 +184,16 @@ function DeliveryPanel({ tracking, orderNumber }: { tracking: DeliveryTracking |
   const addrLat = tracking?.addressSnapshot?.latitude ?? null;
   const addrLng = tracking?.addressSnapshot?.longitude ?? null;
 
+  // Guarded, not asserted. `driver.user` used to be read straight through on
+  // the strength of the type saying it was there; a null threw inside render
+  // and unmounted the tree, so a customer chasing their food met the error
+  // boundary. Every read of the tracking payload here is defensive for that
+  // reason — see the note on `DeliveryTracking`.
+  const fullName = tracking?.driver?.user?.fullName ?? null;
+
   const markers: MapMarker[] = [];
   if (driverLat !== null && driverLng !== null) {
-    markers.push({ id: 'driver', latitude: driverLat, longitude: driverLng, kind: 'driver', title: tracking?.driver?.user.fullName ?? 'Driver' });
+    markers.push({ id: 'driver', latitude: driverLat, longitude: driverLng, kind: 'driver', title: fullName ?? 'Driver' });
   }
   if (addrLat !== null && addrLng !== null) {
     markers.push({ id: 'dest', latitude: addrLat, longitude: addrLng, kind: 'customer', title: 'Delivery address' });
@@ -211,7 +218,10 @@ function DeliveryPanel({ tracking, orderNumber }: { tracking: DeliveryTracking |
   // from a named driver with no position, and conflating them would put a
   // person's name against an order nobody has taken.
   const awaitingDriver = !tracking?.driver;
-  const driverName = tracking?.driver?.user.fullName ?? 'Finding a driver';
+  // "Your driver" rather than the panel's waiting copy: a driver **is**
+  // assigned here, we just have no name for them, and saying "Finding a driver"
+  // would walk the customer's expectation backwards.
+  const driverName = awaitingDriver ? 'Finding a driver' : (fullName ?? 'Your driver');
   const vehicle = tracking?.driver?.vehicleType ?? null;
 
   return (

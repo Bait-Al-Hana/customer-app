@@ -362,12 +362,24 @@ export interface DeliveryTracking {
     latitude?: number | null;
     longitude?: number | null;
   } | null;
+  /**
+   * The assigned driver, or null while the delivery is still awaiting one.
+   *
+   * **Every field here is optional on purpose, `user` included.** The screen
+   * read `driver.user.fullName` with no guard because this type promised a
+   * `user` — and a type is a promise about a *local* value, not about what a
+   * server two deploys ahead actually sends. When that read met a null it threw
+   * inside render, React unmounted the tree, and the customer got the error
+   * boundary on the one screen that tells them where their food is. It is the
+   * same failure `statusMeta` exists for (see `order-status.model.ts`), on a
+   * different field.
+   */
   driver: {
     id: string;
-    vehicleType: string;
-    currentLatitude: number | null;
-    currentLongitude: number | null;
-    lastLocationAt: string | null;
-    user: { fullName: string };
+    vehicleType?: string | null;
+    currentLatitude?: number | null;
+    currentLongitude?: number | null;
+    lastLocationAt?: string | null;
+    user?: { fullName?: string | null } | null;
   } | null;
 }

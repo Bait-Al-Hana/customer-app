@@ -341,6 +341,29 @@ explains the amount on the button. It is not an error — the code the customer
 typed is valid, it simply saved less than the standing offer, and it was not
 spent. Colouring it red would tell them a working code is broken.
 
+## A type is a promise about a local value, not about what the server sends
+
+`DeliveryTracking.driver.user` was typed `{ fullName: string }`, so the tracking
+screen read `driver.user.fullName` straight through. A null there throws inside
+render, React unmounts the tree, and the customer meets the error boundary on
+the one screen that tells them where their food is — reproduced in Chromium
+against the real `expo export --platform web` bundle, which is how this app
+ships to Vercel.
+
+It is the same failure `statusMeta` exists for (`order-status.model.ts`), on a
+different field, and the reason is the same both times: **the backend owns these
+shapes and an app already on a customer's phone cannot be updated to match.**
+Every field on `driver` is optional now and every read in `DeliveryPanel` is
+guarded. A missing name costs the name and nothing else.
+
+A missing name renders **"Your driver"**, not "Finding a driver" — a driver is
+assigned, and walking that back would tell the customer they had lost one.
+
+`test/components/screens.spec.tsx` now mounts the panel three ways (driver
+present, no driver yet, driver with no `user`). It previously only ever mounted
+the 404 case, so every line inside `DeliveryPanel` — the part that appears
+exactly when a driver is assigned — was unreached by any test.
+
 ## Tracking starts when the food is ready, not when a driver is picked
 
 The delivery panel used to render only from `DRIVER_ASSIGNED`. The backend opens
