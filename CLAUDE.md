@@ -341,6 +341,91 @@ explains the amount on the button. It is not an error — the code the customer
 typed is valid, it simply saved less than the standing offer, and it was not
 spent. Colouring it red would tell them a working code is broken.
 
+## Which build is this?
+
+The Account screen footer carries a build marker — short commit and build time.
+`app.config.js` injects them into `extra` (the same route the API URL and the
+Maps key take); `version.ts` reads them; `util/buildInfo.ts` formats them and is
+**pure, importing nothing**, so it runs in the fast logic suite. That split is
+the same one `driver-app/src/util/navigationUrl.ts` makes for `Platform`, and
+for the same reason: a marker rendering "Invalid Date" destroys trust in the one
+signal meant to settle an argument, and no render test would catch it.
+
+It exists because the tracking crash was found, fixed and verified in a browser
+against the real web bundle — and the only question left was one nobody could
+answer by looking at the app: *is this the fixed build?* Until that is settled a
+stale bundle and a live bug are indistinguishable. **When a bug is reported,
+read the marker first.**
+
+A build made outside CI reports `local` rather than claiming a commit — the one
+lie a marker like this cannot afford, since its whole job is saying what is
+actually running.
+
+## A type is a promise about a local value, not about what the server sends
+
+`DeliveryTracking.driver.user` was typed `{ fullName: string }`, so the tracking
+screen read `driver.user.fullName` straight through. A null there throws inside
+render, React unmounts the tree, and the customer meets the error boundary on
+the one screen that tells them where their food is — reproduced in Chromium
+against the real `expo export --platform web` bundle, which is how this app
+ships to Vercel.
+
+It is the same failure `statusMeta` exists for (`order-status.model.ts`), on a
+different field, and the reason is the same both times: **the backend owns these
+shapes and an app already on a customer's phone cannot be updated to match.**
+Every field on `driver` is optional now and every read in `DeliveryPanel` is
+guarded. A missing name costs the name and nothing else.
+
+A missing name renders **"Your driver"**, not "Finding a driver" — a driver is
+assigned, and walking that back would tell the customer they had lost one.
+
+`test/components/screens.spec.tsx` now mounts the panel three ways (driver
+present, no driver yet, driver with no `user`). It previously only ever mounted
+the 404 case, so every line inside `DeliveryPanel` — the part that appears
+exactly when a driver is assigned — was unreached by any test.
+
+## Tracking starts when the food is ready, not when a driver is picked
+
+The delivery panel used to render only from `DRIVER_ASSIGNED`. The backend opens
+the `Delivery` record — drop-off snapshot and all — when the order reaches
+**READY**, which is before anyone has been assigned to carry it, so for that
+whole window a customer watching this screen saw nothing about their delivery at
+all: no destination, no "we're finding a driver", just an order that had
+apparently stopped. That window is exactly when people ring the branch.
+
+`HAS_DELIVERY` now starts at `READY`, and the panel names the state it is in:
+**"Finding a driver"**, not a driver's name with no position and not an em dash
+under "On its way", which reads as a number that failed to load. `awaitingDriver`
+is `!tracking.driver` — the one honest test, since the delivery row exists
+either way.
+
+The tracking call still 404s before the delivery is opened (a pickup order
+legitimately never has one, and the backend's contract suite pins that 404). It
+is caught and read as "not dispatched yet", never surfaced as an error.
+
+## The tracking screen is pushed, not just polled
+
+`src/realtime/RealtimeProvider.tsx` holds one authenticated socket for the
+signed-in customer; `useOrderUpdates` reloads the order on `order.transitioned`.
+
+The eight-second poll is fine for "preparing" and wrong for the two moments a
+customer is actually staring at the screen: the branch accepting the order, and
+a driver being assigned. The backend has emitted into a per-customer room
+(`ROOMS.customer`) since the realtime layer was built — the admin panel and the
+POS were its only clients, and this app polled past it.
+
+Three things to keep:
+
+- **The poll stays**, as the floor, and the hook fires once on every reconnect
+  so a status that changed while the socket was down is not stranded.
+- **Events are filtered to this order.** A customer with two live orders would
+  otherwise refetch the screen they are looking at every time the other moved.
+  An event with no `orderId` (an older backend) is treated as relevant — a
+  needless refetch is cheaper than a screen that never advances.
+- **`useRealtime` deliberately does not throw** without a provider, so a screen
+  with no socket still polls rather than going blank. The screen tests mount
+  without it.
+
 ## Order tracking says how far away, not a made-up ETA
 
 `OrderTrackingScreen` showed a hard-coded **"~15 min"** to every customer on

@@ -12,6 +12,7 @@ import { FulfilmentProvider } from './src/fulfilment/FulfilmentProvider';
 import { MotionProvider } from './src/motion';
 import { LaunchScreen } from './src/launch/LaunchScreen';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { RealtimeProvider } from './src/realtime/RealtimeProvider';
 
 /**
  * App root.
@@ -37,6 +38,9 @@ export default function App(): React.JSX.Element {
         <SafeAreaProvider>
           <MotionProvider>
             <AuthProvider>
+              {/* Inside AuthProvider — it needs the session's token — and above
+                  the navigator, so one socket serves every screen. */}
+              <RealtimeProvider>
               <CartProvider>
                 <FulfilmentProvider>
                 <FavoritesProvider>
@@ -50,6 +54,7 @@ export default function App(): React.JSX.Element {
                 </FavoritesProvider>
                 </FulfilmentProvider>
               </CartProvider>
+              </RealtimeProvider>
             </AuthProvider>
           </MotionProvider>
         </SafeAreaProvider>

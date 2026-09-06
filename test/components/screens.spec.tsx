@@ -558,6 +558,90 @@ describe('screens survive what the backend actually returns', () => {
     expect(view.toJSON()).toBeTruthy();
   });
 
+  /**
+   * The delivery panel, which nothing mounted until now.
+   *
+   * The only tracking case covered was the 404 — a pickup order, or one not yet
+   * dispatched — so every line inside `DeliveryPanel` was unreached by any
+   * test, and the panel is exactly the part that appears when a driver is
+   * assigned. That is the moment the customer said the screen broke.
+   */
+  const trackingWith = (driver: unknown) => ({
+    id: 'd1',
+    orderId: 'o1',
+    status: driver ? 'ASSIGNED' : 'PENDING_ASSIGNMENT',
+    addressSnapshot: { line1: '1 Test St', city: 'Riyadh', latitude: 24.72, longitude: 46.68 },
+    driver,
+  });
+
+  it('shows the driver once one is assigned', async () => {
+    mockApi.order.mockResolvedValue({ ...ORDER, status: 'DRIVER_ASSIGNED' });
+    mockApi.trackDelivery.mockResolvedValue(
+      trackingWith({
+        id: 'dr1',
+        vehicleType: 'MOTORCYCLE',
+        currentLatitude: 24.73,
+        currentLongitude: 46.69,
+        lastLocationAt: new Date().toISOString(),
+        user: { fullName: 'Test Driver' },
+      }),
+    );
+
+    const { findByText } = wrap(
+      <OrderTrackingScreen navigation={navigation} route={route('OrderTracking', { orderId: 'o1' })} />,
+    );
+
+    expect(await findByText('Test Driver')).toBeTruthy();
+  });
+
+  it('says a driver is being found once the food is ready', async () => {
+    // The panel starts at READY, because that is when the backend opens the
+    // delivery — before anyone is assigned. It used to start at
+    // DRIVER_ASSIGNED, so for that whole window the customer saw nothing about
+    // their delivery and rang the branch instead.
+    mockApi.order.mockResolvedValue({ ...ORDER, status: 'READY' });
+    mockApi.trackDelivery.mockResolvedValue(trackingWith(null));
+
+    const { findByText } = wrap(
+      <OrderTrackingScreen navigation={navigation} route={route('OrderTracking', { orderId: 'o1' })} />,
+    );
+
+    expect(await findByText('Finding a driver')).toBeTruthy();
+  });
+
+  it('survives an order the payload gives no items for', async () => {
+    // Same class as the driver guard below: the type promises an array, and a
+    // `.map` on an absent field throws inside render — which on this screen
+    // costs the customer the only view of where their food is.
+    mockApi.order.mockResolvedValue({ ...ORDER, status: 'PREPARING', items: undefined });
+
+    const { findByText } = wrap(
+      <OrderTrackingScreen navigation={navigation} route={route('OrderTracking', { orderId: 'o1' })} />,
+    );
+
+    expect(await findByText('Order details')).toBeTruthy();
+  });
+
+  it('survives a driver the payload gives no user for', async () => {
+    // This is the crash, reproduced against the real web build before it was
+    // fixed: `driver.user.fullName` was read straight through on the strength
+    // of the type, a null threw inside render, React unmounted the tree, and
+    // the customer got the error boundary on the screen that tells them where
+    // their food is. A missing name must cost the name and nothing else.
+    mockApi.order.mockResolvedValue({ ...ORDER, status: 'OUT_FOR_DELIVERY' });
+    mockApi.trackDelivery.mockResolvedValue(
+      trackingWith({ id: 'dr1', currentLatitude: null, currentLongitude: null, user: null }),
+    );
+
+    const { findByText } = wrap(
+      <OrderTrackingScreen navigation={navigation} route={route('OrderTracking', { orderId: 'o1' })} />,
+    );
+
+    // Named as an assigned driver we have no name for — never walked back to
+    // "Finding a driver", which would tell the customer they had lost one.
+    expect(await findByText('Your driver')).toBeTruthy();
+  });
+
   it('renders a profile with no name set', async () => {
     const view = wrap(<ProfileScreen navigation={navigation} route={route('Profile')} />);
 

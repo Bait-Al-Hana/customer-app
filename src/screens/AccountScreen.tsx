@@ -13,7 +13,7 @@ import { useAsync } from '../hooks/useAsync';
 import { PressableScale, Toast } from '../motion';
 import { MainTabParamList, RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
-import { APP_VERSION } from '../version';
+import { APP_VERSION, buildMarker } from '../version';
 
 interface Row {
   glyph: string;
@@ -147,8 +147,12 @@ export function AccountScreen(): React.JSX.Element {
         ))}
 
         <Button label="Log out" variant="danger" onPress={() => signOut()} />
+        {/* The build marker. A customer never reads it; the person diagnosing
+            a report does, and until it existed "is this the fixed build?" was
+            unanswerable — which makes a stale bundle and a live bug look
+            identical. See `util/buildInfo.ts`. */}
         <AppText variant="caption" color="textMuted" center>
-          بيت الهناء · v{APP_VERSION}
+          بيت الهناء · v{APP_VERSION} · {buildMarker()}
         </AppText>
       </ScrollView>
     </Screen>
