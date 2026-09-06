@@ -47,6 +47,12 @@ export function CountUp({
     prevTo.current = to;
   }, [to, duration, reduced, animValue]);
 
+  // Reanimated renders a shared value passed as a child of `Animated.Text`,
+  // which is how this counts without a re-render per frame. Its own types make
+  // `DerivedValue<string>` unassignable to the `SharedValue<ReactNode>` the
+  // child slot declares — the setter is contravariant, and a derived value has
+  // no meaningful setter at all. The runtime contract is unchanged; only the
+  // declaration needs the bridge.
   const text = useDerivedValue(() => {
     const val = decimals > 0
       ? animValue.value.toFixed(decimals)
@@ -71,7 +77,7 @@ export function CountUp({
         scaleStyle,
       ]}
     >
-      {text}
+      {text as unknown as React.ReactNode}
     </Animated.Text>
   );
 }
