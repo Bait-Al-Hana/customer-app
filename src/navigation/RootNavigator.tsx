@@ -22,6 +22,7 @@ import { OtpScreen } from '../screens/OtpScreen';
 import { PaymentProcessingScreen } from '../screens/PaymentProcessingScreen';
 import { PhoneScreen } from '../screens/PhoneScreen';
 import { ProductScreen } from '../screens/ProductScreen';
+import { DeleteAccountScreen } from '../screens/DeleteAccountScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { NotificationSettingsScreen } from '../screens/NotificationSettingsScreen';
 import { PaymentMethodsScreen } from '../screens/PaymentMethodsScreen';
@@ -120,6 +121,10 @@ export function RootNavigator(): React.JSX.Element {
           <RootStack.Screen name="OrderTracking" component={guard('OrderTracking', OrderTrackingScreen)} />
           <RootStack.Screen name="Notifications" component={guard('Notifications', NotificationsScreen)} />
           <RootStack.Screen name="Profile" component={guard('Profile', ProfileScreen)} />
+          <RootStack.Screen
+            name="DeleteAccount"
+            component={guard('DeleteAccount', DeleteAccountScreen)}
+          />
           <RootStack.Screen
             name="NotificationSettings"
             component={guard('NotificationSettings', NotificationSettingsScreen)}

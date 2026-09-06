@@ -117,10 +117,18 @@ describe('customer endpoint contract', () => {
       ['reads notifications', (api: Api) => api.notifications()],
       ['reads the profile', (api: Api) => api.getProfile()],
       ['updates the profile', (api: Api) => api.updateProfile({ fullName: 'Sara' })],
+      ['deletes the account', (api: Api) => api.deleteAccount()],
     ])('%s with the token attached', async (_name, invoke) => {
       const call = await record(invoke);
 
       expect(call.isPublic).toBe(false);
+    });
+
+    it('deletes the account with DELETE on the profile resource', async () => {
+      const call = await record((api: Api) => api.deleteAccount());
+
+      expect(call.path).toBe('/customer/me');
+      expect(call.method).toBe('DELETE');
     });
   });
 

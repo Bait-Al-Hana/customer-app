@@ -505,3 +505,30 @@ there.
 `ios.supportsTablet` was flipped to `false`. Apple checks iPad screenshots
 against it, and none exist; turning it back on means committing to an iPad
 layout, not just a config value.
+
+## Deleting an account is anonymisation, and the screen says so
+
+`DeleteAccountScreen`, reached from the last row of Account → Support & legal.
+It exists because Apple rejects an app that creates accounts and offers no way
+to delete one from inside it (Guideline 5.1.1(v)), and a reviewer looks for it.
+
+The backend does not remove the row — `Order.customerId` is `onDelete: Restrict`
+and those orders are the restaurant's sales and VAT records. So the screen
+carries **two lists**: what is deleted (name, email, every address and its map
+pin, the phone number, which is released so the person can sign up again) and
+what the restaurant keeps (the orders, now carrying nobody's name). Do not
+collapse those into one reassuring line: "everything is deleted" would be a
+false statement made at the exact moment someone is relying on it.
+
+Two presses, and **no typing**. The confirmation is a second deliberate act
+rather than a dialog dismissed by reflex, but it does not ask for an English
+word — this app ships bilingual to customers in Saudi Arabia, and a
+Latin-alphabet shibboleth in front of a destructive action locks out the people
+most likely to need help getting through it.
+
+It calls `forgetSession()`, not `signOut()`. Every session is already revoked
+server-side by the time the request resolves, so `signOut` would present a dead
+refresh token and surface "couldn't sign you out" after something that
+succeeded. A **failed** delete clears nothing — signing someone out of an
+account that still exists, with no way to tell which happened, is the worse
+error, and a screen test holds that line.
