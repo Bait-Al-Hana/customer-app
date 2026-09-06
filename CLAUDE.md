@@ -564,3 +564,111 @@ App displays totals; the backend prices. No total is ever computed here.
 Product variants are sent as `productVariantId` on each `OrderItemInput`;
 when set, the variant's price replaces the product's base price at
 server-side pricing time.
+
+## Release configuration (EAS)
+
+`eas.json` is committed, with `development` / `preview` / `production`
+profiles — **do not run `eas build:configure`**, it overwrites them. Each
+profile sets `API_BASE_URL`; `app.config.js` injects it, along with
+`GOOGLE_MAPS_API_KEY`, which comes from an EAS secret and is never committed.
+
+`cli.appVersionSource` is `remote` and `production` sets `autoIncrement: true`,
+so EAS owns the build number. `app.json`'s `version` (`1.0.0`),
+`ios.buildNumber` and `android.versionCode` are the seed values for the first
+production build; bump `version` by hand for a release, never the build number.
+
+**The icon is a stopgap.** `assets/logo.jpeg` is a 1600 × 384 JPEG, and it was
+the icon, the splash, the Android adaptive foreground and the favicon — a
+combination that could never have been uploaded, because App Store Connect
+rejects a JPEG and rejects any alpha channel. Those four now point at generated
+PNGs (`scripts/generate-icons.py`), which clears the *technical* rejection and
+nothing else: a 4 : 1 wordmark centred in a square is illegible at icon size.
+`assets/README.md` states exactly what artwork is needed to replace it. The
+wordmark is still the right thing on the launch and sign-in screens and stays
+there.
+
+`ios.supportsTablet` was flipped to `false`. Apple checks iPad screenshots
+against it, and none exist; turning it back on means committing to an iPad
+layout, not just a config value.
+
+## Deleting an account is anonymisation, and the screen says so
+
+`DeleteAccountScreen`, reached from the last row of Account → Support & legal.
+It exists because Apple rejects an app that creates accounts and offers no way
+to delete one from inside it (Guideline 5.1.1(v)), and a reviewer looks for it.
+
+The backend does not remove the row — `Order.customerId` is `onDelete: Restrict`
+and those orders are the restaurant's sales and VAT records. So the screen
+carries **two lists**: what is deleted (name, email, every address and its map
+pin, the phone number, which is released so the person can sign up again) and
+what the restaurant keeps (the orders, now carrying nobody's name). Do not
+collapse those into one reassuring line: "everything is deleted" would be a
+false statement made at the exact moment someone is relying on it.
+
+Two presses, and **no typing**. The confirmation is a second deliberate act
+rather than a dialog dismissed by reflex, but it does not ask for an English
+word — this app ships bilingual to customers in Saudi Arabia, and a
+Latin-alphabet shibboleth in front of a destructive action locks out the people
+most likely to need help getting through it.
+
+It calls `forgetSession()`, not `signOut()`. Every session is already revoked
+server-side by the time the request resolves, so `signOut` would present a dead
+refresh token and surface "couldn't sign you out" after something that
+succeeded. A **failed** delete clears nothing — signing someone out of an
+account that still exists, with no way to tell which happened, is the worse
+error, and a screen test holds that line.
+
+## Expo SDK 57, and the New Architecture
+
+Upgraded from SDK 51 (RN 0.74.5) to **SDK 57 / RN 0.86.3 / React 19.2**, because
+Google Play has required **API level 36** for new apps and updates since
+**31 August 2026**. SDK 51 targets API 34, so no build from it could be
+uploaded. This was not optional and it was not a nice-to-have.
+
+**The single biggest thing to know: this app now runs on the New Architecture,
+and there is no way back.** RN 0.82 removed the legacy architecture and
+hardcoded `newArchEnabled` to true; SDK 55 dropped it from `app.json`
+altogether, which is why the key is gone from ours. Every native module in the
+app — maps, location, secure store, reanimated — now goes through Fabric and
+TurboModules rather than the bridge. **Nothing in this repo can prove that
+works.** 218 Node tests, a clean typecheck and a working web bundle are all
+still true of an app that crashes on launch on a handset, and the New
+Architecture is exactly the kind of change that only shows up there. Treat a
+device pass as required before this is trusted, not as a formality.
+
+Four changes worth knowing about:
+
+- **Reanimated 4 sits on `react-native-worklets`.** `babel.config.js` names
+  `react-native-worklets/plugin` directly rather than
+  `react-native-reanimated/plugin`, which is now a one-line re-export — the day
+  that shim is dropped should not be the day every animation silently stops.
+  `jest.config.js` needs `resolver: 'react-native-worklets/jest/resolver'`,
+  because the worklets `.native` entry installs native bindings at import time
+  and throws under jest; without it the official Reanimated mock cannot even be
+  imported.
+- **`react-native-maps` 1.27 resolves its TurboModule at import time**, so
+  importing any screen with a map throws under jest. `test/setup.ts` mocks it
+  with a plain view. 1.14 did not do this, which is why the mock arrived with
+  the upgrade rather than with the screens.
+- **`Animated.SharedValue` is gone** — import `SharedValue` from
+  `react-native-reanimated` directly. And `CountUp` needs one cast: Reanimated
+  renders a shared value passed as a child of `Animated.Text`, but its own types
+  make `DerivedValue<string>` unassignable to `SharedValue<ReactNode>`. The
+  runtime contract is unchanged; only the declaration needs the bridge.
+- **`moti` warns about RN's deprecated `SafeAreaView`** on every mount. It is
+  moti's import, not ours — nothing in `src/` touches it — and it is noise, not
+  a defect. Do not "fix" it by patching moti.
+
+`nativewind` stays on **4.2.6**. v5 exists only as a preview, and a preview
+dependency has no business in a store build.
+
+## Device testing is now the gate
+
+Nothing in the store-readiness work removes the need for
+`eas build --profile preview` on a real iPhone and a real mid-range Android
+before anything is submitted. After the SDK 57 upgrade that is doubly true.
+Walk a whole order: sign in → browse → cart → checkout → place → track. Watch
+in particular for Keychain token persistence, the location permission dialog,
+Google Maps rendering, the `baitalhana://` deep link, and the safe-area layout
+around the notch — all of them native-module behaviour that changed
+architecture underneath this app.

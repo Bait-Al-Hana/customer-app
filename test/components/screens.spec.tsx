@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -58,7 +58,10 @@ const mockApi = {
   notifications: jest.fn(),
   getProfile: jest.fn(),
   updateProfile: jest.fn(),
+  deleteAccount: jest.fn(),
 };
+
+const mockForgetSession = jest.fn();
 
 // `useFocusEffect` needs a real NavigationContainer, which these tests
 // deliberately do not build — the point is to mount the screen, not the
@@ -84,6 +87,7 @@ jest.mock('../../src/auth/AuthProvider', () => ({
     isAuthenticated: true,
     signIn: jest.fn(),
     signOut: jest.fn(),
+    forgetSession: mockForgetSession,
   }),
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
@@ -115,6 +119,7 @@ import { HelpScreen } from '../../src/screens/HelpScreen';
 import { LegalScreen } from '../../src/screens/LegalScreen';
 import { NotificationSettingsScreen } from '../../src/screens/NotificationSettingsScreen';
 import { PaymentMethodsScreen } from '../../src/screens/PaymentMethodsScreen';
+import { DeleteAccountScreen } from '../../src/screens/DeleteAccountScreen';
 import { ProfileScreen } from '../../src/screens/ProfileScreen';
 import { SearchScreen } from '../../src/screens/SearchScreen';
 
@@ -357,6 +362,10 @@ describe('every screen mounts without throwing', () => {
     ['Help', () => <HelpScreen navigation={navigation} route={route('Help')} />],
     ['Legal (privacy)', () => <LegalScreen navigation={navigation} route={route('Legal', { document: 'privacy' })} />],
     ['Legal (terms)', () => <LegalScreen navigation={navigation} route={route('Legal', { document: 'terms' })} />],
+    [
+      'DeleteAccount',
+      () => <DeleteAccountScreen navigation={navigation} route={route('DeleteAccount')} />,
+    ],
     [
       'OrderSuccess',
       () => (
@@ -638,5 +647,68 @@ describe('screens survive what the backend actually returns', () => {
 
     await waitFor(() => expect(mockApi.getProfile).toHaveBeenCalled());
     expect(view.toJSON()).toBeTruthy();
+  });
+
+  /**
+   * Account deletion is irreversible and is offered to every customer, so the
+   * two things worth holding are that it takes a second deliberate press, and
+   * that the screen states what survives it. A single-press delete, or a screen
+   * that says "everything is deleted" while the orders remain, are both
+   * shipped-and-unnoticed failures — one loses a customer's account, the other
+   * is a false statement about their data.
+   */
+  describe('deleting an account', () => {
+    it('does not delete on the first press', async () => {
+      mockApi.deleteAccount.mockResolvedValue({ deleted: true });
+      const { getByText } = wrap(
+        <DeleteAccountScreen navigation={navigation} route={route('DeleteAccount')} />,
+      );
+
+      fireEvent.press(getByText('Delete my account'));
+
+      expect(mockApi.deleteAccount).not.toHaveBeenCalled();
+      // The second press is a different button, with different words.
+      expect(getByText('Yes, delete my account')).toBeTruthy();
+    });
+
+    it('deletes on the confirmation and clears the device', async () => {
+      mockApi.deleteAccount.mockResolvedValue({ deleted: true });
+      const { getByText } = wrap(
+        <DeleteAccountScreen navigation={navigation} route={route('DeleteAccount')} />,
+      );
+
+      fireEvent.press(getByText('Delete my account'));
+      fireEvent.press(getByText('Yes, delete my account'));
+
+      await waitFor(() => expect(mockApi.deleteAccount).toHaveBeenCalled());
+      // Every session is already revoked server-side, so the device is cleared
+      // directly rather than through signOut, which would present a dead token.
+      await waitFor(() => expect(mockForgetSession).toHaveBeenCalled());
+    });
+
+    it('says what the restaurant keeps, before the customer confirms', async () => {
+      const { getByText } = wrap(
+        <DeleteAccountScreen navigation={navigation} route={route('DeleteAccount')} />,
+      );
+
+      // The orders are not deleted, and the screen must not imply they are.
+      expect(getByText(/past orders/i)).toBeTruthy();
+      expect(getByText(/What the restaurant keeps/i)).toBeTruthy();
+    });
+
+    it('keeps the customer signed in when the delete fails', async () => {
+      mockApi.deleteAccount.mockRejectedValue(new Error('offline'));
+      const { getByText } = wrap(
+        <DeleteAccountScreen navigation={navigation} route={route('DeleteAccount')} />,
+      );
+
+      fireEvent.press(getByText('Delete my account'));
+      fireEvent.press(getByText('Yes, delete my account'));
+
+      await waitFor(() => expect(mockApi.deleteAccount).toHaveBeenCalled());
+      // Clearing the device on a failed delete would sign someone out of an
+      // account that still exists, with no way to tell which happened.
+      expect(mockForgetSession).not.toHaveBeenCalled();
+    });
   });
 });

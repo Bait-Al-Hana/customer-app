@@ -45,10 +45,13 @@ import { AppText } from './AppText';
  * exist fails the bundle: add the file and the line together. A method with no
  * entry falls through to `Fallback` below and still renders.
  */
+/* eslint-disable @typescript-eslint/no-require-imports -- React Native resolves
+   image assets through require(); this is the idiomatic form. */
 const ART: Partial<Record<PaymentMethod, ImageSourcePropType>> = {
   [PAYMENT_METHOD.APPLE_PAY]: require('../../assets/payment/apple-pay.png'),
   [PAYMENT_METHOD.MADA]: require('../../assets/payment/mada.png'),
 };
+/* eslint-enable @typescript-eslint/no-require-imports */
 
 /**
  * A wordmark is wide; a 40pt square would render it about 14pt tall and

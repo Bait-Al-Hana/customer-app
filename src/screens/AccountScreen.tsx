@@ -74,6 +74,12 @@ export function AccountScreen(): React.JSX.Element {
         { glyph: '💬', label: 'Help & support', onPress: () => rootNav.navigate('Help') },
         { glyph: '🔒', label: 'Privacy policy', onPress: () => rootNav.navigate('Legal', { document: 'privacy' }) },
         { glyph: '📄', label: 'Terms of service', onPress: () => rootNav.navigate('Legal', { document: 'terms' }) },
+        // Apple requires an app that creates accounts to offer deletion from
+        // inside it (Guideline 5.1.1(v)), and a reviewer looks for it here.
+        // It sits below the legal rows rather than beside "My orders": it is
+        // rare, irreversible, and does not belong next to something pressed
+        // every week.
+        { glyph: '🗑️', label: 'Delete my account', onPress: () => rootNav.navigate('DeleteAccount') },
       ],
     },
   ];

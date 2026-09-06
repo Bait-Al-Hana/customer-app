@@ -46,6 +46,8 @@ export type RootStackParamList = {
   Notifications: undefined;
   NotificationSettings: undefined;
   Profile: undefined;
+  /** Account deletion — required in-app by Apple Guideline 5.1.1(v). */
+  DeleteAccount: undefined;
   PaymentMethods: undefined;
   Help: undefined;
   /** The privacy notice or the terms — same screen, different document. */

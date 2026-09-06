@@ -4,6 +4,7 @@ import Animated, {
   interpolate,
   useAnimatedStyle,
   Extrapolation,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,7 +14,7 @@ import { PressableScale } from './PressableScale';
 export interface ScrollFadeHeaderProps {
   title: string;
   subtitle?: string;
-  scrollY: Animated.SharedValue<number>;
+  scrollY: SharedValue<number>;
   onBack?: () => void;
   right?: React.ReactNode;
   collapseHeight?: number;

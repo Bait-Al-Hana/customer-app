@@ -211,4 +211,17 @@ export class Api {
   updateProfile(input: { fullName: string }): Promise<CustomerProfile> {
     return this.http.request('/customer/me', { method: 'PATCH', body: input });
   }
+
+  /**
+   * Deletes the signed-in customer's account.
+   *
+   * The server anonymises rather than removing the row — past orders are the
+   * restaurant's sales and VAT records and stay — and revokes every session, so
+   * the tokens this app is holding are dead the moment this resolves. Whatever
+   * calls this must clear the device afterwards; there is nothing left to
+   * authenticate with.
+   */
+  deleteAccount(): Promise<{ deleted: boolean }> {
+    return this.http.request('/customer/me', { method: 'DELETE' });
+  }
 }

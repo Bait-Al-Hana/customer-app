@@ -14,13 +14,25 @@ import { useTheme } from '../theme/theme';
  * has it, and the rules of ordering as this platform implements them — rather
  * than boilerplate copied from another company. They are written to be read.
  *
+ * **This is the summary; `infrastructure/legal/` is the document.** The full
+ * privacy notice and terms — the ones a store listing links to and a regulator
+ * reads — are the published HTML pages, which carry the controller's identity,
+ * the legal basis for each purpose, the retention table, the transfer
+ * disclosure and the complaint route. This screen is the readable version of
+ * the same facts, and it says so on the page.
+ *
+ * They are maintained by hand, so **a change to one is a change to both, in the
+ * same commit.** A summary that contradicts the document it summarises is worse
+ * than no summary: the customer read this one, and the regulator will read the
+ * other.
+ *
  * They are **not a substitute for the restaurant's own legal review.** A
  * customer-facing policy is the restaurant's legal document, not the app's, so
  * each page says plainly that it is the working version and names the review as
  * outstanding. Do not remove that line without a lawyer's copy to replace the
  * text with.
  */
-const LAST_UPDATED = '4 September 2026';
+const LAST_UPDATED = '6 September 2026';
 
 interface Section {
   heading: string;
@@ -45,6 +57,13 @@ const PRIVACY: Section[] = [
     ],
   },
   {
+    heading: 'Where it is kept',
+    body: [
+      'Your data is held on Google Cloud servers, and some of our providers process it outside Saudi Arabia. Where personal data leaves the Kingdom, the Personal Data Protection Law requires an appropriate basis for the transfer.',
+      'The full privacy notice names the country, the providers and the basis relied on. Ask us for it at any time.',
+    ],
+  },
+  {
     heading: 'Who else sees it',
     body: [
       'The branch preparing your order, and the driver delivering it. A driver is given the address and the name on the order — never your phone number.',
@@ -55,15 +74,24 @@ const PRIVACY: Section[] = [
   {
     heading: 'How long we keep it',
     body: [
-      'Order and payment records are kept as the restaurant’s business records, as required for tax and accounting.',
-      'Addresses and your profile stay until you delete them or ask for the account to be closed.',
+      'Order and payment records are kept as the restaurant’s business records, as required for tax and accounting. They are kept even after an account is deleted — with the name and phone number removed from them.',
+      'Your profile and saved addresses are kept until you remove them, or until you delete your account.',
+    ],
+  },
+  {
+    heading: 'Your rights',
+    body: [
+      'You can ask what we hold about you, ask for a copy of it, ask us to correct anything wrong, and ask us to destroy data we no longer need. We answer within 30 days, and we do not charge for it.',
+      'That last right does not cover records we are required by law to keep, such as sales and VAT records — see “How long we keep it” above.',
+      'If you are not satisfied with how we have handled your data, you can complain to the Saudi Data and Artificial Intelligence Authority (SDAIA), which supervises the Personal Data Protection Law.',
     ],
   },
   {
     heading: 'Your choices',
     body: [
       'You can edit your name, and add or remove saved addresses, from Account at any time.',
-      'To ask for a copy of your data, or for your account to be closed, contact the branch — the numbers are under Help & support.',
+      'You can delete your account from Account → Delete my account. That erases your name, your email, and every saved address, releases your phone number so it can be used again, and signs you out on every device. Past orders remain as the restaurant’s sales and tax records, with your name and number removed from them.',
+      'To ask for a copy of your data, contact the branch — the numbers are under Help & support.',
     ],
   },
 ];
@@ -104,6 +132,7 @@ const TERMS: Section[] = [
     heading: 'Your account',
     body: [
       'Keep your phone secure: anyone who can receive your verification code can sign in as you.',
+      'You can delete your account at any time from Account → Delete my account. Past orders remain as the restaurant’s sales and tax records, with your name and number removed from them — see the privacy policy.',
       'Accounts are for personal use. The restaurant may close an account used for fraud or abuse of staff or drivers.',
     ],
   },
@@ -126,8 +155,8 @@ export function LegalScreen({ route, navigation }: NativeStackScreenProps<RootSt
             {isPrivacy
               ? 'This explains what the Bait Al Hana app collects and why, in plain language.'
               : 'These are the rules of ordering through the Bait Al Hana app.'}{' '}
-            It is the working version and is pending the restaurant’s own legal review before
-            launch.
+            This is a plain-language summary of the full document, which the restaurant publishes
+            separately. Both are drafts pending the restaurant’s own legal review before launch.
           </AppText>
         </Card>
 

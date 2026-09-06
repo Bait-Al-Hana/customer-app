@@ -33,6 +33,15 @@ interface AuthContextValue {
   /** Store the tokens returned by OTP verification and mark the session active. */
   signIn: (tokens: AuthTokens) => Promise<void>;
   signOut: () => Promise<void>;
+  /**
+   * Clears the device without calling the server.
+   *
+   * For the one case where there is no session left to revoke: account
+   * deletion has already revoked every family server-side, so `signOut()` would
+   * present a dead refresh token and surface a failure for something that
+   * succeeded.
+   */
+  forgetSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -126,6 +135,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
             // Ignored on purpose — see above.
           }
         }
+        setJustOnboarded(false);
+        await setTokens(null);
+      },
+      forgetSession: async () => {
         setJustOnboarded(false);
         await setTokens(null);
       },
