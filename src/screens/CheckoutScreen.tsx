@@ -18,7 +18,7 @@ import { ORDER_TYPE, OrderType, PAYMENT_METHOD, PaymentMethod } from '../types/b
 import { RootStackParamList } from '../navigation/types';
 import { correctedType, fulfilmentOptions } from '../util/fulfilment';
 import { applePaySessionGlobal, supportsApplePay } from '../util/applePay';
-import { couponLabel } from '../util/coupon';
+import { discountLabel as buildDiscountLabel } from '../util/coupon';
 import { formatSar, formatVatRate } from '../util/money';
 import { useTheme } from '../theme/theme';
 
@@ -91,6 +91,10 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   );
   const quote = priced?.quote ?? null;
   const couponError = priced?.couponError ?? null;
+  // A valid code that lost to a bigger standing offer. Deliberately not routed
+  // through `couponError`: the code works and was not spent, and telling a
+  // customer their working code is broken is its own support call.
+  const couponSuperseded = priced?.couponSuperseded ?? null;
   // Delivery can be refused for two reasons the customer can act on. Surfacing
   // them here — while the basket is still open — is the whole point of a quote
   // that returns totals instead of throwing: "add 15.00 more" is a thing you
@@ -108,7 +112,7 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   // What the bill calls the discount: the offer's name, with the code beside
   // it. "SAVE20 applied" is a receipt for something the customer has to
   // remember; the name is what they tapped on the Offers page.
-  const discountLabel = couponLabel(priced?.coupon ?? null);
+  const discountLabel = buildDiscountLabel(priced);
 
   // The name and number the kitchen would call. Shown on the order card
   // because "who is this for" is part of checking an order over, and a wrong
@@ -448,6 +452,19 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
               <AppText variant="caption" color="danger" style={{ paddingHorizontal: 14, paddingBottom: 12 }}>
                 {couponCode ? `${couponCode}: ` : ''}
                 {couponError} — the total above is without it.
+              </AppText>
+            ) : couponSuperseded ? (
+              // Outside the panel for the same reason as the error above: it
+              // explains the amount on the button. Muted rather than red —
+              // nothing went wrong, and the customer is better off than the
+              // code would have left them.
+              <AppText
+                variant="caption"
+                color="textMuted"
+                style={{ paddingHorizontal: 14, paddingBottom: 12 }}
+              >
+                {couponCode ? `${couponCode}: ` : ''}
+                {couponSuperseded}
               </AppText>
             ) : null}
 

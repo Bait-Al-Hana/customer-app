@@ -10,9 +10,10 @@ import { BannerCarousel } from '../components/BannerCarousel';
 import { useAsync } from '../hooks/useAsync';
 import { EmptyState, ErrorState, PressableScale, Skeleton, Toast } from '../motion';
 import { MainTabParamList } from '../navigation/types';
-import type { CustomerConfig, Offer } from '../api/types';
+import type { CustomerConfig, Offer, Promotion } from '../api/types';
 import { useTheme } from '../theme/theme';
 import { formatSar } from '../util/money';
+import { promotionApplies, promotionHeadline, visiblePromotions } from '../util/promotion';
 
 /**
  * Offers: the owner's published deals, and the only place banners appear.
@@ -32,12 +33,15 @@ export function OffersScreen(): React.JSX.Element {
   const theme = useTheme();
   const { api } = useAuth();
   const tabNav = useNavigation<BottomTabScreenProps<MainTabParamList>['navigation']>();
-  const { count, couponCode, setCouponCode } = useCart();
+  const { cart, count, couponCode, setCouponCode } = useCart();
   const [toast, setToast] = useState<string | null>(null);
 
   const config = useAsync<CustomerConfig>(() => api.customerConfig(), []);
   const offers = config.data?.offers ?? [];
   const banners = config.data?.banners ?? [];
+  // Automatic discounts, filtered to the branch the basket is on when there is
+  // one. Nothing here is tappable — see `PromotionCard`.
+  const promotions = visiblePromotions(config.data?.promotions, cart.branchId ?? null);
 
   const use = (offer: Offer): void => {
     setCouponCode(offer.code);
@@ -68,20 +72,25 @@ export function OffersScreen(): React.JSX.Element {
               actionLabel="Retry"
               onAction={config.reload}
             />
-          ) : offers.length === 0 ? (
+          ) : offers.length === 0 && promotions.length === 0 ? (
             <EmptyState
               title="No offers right now"
               message="When Bait Al Hana runs a deal, it shows up here."
             />
           ) : (
-            offers.map((offer) => (
-              <OfferCard
-                key={offer.id}
-                offer={offer}
-                applied={couponCode === offer.code}
-                onUse={() => use(offer)}
-              />
-            ))
+            <>
+              {promotions.map((promotion) => (
+                <PromotionCard key={promotion.id} promotion={promotion} />
+              ))}
+              {offers.map((offer) => (
+                <OfferCard
+                  key={offer.id}
+                  offer={offer}
+                  applied={couponCode === offer.code}
+                  onUse={() => use(offer)}
+                />
+              ))}
+            </>
           )}
 
           <AppText variant="caption" color="textMuted" center style={{ marginTop: 4, paddingHorizontal: 24 }}>
@@ -192,6 +201,69 @@ function OfferCard({
               </AppText>
             </View>
           </PressableScale>
+        </View>
+      </View>
+    </Card>
+  );
+}
+
+/**
+ * An automatic discount: no code, and **no button**.
+ *
+ * That absence is the design. There is nothing for the customer to do — the
+ * discount is already being applied to any qualifying basket — and this app's
+ * standing rule is that a control which controls nothing is worse than no
+ * control at all. A "Use this offer" button here would either do nothing or
+ * pretend to.
+ *
+ * It says what it applies to but never what it is worth on *this* basket. The
+ * server prices the order; a number computed here would be a second set of
+ * figures to disagree with the one on the bill.
+ */
+function PromotionCard({ promotion }: { promotion: Promotion }): React.JSX.Element {
+  const theme = useTheme();
+
+  return (
+    <Card padded={false} elevated>
+      {promotion.imageUrl ? (
+        <Image
+          source={{ uri: promotion.imageUrl }}
+          style={{
+            width: '100%',
+            aspectRatio: 16 / 9,
+            borderTopLeftRadius: theme.radius.lg,
+            borderTopRightRadius: theme.radius.lg,
+          }}
+          resizeMode="cover"
+          accessibilityIgnoresInvertColors
+        />
+      ) : null}
+
+      <View style={{ padding: 16 }}>
+        <AppText variant="overline" color="primary">
+          AUTOMATIC
+        </AppText>
+        <AppText variant="h2" style={{ fontSize: promotion.imageUrl ? 19 : 22, marginTop: 2 }}>
+          {promotionHeadline(promotion, formatSar)}
+        </AppText>
+        <AppText variant="body" color="textMuted" style={{ marginTop: 4 }}>
+          {promotion.description ?? promotion.name}
+        </AppText>
+
+        <View
+          style={{
+            marginTop: 14,
+            padding: 12,
+            borderRadius: theme.radius.md,
+            backgroundColor: theme.colors.surfaceAlt,
+          }}
+        >
+          <AppText variant="caption" color="textMuted">
+            Applies to: {promotionApplies(promotion)}
+          </AppText>
+          <AppText variant="caption" color="textMuted" style={{ marginTop: 4 }}>
+            No code needed — it comes off at checkout when your basket qualifies.
+          </AppText>
         </View>
       </View>
     </Card>

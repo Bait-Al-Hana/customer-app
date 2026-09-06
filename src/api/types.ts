@@ -165,6 +165,25 @@ export interface OrderQuote {
     discountMinor: number;
   } | null;
   couponError: string | null;
+  /**
+   * The automatic promotion the server applied, if any. Absent on a backend
+   * that predates them.
+   *
+   * The bill has to be able to name it. A discount the customer never asked for
+   * and cannot see the reason for gets queried exactly as often as an
+   * unexplained charge.
+   */
+  promotion?: {
+    promotionId: string;
+    name: string;
+    discountMinor: number;
+  } | null;
+  /**
+   * Set when a code the customer typed was valid but lost to a bigger
+   * automatic promotion. **Not an error** — the code still works, and it was
+   * not spent.
+   */
+  couponSuperseded?: string | null;
 }
 
 export interface OrderItem {
@@ -291,11 +310,46 @@ export interface Offer {
   validUntil: string;
 }
 
+/**
+ * An automatic discount the owner is running. **No code, nothing to tap.**
+ *
+ * That is the whole difference from an `Offer`, and it is why this is a
+ * separate type rather than an offer with an optional code: an offer is a
+ * coupon the customer claims, a promotion is a price already being charged. A
+ * card for one must therefore carry no button — a control that does not control
+ * anything is worse than the row it replaced.
+ */
+export interface Promotion {
+  id: string;
+  name: string;
+  nameAr?: string;
+  description?: string;
+  descriptionAr?: string;
+  imageUrl?: string;
+  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FREE_DELIVERY';
+  discountValue: number;
+  maxDiscountMinor?: number;
+  /**
+   * Branches it runs at. **Empty means every branch**, not none.
+   *
+   * `/customer/config` is branch-agnostic, so the filtering happens in this
+   * app. Showing a promotion that only another branch runs is the same failure
+   * as a code the checkout refuses: a deal the customer could not have had.
+   */
+  branchIds: string[];
+  startsAt: string;
+  endsAt: string;
+  priority: number;
+  products: { id: string; name: string; nameAr?: string; imageUrl?: string }[];
+}
+
 export interface CustomerConfig {
   version: string;
   banners: Banner[];
   /** Absent on a backend that predates published offers. */
   offers?: Offer[];
+  /** Absent on a backend that predates automatic promotions. */
+  promotions?: Promotion[];
 }
 
 export interface DeliveryTracking {

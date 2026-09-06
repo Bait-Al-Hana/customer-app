@@ -234,6 +234,22 @@ beforeEach(() => {
         priority: 1,
       },
     ],
+    // One automatic promotion, with no artwork, no description and no
+    // products — the shape an owner creates in a hurry, and the one most
+    // likely to be missing from a tidy fixture.
+    promotions: [
+      {
+        id: 'promo1',
+        name: 'Weekend deal',
+        discountType: 'PERCENTAGE',
+        discountValue: 15,
+        branchIds: [],
+        startsAt: '2026-01-01T00:00:00.000Z',
+        endsAt: '2030-01-01T00:00:00.000Z',
+        priority: 0,
+        products: [],
+      },
+    ],
     // One published offer, shaped exactly as the backend sends it: an owner's
     // coupon with its artwork and the code the checkout will accept.
     offers: [
@@ -403,6 +419,20 @@ describe('screens survive what the backend actually returns', () => {
     const { findByText } = wrap(<OffersScreen />);
 
     expect(await findByText('HANA20')).toBeTruthy();
+  });
+
+  it('shows an automatic promotion with no code and nothing to press', async () => {
+    // The card must not offer a button. There is nothing for the customer to
+    // do — the discount already applies to any qualifying basket — and this app
+    // does not render a control that controls nothing.
+    const { findByText, queryByText } = wrap(<OffersScreen />);
+
+    expect(await findByText('15% off')).toBeTruthy();
+    expect(await findByText('Applies to: Your whole order')).toBeTruthy();
+    expect(queryByText('Use this offer')).not.toBeNull(); // the coupon offer still has one
+    expect(
+      await findByText('No code needed — it comes off at checkout when your basket qualifies.'),
+    ).toBeTruthy();
   });
 
   it('renders a menu that contains an empty category', async () => {

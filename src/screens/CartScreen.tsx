@@ -13,7 +13,7 @@ import { EmptyState, FadeIn, MotiCard, PressableScale, PulseButton, QuantityStep
 import { useFulfilment } from '../fulfilment/FulfilmentProvider';
 import { RootStackParamList } from '../navigation/types';
 import { ORDER_TYPE } from '../types/backend';
-import { couponLabel } from '../util/coupon';
+import { discountLabel as buildDiscountLabel } from '../util/coupon';
 import { formatSar } from '../util/money';
 import { useTheme } from '../theme/theme';
 
@@ -69,7 +69,7 @@ export function CartScreen({ navigation }: NativeStackScreenProps<RootStackParam
   );
   const quote = priced?.quote ?? null;
   const quoteCouponError = priced?.couponError ?? null;
-  const discountLabel = couponLabel(priced?.coupon ?? null);
+  const discountLabel = buildDiscountLabel(priced);
   // Only ever the server's number. `estimatedTotalMinor` stands in while the
   // quote is in flight, and is labelled an estimate wherever it shows.
   const payableMinor = quote?.totalMinor ?? estimatedTotalMinor(cart);
