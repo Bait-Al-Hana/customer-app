@@ -154,7 +154,13 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
               <AppText variant="h3" style={{ marginBottom: 10 }}>
                 Order details
               </AppText>
-              {order.items.map((item) => (
+              {/* Guarded for the same reason `driver.user` is: the type
+                  promises an array, and a type is a promise about a local
+                  value rather than about what a server two deploys ahead
+                  actually sends. `.map` on an absent field throws inside
+                  render, which on this screen costs the customer the only
+                  view of where their food is. */}
+              {(order.items ?? []).map((item) => (
                 <View key={item.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
                   <AppText variant="body" style={{ flex: 1 }} numberOfLines={1}>
                     {item.quantity}× {item.productName}
