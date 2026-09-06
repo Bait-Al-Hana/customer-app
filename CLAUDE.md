@@ -479,3 +479,29 @@ App displays totals; the backend prices. No total is ever computed here.
 Product variants are sent as `productVariantId` on each `OrderItemInput`;
 when set, the variant's price replaces the product's base price at
 server-side pricing time.
+
+## Release configuration (EAS)
+
+`eas.json` is committed, with `development` / `preview` / `production`
+profiles — **do not run `eas build:configure`**, it overwrites them. Each
+profile sets `API_BASE_URL`; `app.config.js` injects it, along with
+`GOOGLE_MAPS_API_KEY`, which comes from an EAS secret and is never committed.
+
+`cli.appVersionSource` is `remote` and `production` sets `autoIncrement: true`,
+so EAS owns the build number. `app.json`'s `version` (`1.0.0`),
+`ios.buildNumber` and `android.versionCode` are the seed values for the first
+production build; bump `version` by hand for a release, never the build number.
+
+**The icon is a stopgap.** `assets/logo.jpeg` is a 1600 × 384 JPEG, and it was
+the icon, the splash, the Android adaptive foreground and the favicon — a
+combination that could never have been uploaded, because App Store Connect
+rejects a JPEG and rejects any alpha channel. Those four now point at generated
+PNGs (`scripts/generate-icons.py`), which clears the *technical* rejection and
+nothing else: a 4 : 1 wordmark centred in a square is illegible at icon size.
+`assets/README.md` states exactly what artwork is needed to replace it. The
+wordmark is still the right thing on the launch and sign-in screens and stays
+there.
+
+`ios.supportsTablet` was flipped to `false`. Apple checks iPad screenshots
+against it, and none exist; turning it back on means committing to an iPad
+layout, not just a config value.
