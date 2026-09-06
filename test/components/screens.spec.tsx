@@ -600,6 +600,19 @@ describe('screens survive what the backend actually returns', () => {
     expect(await findByText('Finding a driver')).toBeTruthy();
   });
 
+  it('survives an order the payload gives no items for', async () => {
+    // Same class as the driver guard below: the type promises an array, and a
+    // `.map` on an absent field throws inside render — which on this screen
+    // costs the customer the only view of where their food is.
+    mockApi.order.mockResolvedValue({ ...ORDER, status: 'PREPARING', items: undefined });
+
+    const { findByText } = wrap(
+      <OrderTrackingScreen navigation={navigation} route={route('OrderTracking', { orderId: 'o1' })} />,
+    );
+
+    expect(await findByText('Order details')).toBeTruthy();
+  });
+
   it('survives a driver the payload gives no user for', async () => {
     // This is the crash, reproduced against the real web build before it was
     // fixed: `driver.user.fullName` was read straight through on the strength
