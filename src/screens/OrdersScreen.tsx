@@ -12,6 +12,7 @@ import { ORDER_STATUS, OrderStatus } from '../types/backend';
 import type { Branch, Order } from '../api/types';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
+import { itemCountLabel } from '../util/orderItems';
 
 const ACTIVE_STATUSES: OrderStatus[] = [
   ORDER_STATUS.PENDING_PAYMENT,
@@ -99,7 +100,7 @@ export function OrdersScreen(): React.JSX.Element {
                   key={o.id}
                   orderNumber={o.orderNumber}
                   dateLabel={dateLabel(o.placedAt)}
-                  itemsLabel={`${o.items.length} item${o.items.length === 1 ? '' : 's'}`}
+                  itemsLabel={itemCountLabel(o.items)}
                   totalMinor={o.totalMinor}
                   statusLabel={meta.label}
                   statusTone={meta.tone}

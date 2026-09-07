@@ -642,6 +642,50 @@ describe('screens survive what the backend actually returns', () => {
     expect(await findByText('Your driver')).toBeTruthy();
   });
 
+  /**
+   * The crash in the screenshot, reproduced.
+   *
+   * `Driver.currentLatitude` is a `Decimal` column and `Prisma.Decimal`
+   * serialises to a JSON **string**, so this payload carried `"24.73"` where
+   * the type said `number`. `AppMap.web` called `.toFixed()` on it, threw
+   * inside render, and the customer met the error boundary — the moment a
+   * driver had a position, which is the moment they are watching. Fixed at the
+   * backend boundary and guarded here, because an app already on a phone cannot
+   * be updated to match a server.
+   */
+  it('survives coordinates that arrive as Decimal strings', async () => {
+    mockApi.order.mockResolvedValue({ ...ORDER, status: 'OUT_FOR_DELIVERY' });
+    mockApi.trackDelivery.mockResolvedValue({
+      id: 'd1',
+      orderId: 'o1',
+      status: 'OUT_FOR_DELIVERY',
+      addressSnapshot: {
+        line1: '1 Test St',
+        city: 'Riyadh',
+        latitude: '24.7200000',
+        longitude: '46.6800000',
+      },
+      driver: {
+        id: 'dr1',
+        vehicleType: 'MOTORCYCLE',
+        currentLatitude: '24.7300000',
+        currentLongitude: '46.6900000',
+        lastLocationAt: new Date().toISOString(),
+        user: { fullName: 'Test Driver' },
+      },
+    });
+
+    const { findByText } = wrap(
+      <OrderTrackingScreen navigation={navigation} route={route('OrderTracking', { orderId: 'o1' })} />,
+    );
+
+    expect(await findByText('Test Driver')).toBeTruthy();
+    // And not merely "did not crash": the distance is derived from those
+    // strings, so a silent read-as-null would leave the panel saying nothing
+    // about where the driver is while they ping every thirty seconds.
+    expect(await findByText(/km away/)).toBeTruthy();
+  });
+
   it('renders a profile with no name set', async () => {
     const view = wrap(<ProfileScreen navigation={navigation} route={route('Profile')} />);
 

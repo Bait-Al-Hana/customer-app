@@ -100,12 +100,28 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   // that returns totals instead of throwing: "add 15.00 more" is a thing you
   // can do, "your order was rejected" on the last press is not.
   const blocker = priced?.delivery?.blockers?.[0] ?? null;
-  const blockerMessage =
+  /**
+   * The branch being shut is a third blocker, and the one nothing on this
+   * screen can fix.
+   *
+   * It leads the banner for the same reason the others do — a refusal that
+   * arrives on the Pay button has already wasted the visit — and it is checked
+   * **first**, because "add 15.00 more" is useless advice to someone whose
+   * branch closed an hour ago. The server writes the sentence (it knows the
+   * opening time and any holiday note); an older backend sends nothing here and
+   * the screen simply says less.
+   */
+  const branchClosedMessage =
+    priced?.branchOpen && !priced.branchOpen.isOpen
+      ? (priced.branchOpen.message ?? 'This branch is closed right now.')
+      : null;
+  const deliveryBlockerMessage =
     blocker === null
       ? null
       : blocker.code === 'BELOW_MINIMUM'
         ? `Delivery orders start at ${formatSar(blocker.minOrderMinor)}. Add ${formatSar(blocker.shortfallMinor)} more to continue.`
         : `This address is ${blocker.distanceKm} km away and this branch delivers up to ${blocker.maxRadiusKm} km. Choose pickup, or a nearer address.`;
+  const blockerMessage = branchClosedMessage ?? deliveryBlockerMessage;
   // Only a code the server actually priced is sent with the order. A code that
   // failed here must not stay silently attached to the placement.
   const appliedCoupon = priced?.coupon?.code ?? null;
@@ -588,7 +604,11 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
           {/* Deliberately shorter than the banner above: the pay bar is sticky,
               so this is the reminder for someone who has scrolled past the
               explanation, not a second copy of it. */}
-          {blocker?.code === 'OUT_OF_RANGE' ? (
+          {branchClosedMessage ? (
+            <AppText variant="caption" color="danger" style={{ marginBottom: 8 }}>
+              {branchClosedMessage}
+            </AppText>
+          ) : blocker?.code === 'OUT_OF_RANGE' ? (
             <AppText variant="caption" color="danger" style={{ marginBottom: 8 }}>
               This branch does not deliver that far.
             </AppText>
@@ -599,7 +619,13 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
           ) : null}
           <PulseButton
             label={
-              needsAddress
+              // A closed branch outranks every other label: the button must
+              // never offer to take money for an order the server will refuse,
+              // and "Add 15.00 more" would send someone shopping for a branch
+              // that shut an hour ago.
+              branchClosedMessage
+                ? 'Branch closed'
+                : needsAddress
                 ? 'Add a delivery address'
                 : blocker?.code === 'BELOW_MINIMUM'
                   ? `Add ${formatSar(blocker.shortfallMinor)} more`
@@ -630,6 +656,7 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
             disabled={
               !quote ||
               !!error ||
+              branchClosedMessage !== null ||
               blocker?.code === 'OUT_OF_RANGE' ||
               // Neither fulfilment type on offer: there is nothing to place.
               closed

@@ -66,7 +66,7 @@ const PRIVACY: Section[] = [
   {
     heading: 'Who else sees it',
     body: [
-      'The branch preparing your order, and the driver delivering it. A driver is given the address and the name on the order — never your phone number.',
+      'The branch preparing your order, and the driver delivering it. A driver is given the address, the name on the order, and — once they have collected it — your mobile number, so they can call you if they cannot find you. It is not disguised, and it is removed from their app once your delivery is finished.',
       'The payment provider, for the payment itself.',
       'Nobody else. Your details are not sold, and are not shared for advertising.',
     ],
