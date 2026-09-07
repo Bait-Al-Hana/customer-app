@@ -5,12 +5,13 @@ import { ScrollView, View } from 'react-native';
 import { useAuth } from '../auth/AuthProvider';
 import { AppText, Button, Card, Divider, PriceRow, Screen } from '../components';
 import { OrderStatusTracker } from '../features/order/OrderStatusTracker';
+import { RefundRequestPanel } from '../features/refund/RefundRequestPanel';
 import { useAsync } from '../hooks/useAsync';
 import { AppMap, DEFAULT_REGION, MapMarker } from '../maps/AppMap';
 import { ErrorState, FadeIn, MotiCard, PulsingDot, Shimmer, StatusBadge } from '../motion';
 import { ORDER_STATUS, ORDER_TYPE, OrderStatus } from '../types/backend';
 import { statusMeta as metaFor } from '../features/order/order-status.model';
-import type { DeliveryTracking } from '../api/types';
+import type { DeliveryTracking, RefundEligibility, RefundRequest } from '../api/types';
 import { RootStackParamList } from '../navigation/types';
 import { useOrderUpdates } from '../realtime/RealtimeProvider';
 import { formatSar } from '../util/money';
@@ -66,6 +67,32 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
     setTick((t) => t + 1);
     reload();
   }, [reload]);
+
+  /**
+   * Can this order be cancelled, or a refund asked for — and what has already
+   * been asked?
+   *
+   * Two calls rather than one because they answer different questions: the
+   * server decides what may be *done now*, and the request list is what happened
+   * to anything asked before. Both reload on `tick`, so a cancellation the
+   * customer just made, or a decision the branch just took, lands on the next
+   * refresh rather than on the next app launch.
+   *
+   * Both fail soft — `null` and `[]`. A refund panel that cannot load must never
+   * cost somebody the sight of where their food is.
+   */
+  const eligibility = useAsync<RefundEligibility | null>(
+    () => api.refundEligibility(orderId).catch(() => null),
+    [orderId, tick],
+  );
+  const refundRequests = useAsync<RefundRequest[]>(
+    () =>
+      api
+        .refundRequestsFor(orderId)
+        .then((r) => r.data)
+        .catch(() => []),
+    [orderId, tick],
+  );
 
   useEffect(() => {
     if (!order || !ACTIVE.includes(order.status)) {
@@ -174,6 +201,28 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
               <Divider style={{ marginVertical: 8 }} />
               <PriceRow label="Total" value={formatSar(order.totalMinor)} emphasis />
             </Card>
+          </FadeIn>
+
+          {/* Cancelling, or saying something went wrong. Sits after the order
+              details because it is what you reach for having read them, and
+              before "Back to home" because that is the way out. */}
+          <FadeIn translateY={8} delay={220}>
+            <RefundRequestPanel
+              eligibility={eligibility.data ?? null}
+              requests={refundRequests.data ?? []}
+              onCancelOrder={async (reason) => {
+                await api.cancelOrder(orderId, reason || undefined);
+                refreshNow();
+              }}
+              onRequest={async (reason) => {
+                await api.requestRefund(orderId, reason);
+                refreshNow();
+              }}
+              onWithdraw={async (id) => {
+                await api.withdrawRefundRequest(id);
+                refreshNow();
+              }}
+            />
           </FadeIn>
 
           <Button label="Back to home" variant="ghost" onPress={goHome} />

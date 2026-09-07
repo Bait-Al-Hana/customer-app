@@ -14,6 +14,8 @@ import {
   OrderQuote,
   Payment,
   PriceQuote,
+  RefundEligibility,
+  RefundRequest,
 } from './types';
 
 export interface AddressInput {
@@ -164,6 +166,34 @@ export class Api {
 
   cancelOrder(id: string, reason?: string): Promise<Order> {
     return this.http.request(`/customer/orders/${id}/cancel`, { method: 'POST', body: { reason } });
+  }
+
+  /**
+   * Whether this order can be cancelled outright, or a refund asked for.
+   *
+   * A separate call rather than a field on the order, because the answer moves
+   * on its own: the order crosses out of cancellable, a refund starts, a window
+   * shuts. The rule lives on the server — this app renders the sentence it
+   * sends and keeps no second copy of it.
+   */
+  refundEligibility(orderId: string): Promise<RefundEligibility> {
+    return this.http.request(`/customer/orders/${orderId}/refund-eligibility`);
+  }
+
+  requestRefund(orderId: string, reason: string): Promise<RefundRequest> {
+    return this.http.request(`/customer/orders/${orderId}/refund-request`, {
+      method: 'POST',
+      body: { reason },
+    });
+  }
+
+  /** This order's requests, newest first — including ones already decided. */
+  refundRequestsFor(orderId: string): Promise<{ data: RefundRequest[] }> {
+    return this.http.request(`/customer/refund-requests?orderId=${orderId}`);
+  }
+
+  withdrawRefundRequest(id: string): Promise<RefundRequest> {
+    return this.http.request(`/customer/refund-requests/${id}/withdraw`, { method: 'POST' });
   }
 
   // --- Addresses (authenticated) --------------------------------------------

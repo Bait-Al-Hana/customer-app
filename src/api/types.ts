@@ -3,7 +3,14 @@
  * with the backend controllers the app calls.
  */
 
-import { OrderStatus, OrderType, PaymentStatus } from '../types/backend';
+import {
+  OrderStatus,
+  OrderType,
+  PaymentStatus,
+  RefundRequestBlocker,
+  RefundRequestStatus,
+  RefundRequestType,
+} from '../types/backend';
 
 export interface Branch {
   id: string;
@@ -431,4 +438,37 @@ export interface DeliveryTracking {
     lastLocationAt?: string | null;
     user?: { fullName?: string | null } | null;
   } | null;
+}
+
+// --- Refund and cancellation requests ---------------------------------------
+
+/** `GET /customer/orders/:id/refund-eligibility`. */
+export interface RefundEligibility {
+  /** True when raising a request would be accepted. */
+  canRequest: boolean;
+  /** What such a request would be, or null when none can be raised. */
+  type: RefundRequestType | null;
+  /** True when the order can still be cancelled outright, with no request. */
+  canSelfCancel: boolean;
+  blocker: RefundRequestBlocker | null;
+  /** A sentence written for the customer. Always present — render this. */
+  message: string;
+  /** When the request window shuts, or null when there is no deadline. */
+  windowClosesAt: string | null;
+}
+
+export interface RefundRequest {
+  id: string;
+  orderId: string;
+  type: RefundRequestType;
+  status: RefundRequestStatus;
+  reason: string;
+  /** What the branch said when they decided. Shown verbatim. */
+  resolutionNote: string | null;
+  reviewedAt: string | null;
+  refundId: string | null;
+  orderCancelled: boolean;
+  createdAt: string;
+  order?: { orderNumber: string; referenceId: string; totalMinor: number; currency: string } | null;
+  refund?: { id: string; amountMinor: number; status: string; currency: string } | null;
 }
