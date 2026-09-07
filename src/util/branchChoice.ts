@@ -62,22 +62,48 @@ export function distanceKm(a: GeoPoint, b: GeoPoint): number {
  * here comes back out as a branch.
  */
 export function pointOf(
-  value: { latitude?: number | null; longitude?: number | null } | null | undefined,
+  value:
+    | { latitude?: number | string | null; longitude?: number | string | null }
+    | null
+    | undefined,
 ): GeoPoint | null {
-  if (
-    value &&
-    typeof value.latitude === 'number' &&
-    typeof value.longitude === 'number' &&
-    !(value.latitude === 0 && value.longitude === 0)
-  ) {
-    return { latitude: value.latitude, longitude: value.longitude };
+  const latitude = coerce(value?.latitude);
+  const longitude = coerce(value?.longitude);
+  if (latitude === null || longitude === null || (latitude === 0 && longitude === 0)) {
+    return null;
   }
-  return null;
+  return { latitude, longitude };
+}
+
+/**
+ * A coordinate as a number, whatever shape the server sent.
+ *
+ * This used to be `typeof value === 'number'`, which is stricter than it looks:
+ * the backend stores latitude and longitude as `Decimal` columns and
+ * **`Prisma.Decimal` serialises to a JSON string**, so a driver's live position
+ * arrived as `"24.72"`. The strict check quietly returned null for it, so the
+ * tracking screen reported no fix at all — no distance, no ETA, no marker —
+ * while the driver was pinging every thirty seconds. That failure is silent,
+ * which is why it outlived the crash on the same data (`AppMap.web.tsx`
+ * called `.toFixed` on the string and took the tree down).
+ *
+ * The backend converts at its boundary now. This stays, because an app already
+ * on a customer's phone cannot be updated to match a server.
+ */
+function coerce(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 /** True when a point is real. */
 export function hasPin(
-  value: { latitude?: number | null; longitude?: number | null } | null | undefined,
+  value:
+    | { latitude?: number | string | null; longitude?: number | string | null }
+    | null
+    | undefined,
 ): boolean {
   return pointOf(value) !== null;
 }

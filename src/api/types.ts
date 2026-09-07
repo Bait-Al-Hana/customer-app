@@ -207,7 +207,14 @@ export interface Order {
   deliveryFeeMinor: number;
   vatMinor: number;
   totalMinor: number;
-  items: OrderItem[];
+  /**
+   * Optional, because the array is what the server sends and not what this app
+   * guarantees. `.map` or `.length` on an absent field throws inside render and
+   * unmounts the tree — the same class of failure as `driver.user` on the
+   * tracking payload, and it was reproduced the same way: in a browser, against
+   * the real web bundle. Read it as `order.items ?? []`.
+   */
+  items?: OrderItem[];
   placedAt: string;
 }
 
@@ -359,8 +366,8 @@ export interface DeliveryTracking {
   addressSnapshot: {
     line1?: string;
     city?: string;
-    latitude?: number | null;
-    longitude?: number | null;
+    latitude?: number | string | null;
+    longitude?: number | string | null;
   } | null;
   /**
    * The assigned driver, or null while the delivery is still awaiting one.
@@ -377,8 +384,15 @@ export interface DeliveryTracking {
   driver: {
     id: string;
     vehicleType?: string | null;
-    currentLatitude?: number | null;
-    currentLongitude?: number | null;
+    /**
+     * `string` is not a mistake here either. These are `Decimal` columns, and
+     * `Prisma.Decimal` serialises to a JSON string — so an older backend sends
+     * `"24.72"`. Typing them `number` is what let a string reach
+     * `.toFixed()` and crash this screen. Read them through `pointOf`
+     * (`util/branchChoice.ts`), never directly.
+     */
+    currentLatitude?: number | string | null;
+    currentLongitude?: number | string | null;
     lastLocationAt?: string | null;
     user?: { fullName?: string | null } | null;
   } | null;

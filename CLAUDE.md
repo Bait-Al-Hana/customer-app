@@ -384,6 +384,49 @@ present, no driver yet, driver with no `user`). It previously only ever mounted
 the 404 case, so every line inside `DeliveryPanel` — the part that appears
 exactly when a driver is assigned — was unreached by any test.
 
+## A coordinate can arrive as a string, and that crashed this screen
+
+The tracking screen met the error boundary again, on the deployed web build.
+Reproduced in Chromium against the real `expo export --platform web` bundle, by
+serving a driver whose position was what the backend actually sends.
+
+`Driver.currentLatitude` is a **`Decimal` column**, and `Prisma.Decimal`
+serialises to a JSON *string* — `JSON.stringify(new Decimal('24.72'))` is
+`"24.72"`. So the tracking payload carried `"24.73"` where the type said
+`number`. `AppMap.web.tsx` called `.toFixed()` on it, threw inside render, React
+unmounted the tree, and the customer got "Something went wrong" on the one
+screen that says where their food is — **only once a driver had a position**,
+which is exactly when they are watching.
+
+It is the same shape as the `driver.user` crash above and the same lesson:
+**the backend owns these shapes, and neither typechecker can see across the
+wire.** Three layers now, on purpose:
+
+- **The backend converts at its boundary** (`src/common/geo.ts`). That is the
+  real fix.
+- **`pointOf` (`util/branchChoice.ts`) coerces**, because it used to require
+  `typeof === 'number'` — stricter than it looks. A string read as *no pin at
+  all*, so the panel silently showed no distance, no ETA and no marker while the
+  driver pinged every thirty seconds. That failure is invisible, which is why it
+  outlived the crash on the same data.
+- **`AppMap.web` never calls `.toFixed` on a raw value.** An unreadable
+  coordinate costs an em dash, never the screen.
+
+Every read of a coordinate goes through `pointOf`. The types admit `number |
+string` deliberately: an app already on a customer's phone cannot be updated to
+match a server.
+
+**`Order.items` is optional for the same reason.** The Home "Order again" strip
+and the Orders list read `.length` off it; a payload without the key threw and
+took the tree down before the tracking screen was even reached. `itemCountLabel`
+(`util/orderItems.ts`, pure and tested) is how it is read now.
+
+A browser harness drives the real web bundle through seventeen degraded
+tracking payloads — missing items, an unknown status, a null address, a driver
+with no user, string coordinates, a 404 and a 500 — and asserts none of them
+reaches the error boundary. That is what "fixed" means here; a passing unit test
+was already true of the bundle that was crashing.
+
 ## Tracking starts when the food is ready, not when a driver is picked
 
 The delivery panel used to render only from `DRIVER_ASSIGNED`. The backend opens

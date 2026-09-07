@@ -42,6 +42,36 @@ export interface AppMapProps {
   style?: StyleProp<ViewStyle>;
 }
 
+/**
+ * Every coordinate on this page goes through here first.
+ *
+ * `region.latitude.toFixed(4)` threw — `TypeError: e.latitude.toFixed is not a
+ * function` — and took the whole tree down with it, on the one screen that
+ * tells a customer where their food is. The value was a **string**: the
+ * backend's `Driver.currentLatitude` is a `Decimal` column and
+ * `Prisma.Decimal` serialises to a JSON string, so `"24.72"` arrived where the
+ * type said `number`. Neither side's typechecker could see it, and the crash
+ * appeared only once a driver actually had a position — which is exactly when
+ * a customer is watching.
+ *
+ * The backend converts at its boundary now. This stays because an app already
+ * on a phone cannot be updated to match a server, which is the same rule every
+ * other read of the tracking payload follows.
+ */
+function num(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Four decimal places, or an em dash — never a thrown render. */
+function coord(value: number | string | null | undefined): string {
+  const n = num(value);
+  return n === null ? '—' : n.toFixed(4);
+}
+
 export function AppMap({ region, markers = [], style }: AppMapProps): React.JSX.Element {
   return (
     <View style={[styles.container, style]} accessibilityRole="image" accessibilityLabel="Map preview (web)">
@@ -52,7 +82,7 @@ export function AppMap({ region, markers = [], style }: AppMapProps): React.JSX.
       <View style={styles.centerCoord}>
         <Text style={styles.centerLabel}>Center</Text>
         <Text style={styles.centerValue}>
-          {region.latitude.toFixed(4)}, {region.longitude.toFixed(4)}
+          {coord(region.latitude)}, {coord(region.longitude)}
         </Text>
       </View>
 
@@ -64,7 +94,7 @@ export function AppMap({ region, markers = [], style }: AppMapProps): React.JSX.
               <View style={styles.markerText}>
                 <Text style={styles.markerTitle}>{m.title ?? m.id}</Text>
                 <Text style={styles.markerCoord}>
-                  {m.latitude.toFixed(4)}, {m.longitude.toFixed(4)}
+                  {coord(m.latitude)}, {coord(m.longitude)}
                 </Text>
               </View>
             </View>

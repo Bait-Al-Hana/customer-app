@@ -1,4 +1,4 @@
-import { branchesFor, distanceKm, hasPin, resolveBranch } from '../../src/util/branchChoice';
+import { branchesFor, distanceKm, hasPin, pointOf, resolveBranch } from '../../src/util/branchChoice';
 import { ORDER_TYPE } from '../../src/types/backend';
 
 const branch = (
@@ -128,5 +128,33 @@ describe('resolveBranch — pickup', () => {
     expect(resolved.needsAddress).toBe(false);
     expect(resolved.distanceKm).toBeNull();
     expect(resolved.branch?.id).toBe('near');
+  });
+});
+
+/**
+ * The backend stores latitude and longitude as `Decimal` columns, and
+ * `Prisma.Decimal` serialises to a JSON **string**. `pointOf` used to require
+ * `typeof === 'number'`, so `"24.72"` read as no pin at all: the tracking screen
+ * showed no distance and no ETA while the driver was pinging every thirty
+ * seconds, and the web map crashed on the same value. Both are fixed at the
+ * backend boundary; this holds the client's side of it, because an app already
+ * installed cannot be updated to match a server.
+ */
+describe('pointOf with a coordinate that arrived as a string', () => {
+  it('reads a decimal string', () => {
+    expect(pointOf({ latitude: '24.7241234', longitude: '46.6812345' })).toEqual({
+      latitude: 24.7241234,
+      longitude: 46.6812345,
+    });
+  });
+
+  it('still refuses 0,0 — the Atlantic, never a Saudi address', () => {
+    expect(pointOf({ latitude: '0', longitude: '0' })).toBeNull();
+  });
+
+  it('refuses anything unreadable rather than producing NaN', () => {
+    expect(pointOf({ latitude: 'nowhere', longitude: '46.68' })).toBeNull();
+    expect(pointOf({ latitude: '', longitude: '' })).toBeNull();
+    expect(pointOf(null)).toBeNull();
   });
 });

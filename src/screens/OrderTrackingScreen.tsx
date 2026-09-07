@@ -15,6 +15,7 @@ import { RootStackParamList } from '../navigation/types';
 import { useOrderUpdates } from '../realtime/RealtimeProvider';
 import { formatSar } from '../util/money';
 import { driverProgress, freshnessLabel } from '../util/driverProgress';
+import { pointOf } from '../util/branchChoice';
 import { useTheme } from '../theme/theme';
 
 /** Statuses that are still moving — worth polling for live updates. */
@@ -185,10 +186,21 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
 /** The driver/ETA/map panel, shown while a delivery is on the way. */
 function DeliveryPanel({ tracking, orderNumber }: { tracking: DeliveryTracking | null; orderNumber: string }): React.JSX.Element {
   const theme = useTheme();
-  const driverLat = tracking?.driver?.currentLatitude ?? null;
-  const driverLng = tracking?.driver?.currentLongitude ?? null;
-  const addrLat = tracking?.addressSnapshot?.latitude ?? null;
-  const addrLng = tracking?.addressSnapshot?.longitude ?? null;
+  // Read through `pointOf`, never straight off the payload. These are `Decimal`
+  // columns and `Prisma.Decimal` serialises to a JSON string, so an older
+  // backend sends `"24.72"` where the type used to say `number`. The string
+  // crashed the web map (`.toFixed` on a string, inside render — this screen's
+  // error boundary in a browser) and, more quietly, made every distance and ETA
+  // vanish while the driver was pinging every thirty seconds.
+  const driverPoint = pointOf({
+    latitude: tracking?.driver?.currentLatitude,
+    longitude: tracking?.driver?.currentLongitude,
+  });
+  const addressPoint = pointOf(tracking?.addressSnapshot);
+  const driverLat = driverPoint?.latitude ?? null;
+  const driverLng = driverPoint?.longitude ?? null;
+  const addrLat = addressPoint?.latitude ?? null;
+  const addrLng = addressPoint?.longitude ?? null;
 
   // Guarded, not asserted. `driver.user` used to be read straight through on
   // the strength of the type saying it was there; a null threw inside render
@@ -215,7 +227,7 @@ function DeliveryPanel({ tracking, orderNumber }: { tracking: DeliveryTracking |
           lastLocationAt: tracking.driver.lastLocationAt,
         }
       : null,
-    tracking?.addressSnapshot ?? null,
+    addressPoint,
   );
   const freshness = freshnessLabel(progress.fixAgeMs);
   // Nobody is carrying this yet: the delivery exists (the branch has the food

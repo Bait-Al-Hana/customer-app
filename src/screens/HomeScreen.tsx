@@ -20,6 +20,7 @@ import { ORDER_TYPE, OrderType } from '../types/backend';
 import { branchesFor, pointOf, resolveBranch } from '../util/branchChoice';
 import { menuPriceMinor } from '../util/menuPrice';
 import { useTheme } from '../theme/theme';
+import { itemCountLabel } from '../util/orderItems';
 
 /**
  * Home: choose how you are getting it, then the food.
@@ -743,10 +744,10 @@ function OrderAgainSection({ onTrack }: { onTrack: (orderId: string) => void }):
           >
             <Card elevated>
               <AppText variant="h3" style={{ fontSize: 15 }} numberOfLines={1}>
-                {o.items[0]?.productName ?? o.orderNumber}
+                {o.items?.[0]?.productName ?? o.orderNumber}
               </AppText>
               <AppText variant="caption" color="textMuted" style={{ marginTop: 4 }}>
-                {o.items.length} item{o.items.length === 1 ? '' : 's'}
+                {itemCountLabel(o.items)}
               </AppText>
               <View style={{ height: 1, backgroundColor: theme.colors.border, marginVertical: 10 }} />
               <AppText variant="bodySmall" weight="700" color="primary">
