@@ -27,6 +27,7 @@ function request(overrides: Partial<RefundRequest> = {}): RefundRequest {
     resolutionNote: null,
     reviewedAt: null,
     refundId: null,
+    refundIssuedAt: null,
     orderCancelled: false,
     createdAt: '2026-09-07T10:00:00.000Z',
     ...overrides,
@@ -94,24 +95,39 @@ describe('refundPanel', () => {
 });
 
 describe('summarise', () => {
-  it('never calls an approved refund "refunded"', () => {
-    // The money has not arrived. A customer told it had, who then looks at
-    // their statement, rings the branch.
-    const summary = summarise(request({ status: 'APPROVED', refundId: 'rf1' }));
+  it('never says an approved refund has been sent before it has', () => {
+    // The branch agreeing and the owner paying out are two acts, often hours
+    // apart. A customer told the money is on its way, who then checks their
+    // statement, rings the branch.
+    const summary = summarise(
+      request({ status: 'APPROVED', refundId: null, refundIssuedAt: null, orderCancelled: true }),
+    );
 
-    expect(summary.body).toMatch(/on its way/i);
-    expect(summary.body).toMatch(/few days/i);
+    expect(summary.body).toMatch(/being arranged/i);
+    expect(summary.body).not.toMatch(/on its way to your card|has been sent/i);
     expect(summary.canWithdraw).toBe(false);
   });
 
-  it('says the branch settles in person when no refund was issued', () => {
-    // Cash: somebody at the branch owes this. Calling it refunded would close a
-    // job nobody has done.
+  it('says it has been sent once the refund is actually recorded', () => {
     const summary = summarise(
-      request({ status: 'APPROVED', refundId: null, orderCancelled: true }),
+      request({
+        status: 'APPROVED',
+        refundId: 'rf1',
+        refundIssuedAt: '2026-09-07T12:00:00.000Z',
+      }),
     );
 
-    expect(summary.body).toMatch(/cancelled/i);
+    expect(summary.title).toBe('Refund sent');
+    expect(summary.body).toMatch(/few days/i);
+  });
+
+  it('says the branch settles in person when there is nothing to refund online', () => {
+    // Cash: somebody at the branch owes this. Neither "refunded" nor "being
+    // arranged" is true — nobody is arranging anything.
+    const summary = summarise(
+      request({ status: 'APPROVED', refundId: null, refundIssuedAt: null, orderCancelled: false }),
+    );
+
     expect(summary.body).toMatch(/settle this with you directly/i);
   });
 

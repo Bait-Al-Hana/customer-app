@@ -75,20 +75,30 @@ export function summarise(request: RefundRequest): RequestSummary {
         canWithdraw: true,
       };
     case 'APPROVED':
+      // Approved is not paid. The branch agrees, and the money is sent
+      // separately — so until `refundIssuedAt` is set, this says the refund is
+      // being arranged and never that it is on its way. A customer told the
+      // second thing, who then checks their statement, rings the branch.
+      if (request.refundIssuedAt) {
+        return {
+          title: 'Refund sent',
+          body: `Your refund has been sent. It can take a few days to appear on your statement.${
+            request.resolutionNote ? ` ${request.resolutionNote}` : ''
+          }`,
+          tone: 'success',
+          canWithdraw: false,
+        };
+      }
+
       return {
         title: 'Approved',
-        body: request.refundId
-          ? // Never "refunded" — the money has not arrived yet, and a customer
-            // told it had, who then looks at their statement, rings the branch.
-            `Your refund is on its way. It can take a few days to appear on your card.${
+        body: request.refundId === null && !request.orderCancelled
+          ? `The branch will settle this with you directly.${
               request.resolutionNote ? ` ${request.resolutionNote}` : ''
             }`
-          : // Approved with nothing refunded online: cash, and somebody at the
-            // branch owes it in person. Saying "refunded" would close a job
-            // nobody has done.
-            `${
+          : `${
               request.orderCancelled ? 'Your order was cancelled. ' : ''
-            }The branch will settle this with you directly.${
+            }Your refund is being arranged — we’ll let you know as soon as it’s been sent.${
               request.resolutionNote ? ` ${request.resolutionNote}` : ''
             }`,
         tone: 'success',

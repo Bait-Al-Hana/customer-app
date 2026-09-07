@@ -467,6 +467,13 @@ export interface RefundRequest {
   resolutionNote: string | null;
   reviewedAt: string | null;
   refundId: string | null;
+  /**
+   * When the refund was actually sent. **Null on an approved request means the
+   * money has not gone yet** — the branch agreed and the owner issues it in the
+   * payment gateway's dashboard afterwards. Telling a customer their refund is
+   * on its way before this is set is the one thing this screen must not do.
+   */
+  refundIssuedAt: string | null;
   orderCancelled: boolean;
   createdAt: string;
   order?: { orderNumber: string; referenceId: string; totalMinor: number; currency: string } | null;
