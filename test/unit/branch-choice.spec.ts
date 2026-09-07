@@ -158,3 +158,42 @@ describe('pointOf with a coordinate that arrived as a string', () => {
     expect(pointOf(null)).toBeNull();
   });
 });
+
+/**
+ * A branch shut for the night must not be picked as the nearest *open* one.
+ * `resolveBranch` used to read only `isAcceptingOrders` — the manual switch —
+ * so a customer was routed to a branch that had closed at 23:00 and found out
+ * at the Pay button.
+ */
+describe('resolveBranch with opening hours', () => {
+  const branch = (id: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    name: id,
+    latitude: 24.7,
+    longitude: 46.7,
+    acceptsDelivery: true,
+    acceptsPickup: true,
+    isAcceptingOrders: true,
+    ...extra,
+  });
+
+  it('prefers a branch inside its hours over one that has closed for the night', () => {
+    const resolved = resolveBranch(
+      [branch('shut', { isOpenNow: false }), branch('open', { isOpenNow: true })],
+      ORDER_TYPE.PICKUP,
+      null,
+    );
+    expect(resolved.branch?.id).toBe('open');
+  });
+
+  it('still shows a closed branch when every branch is closed', () => {
+    // "Closed now" is information; an empty screen is not.
+    const resolved = resolveBranch([branch('shut', { isOpenNow: false })], ORDER_TYPE.PICKUP, null);
+    expect(resolved.branch?.id).toBe('shut');
+  });
+
+  it('treats a branch with no schedule as available, not as closed', () => {
+    const resolved = resolveBranch([branch('unscheduled')], ORDER_TYPE.PICKUP, null);
+    expect(resolved.branch?.id).toBe('unscheduled');
+  });
+});

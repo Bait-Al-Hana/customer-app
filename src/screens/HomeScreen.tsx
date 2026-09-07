@@ -21,6 +21,7 @@ import { branchesFor, pointOf, resolveBranch } from '../util/branchChoice';
 import { menuPriceMinor } from '../util/menuPrice';
 import { useTheme } from '../theme/theme';
 import { itemCountLabel } from '../util/orderItems';
+import { branchAvailability } from '../util/branchOpen';
 
 /**
  * Home: choose how you are getting it, then the food.
@@ -357,8 +358,16 @@ function BranchCard({
           <AppText variant="h3" style={{ fontSize: 16 }} numberOfLines={1}>
             {branch.name}
           </AppText>
-          <AppText variant="caption" color={branch.isAcceptingOrders ? 'textMuted' : 'danger'} numberOfLines={2} style={{ marginTop: 2 }}>
-            {branch.isAcceptingOrders ? subtitle : 'Not taking orders right now'}
+          {/* Two different things close a branch — staff pausing orders, and
+              the schedule running on its own — and only one of them can say
+              when it opens again. `branchAvailability` picks the sentence. */}
+          <AppText
+            variant="caption"
+            color={branchAvailability(branch).open ? 'textMuted' : 'danger'}
+            numberOfLines={2}
+            style={{ marginTop: 2 }}
+          >
+            {branchAvailability(branch).open ? subtitle : branchAvailability(branch).label}
           </AppText>
         </View>
         {onChange ? (
@@ -477,14 +486,14 @@ function BranchPicker({
                     </AppText>
                     <AppText
                       variant="caption"
-                      color={b.isAcceptingOrders ? 'textMuted' : 'danger'}
+                      color={branchAvailability(b).open ? 'textMuted' : 'danger'}
                       style={{ marginTop: 4 }}
                     >
-                      {b.isAcceptingOrders
+                      {branchAvailability(b).open
                         ? km !== null
                           ? `Open · about ${km} km away`
                           : 'Open now'
-                        : 'Closed now'}
+                        : branchAvailability(b).label}
                     </AppText>
                   </View>
                   {selected ? (

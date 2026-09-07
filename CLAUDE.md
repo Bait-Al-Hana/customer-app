@@ -525,6 +525,41 @@ preference yet, and a switch that moved nothing would be worse than the row it
 replaced — and the legal pages say on the page that they are the working version
 pending the restaurant's own legal review. Don't quietly delete that line.
 
+## Two different things close a branch
+
+`util/branchOpen.ts`, pure and tested. The backend now enforces a branch's
+**opening hours** at placement, on top of `isAcceptingOrders`, and the two are
+not interchangeable:
+
+- **`isAcceptingOrders`** is a switch staff flipped. It means "not right now"
+  and carries no promise about when that changes — so the app must **not** say
+  "opens at 17:00" for it. They may not resume then.
+- **`isOpenNow`** is the schedule running on its own, and it knows when the
+  branch opens again. That difference is what decides whether a customer waits
+  or goes elsewhere.
+
+**An absent `isOpenNow` means no opinion, never closed.** A backend older than
+the schedule does not send it, and reading a missing field as shut would close
+every branch for anyone whose app had not been updated. The server is what
+actually refuses an order; this only decides what the screen says.
+
+`resolveBranch` reads both halves now. It used to consider only the switch, so
+a customer was routed to the "nearest open branch" that had actually closed at
+23:00 — and found out at the Pay button.
+
+Checkout leads with it, above the form that cannot fix it, the same way the
+delivery blockers do — and it is checked **first**, because "Add 15.00 more" is
+useless advice to someone whose branch closed an hour ago. The pay button reads
+**"Branch closed"** rather than quoting a price the server will refuse.
+`branchOpen.message` comes from the server, which knows the opening time and
+any holiday note; an older backend sends nothing and the screen simply says
+less.
+
+Verified in Chromium against the real web bundle across four branch shapes —
+open, closed with an opening time, closed for a holiday, and a backend with no
+hours field at all — because "no opinion means open" is the case that would
+have shut every branch on the platform.
+
 ## Pickup off means gone, not greyed out
 
 `src/util/fulfilment.ts`, pure and tested. An owner who switches pickup off for

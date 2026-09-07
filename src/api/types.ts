@@ -23,6 +23,21 @@ export interface Branch {
   deliveryFeeMinor: number;
   minOrderMinor: number;
   prepTimeMinutes: number | null;
+  /**
+   * Whether the branch is inside its opening hours **right now**, in its own
+   * timezone. Distinct from `isAcceptingOrders`, which is a switch staff flip.
+   *
+   * Optional because a backend older than the schedule does not send it, and
+   * an absent value means *no opinion* rather than closed — read it through
+   * `util/branchOpen.ts`, never directly.
+   */
+  isOpenNow?: boolean;
+  /** `"17:00"` — when it opens again today, if it does. */
+  opensAt?: string | null;
+  /** `"23:00"` — when the current window ends. */
+  closesAt?: string | null;
+  /** `"Eid holiday"` — why today differs, from a date override. */
+  closedNote?: string | null;
 }
 
 export interface MenuAddon {
@@ -147,6 +162,26 @@ export interface DeliveryQuote {
 
 export interface OrderQuote {
   quote: PriceQuote;
+  /**
+   * Whether the branch is open, on the quote rather than at the final press.
+   *
+   * Same discipline as `delivery.blockers`: the moment a customer most needs to
+   * know they cannot order is *before* they have chosen what to eat. The quote
+   * still prices the basket — the totals must not vanish while they decide
+   * whether to wait or pick another branch.
+   *
+   * Absent on a backend that predates opening hours, and an absent value means
+   * **no opinion**, never closed.
+   */
+  branchOpen?: {
+    isOpen: boolean;
+    closedReason: 'outside_hours' | 'day_closed' | 'override_closed' | null;
+    note: string | null;
+    opensAt: string | null;
+    closesAt: string | null;
+    /** The whole sentence, already written by the server. */
+    message: string | null;
+  };
   /** Present from the delivery-pricing release; absent on an older backend. */
   delivery?: DeliveryQuote | null;
   /** Present from the delivery-pricing release; absent on an older backend. */

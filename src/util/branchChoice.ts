@@ -1,4 +1,5 @@
 import { ORDER_TYPE, OrderType } from '../types/backend';
+import { isOrderable } from './branchOpen';
 
 /**
  * Which branch an order comes from, and whether the customer gets to choose.
@@ -25,6 +26,15 @@ export interface BranchChoiceInput {
   acceptsDelivery: boolean;
   acceptsPickup: boolean;
   isAcceptingOrders: boolean;
+  /**
+   * Inside its opening hours. Optional and **absent means no opinion**, not
+   * closed — see `util/branchOpen.ts`. It matters here because a branch that is
+   * merely shut for the night must not be picked as the nearest *open* one when
+   * a genuinely open branch exists.
+   */
+  isOpenNow?: boolean;
+  opensAt?: string | null;
+  closedNote?: string | null;
 }
 
 export interface GeoPoint {
@@ -157,7 +167,12 @@ export function resolveBranch<T extends BranchChoiceInput>(
   const candidates = branchesFor(branches, mode);
   // An open branch is preferred, but a closed one is still shown rather than
   // leaving the screen empty — "closed now" is information; nothing is not.
-  const open = candidates.filter((b) => b.isAcceptingOrders);
+  //
+  // "Open" now means both halves: staff have not paused orders **and** the
+  // branch is inside its hours. Reading only the switch would send a customer
+  // to a branch that has been shut since 23:00, and they would find out at the
+  // Pay button.
+  const open = candidates.filter((b) => isOrderable(b));
   const pool = open.length > 0 ? open : candidates;
 
   const first = pool[0];
