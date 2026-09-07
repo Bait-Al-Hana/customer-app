@@ -68,6 +68,7 @@ src/
   features/
     order/           # OrderStatusTracker + its pure, tested model
     payment/         # PaymentStateView + its pure, tested model
+    refund/          # RefundRequestPanel + its pure, tested model
   data/              # isolated frontend mock data (promos, offers, loyalty,
                      #   ratings) + menu-shaping helpers — swappable for real APIs
   favorites/         # in-memory favourites provider
@@ -86,6 +87,51 @@ TypeScript** that is exhaustively unit-tested and imports nothing from React
 Native. The React Native components are kept thin, are fully typechecked, and
 are mount-tested to prove every state renders without throwing. See
 [`docs/motion-design-system.md` §10](./docs/motion-design-system.md).
+
+### Cancelling, and asking for a refund
+
+`features/refund/` is the panel on the order screen. It offers **one** of three
+things, and the server decides which:
+
+- **Cancel order**, while the order engine still allows a customer to cancel
+  outright. This app already had a `cancelOrder` API method and **no screen
+  called it** — the feature existed and was unreachable.
+- **Ask to cancel this order / Ask for a refund**, once it does not. That files
+  a `RefundRequest` the branch works through the admin panel. Before it, a
+  customer past that point had no route at all: the API said "contact the
+  branch" and nothing was recorded.
+- **Nothing**, and quietly — a "there's nothing left to refund" line under every
+  past order is noise, and a screen that nags about refunds is a screen that
+  suggests them.
+
+Three rules it keeps:
+
+1. **The server decides what is offered.** `GET /customer/orders/:id/
+   refund-eligibility` returns whether a self-cancel is still possible, whether
+   a request can be raised, what it would be, and a sentence to show. This app
+   renders that sentence; it keeps no second copy of the rule, which is how an
+   app ends up offering a button the server refuses.
+2. **A decision is shown, not just the ask.** The whole failure this replaces is
+   a customer with no way to learn what was decided, so an approved, declined or
+   withdrawn request stays on the screen with the branch's own words on it.
+3. **Approved is not paid, and the panel must never blur the two.** The branch
+   agreeing and the money being sent are separate acts, often hours apart: the
+   branch decides, and the owner then issues the refund in the payment gateway's
+   dashboard. So an approved request says the refund is **being arranged**, and
+   only once the server reports `refundIssuedAt` does it say it has been **sent**
+   (with the few-days caveat). A customer told the second thing too early checks
+   their statement and rings the branch. Where the branch approved a *cash*
+   order there is no online refund at all, and the panel says the branch will
+   settle it in person rather than implying money has moved.
+
+4. **Cancelling and asking are on different clocks.** A customer has 10 minutes
+   from placing an order to ask the branch to cancel it; a refund on a delivered
+   order has its own window (currently none). Both are the server's rule — the
+   app renders `windowClosesAt` and the sentence that comes with it, and holds no
+   copy of either number.
+
+Both calls fail soft: a refund panel that cannot load must never cost somebody
+the sight of where their food is.
 
 ### Two rules this app inherits from the backend
 

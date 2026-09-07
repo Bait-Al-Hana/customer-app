@@ -48,6 +48,10 @@ const mockApi = {
   myOrders: jest.fn(),
   order: jest.fn(),
   cancelOrder: jest.fn(),
+  refundEligibility: jest.fn(),
+  requestRefund: jest.fn(),
+  refundRequestsFor: jest.fn(),
+  withdrawRefundRequest: jest.fn(),
   listAddresses: jest.fn(),
   createAddress: jest.fn(),
   deleteAddress: jest.fn(),
@@ -283,6 +287,18 @@ beforeEach(() => {
   // A pickup order has no delivery at all, and an order not yet dispatched has
   // no driver — both are 404s, not exceptional states.
   mockApi.trackDelivery.mockRejectedValue(new Error('no delivery'));
+  // The refund panel's two reads. Both fail soft in the screen, and the
+  // default here is the awkward case on purpose: an order nobody has asked
+  // anything about, where the panel must render nothing rather than a gap.
+  mockApi.refundEligibility.mockResolvedValue({
+    canRequest: false,
+    type: null,
+    canSelfCancel: false,
+    blocker: 'NOTHING_TO_REFUND',
+    message: 'There’s nothing left to refund on this order.',
+    windowClosesAt: null,
+  });
+  mockApi.refundRequestsFor.mockResolvedValue({ data: [] });
   mockApi.paymentFor.mockResolvedValue(null);
   mockApi.initiatePayment.mockResolvedValue({ payment: { id: 'pay1', status: 'PENDING' } });
   mockApi.loyalty.mockResolvedValue({ balance: 0, data: [] });
@@ -556,6 +572,60 @@ describe('screens survive what the backend actually returns', () => {
     await waitFor(() => expect(mockApi.order).toHaveBeenCalled());
     // A pickup order, or one not yet dispatched, has no delivery at all.
     expect(view.toJSON()).toBeTruthy();
+  });
+
+  /**
+   * The refund panel, which is a *decision surface on a screen a customer opens
+   * while waiting for food*. Mounting it matters for the ordinary reason —
+   * a render error here costs the only view of where the order is — and for one
+   * specific to this feature: what it says about an approved refund is a promise
+   * made on the branch's behalf, and there is no way to check that by eye.
+   */
+  it('offers an outright cancel while the order is still early enough', async () => {
+    mockApi.refundEligibility.mockResolvedValue({
+      canRequest: false,
+      type: 'CANCELLATION',
+      canSelfCancel: true,
+      blocker: 'SELF_SERVICE_CANCEL',
+      message: 'You can cancel this order yourself right now.',
+      windowClosesAt: null,
+    });
+
+    const { findByText } = wrap(
+      <OrderTrackingScreen navigation={navigation} route={route('OrderTracking', { orderId: 'o1' })} />,
+    );
+
+    expect(await findByText('Cancel order')).toBeTruthy();
+  });
+
+  it('never says an approved refund has been sent before it has', async () => {
+    // The branch agreeing and the owner paying out in the gateway dashboard are
+    // two acts, often hours apart. This is the sentence a customer reads in
+    // between, and getting it wrong is a phone call to the branch.
+    mockApi.refundRequestsFor.mockResolvedValue({
+      data: [
+        {
+          id: 'rr1',
+          orderId: 'o1',
+          type: 'CANCELLATION',
+          status: 'APPROVED',
+          reason: 'Ordered the wrong branch',
+          resolutionNote: null,
+          reviewedAt: '2026-09-07T01:00:00.000Z',
+          refundId: null,
+          refundIssuedAt: null,
+          orderCancelled: true,
+          createdAt: '2026-09-07T00:00:00.000Z',
+        },
+      ],
+    });
+
+    const { findByText, queryByText } = wrap(
+      <OrderTrackingScreen navigation={navigation} route={route('OrderTracking', { orderId: 'o1' })} />,
+    );
+
+    expect(await findByText(/being arranged/)).toBeTruthy();
+    expect(queryByText(/has been sent/)).toBeNull();
   });
 
   /**

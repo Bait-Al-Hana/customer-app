@@ -67,3 +67,36 @@ export const PAYMENT_METHOD = {
 } as const;
 
 export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];
+
+// --- Refund and cancellation requests ---------------------------------------
+
+export const REFUND_REQUEST_TYPE = {
+  CANCELLATION: 'CANCELLATION',
+  REFUND: 'REFUND',
+} as const;
+
+export type RefundRequestType = (typeof REFUND_REQUEST_TYPE)[keyof typeof REFUND_REQUEST_TYPE];
+
+export const REFUND_REQUEST_STATUS = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  WITHDRAWN: 'WITHDRAWN',
+} as const;
+
+export type RefundRequestStatus =
+  (typeof REFUND_REQUEST_STATUS)[keyof typeof REFUND_REQUEST_STATUS];
+
+/**
+ * Why a request cannot be raised right now.
+ *
+ * The server decides this and sends a sentence with it — the app renders that
+ * sentence rather than keeping a second copy of the rule, which is how the two
+ * end up disagreeing about what a customer is allowed to do.
+ */
+export type RefundRequestBlocker =
+  | 'SELF_SERVICE_CANCEL'
+  | 'ALREADY_OPEN'
+  | 'REFUND_IN_PROGRESS'
+  | 'NOTHING_TO_REFUND'
+  | 'WINDOW_CLOSED';
