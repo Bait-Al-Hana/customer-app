@@ -164,7 +164,13 @@ export class Api {
     return this.http.request(`/customer/orders/${id}`);
   }
 
-  cancelOrder(id: string, reason?: string): Promise<Order> {
+  /**
+   * Cancel outright. **Only possible while nothing has been paid** — once a
+   * payment is captured the server refuses this and the customer has to ask the
+   * branch instead (`requestRefund`). The reason is required, not optional: it
+   * is the branch's only account of why an order it was about to cook vanished.
+   */
+  cancelOrder(id: string, reason: string): Promise<Order> {
     return this.http.request(`/customer/orders/${id}/cancel`, { method: 'POST', body: { reason } });
   }
 

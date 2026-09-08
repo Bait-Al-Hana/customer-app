@@ -64,8 +64,16 @@ export function RefundRequestPanel({
 
   const submit = async (): Promise<void> => {
     const trimmed = reason.trim();
-    if (panel.action.kind === 'request' && trimmed.length < 3) {
-      setError('Tell us briefly what’s wrong — the branch reads this.');
+    // Required on both paths now (owner decision): a cancellation carries "proper
+    // reasoning" too, and the server enforces the same minimum — without this
+    // check the customer would meet a validation error about a field the screen
+    // told them was optional.
+    if (trimmed.length < 3) {
+      setError(
+        panel.action.kind === 'cancel'
+          ? 'Tell the branch why you’re cancelling.'
+          : 'Tell us briefly what’s wrong — the branch reads this.',
+      );
       return;
     }
     setBusy(true);
@@ -135,7 +143,7 @@ export function RefundRequestPanel({
             <TextField
               label={
                 panel.action.kind === 'cancel'
-                  ? 'Why are you cancelling? (optional)'
+                  ? 'Why are you cancelling?'
                   : 'What went wrong?'
               }
               value={reason}
