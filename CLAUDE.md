@@ -469,6 +469,79 @@ Three things to keep:
   with no socket still polls rather than going blank. The screen tests mount
   without it.
 
+## Cancelling, and asking for a refund
+
+`features/refund/` is the panel on the order screen, and it offers **one** of
+three things — the server decides which, and this app keeps no second copy of
+the rule:
+
+- **Cancel order**, while **nothing has been paid**. Money is the gate, not
+  time: an unpaid order costs the branch nothing to drop, so it needs nobody's
+  approval. This app already shipped a `cancelOrder` API method that **no screen
+  called** — the same built-and-inert shape as promotions and opening hours.
+- **Ask to cancel this order / Ask for a refund** once money has been captured,
+  filing a `RefundRequest` the branch works in the admin panel. Before this, a
+  customer past the self-cancel point had no route at all: the API said
+  "contact the branch" and the platform recorded nothing.
+- **Nothing, quietly.** A "there's nothing left to refund" line under every past
+  order is noise, and a screen that nags about refunds is a screen that suggests
+  them.
+
+Four things it has to keep saying:
+
+- **A paid order cannot be cancelled from here at all**, however early. Once
+  money is captured, cancelling means giving it back, which is the branch's
+  decision — so the panel offers the *request*, and the server refuses a direct
+  cancel even if this app asked for one.
+- **Approved is not paid.** The branch agreeing and the owner sending the money
+  are separate acts, often hours apart (the owner issues it in the payment
+  gateway's dashboard). An approved request says the refund is **being
+  arranged**; only once the server reports `refundIssuedAt` does it say
+  **sent**. A customer told the second thing too early checks their statement
+  and rings the branch. A `MANUAL_SETTLEMENT` (cash) approval says the branch
+  will settle in person rather than implying money has moved.
+- **The decision is shown, not just the ask.** An approved, declined or
+  withdrawn request stays on screen with the branch's own words on it — a
+  customer with no way to learn what was decided is the whole failure this
+  replaces.
+- **Two clocks, both the server's.** 10 minutes from *placing* to ask the branch
+  to cancel; 10 minutes from *delivery* to ask for a refund. The app renders
+  `windowClosesAt` and the sentence that comes with it and holds neither number.
+  A reason is **required** on both paths — the cancel field's old "(optional)"
+  label led straight into a validation error the screen had promised would not
+  happen.
+
+`GET /customer/orders/:id/refund-eligibility` is the single read behind all of
+it, and both calls **fail soft**: a refund panel that cannot load must never
+cost somebody the sight of where their food is.
+
+## The driver marker moves on the news, not on the poll
+
+`useDriverLocation` (`src/realtime/`) subscribes to `driver.location` for the
+order on screen. The map used to move only when the tracking screen's
+eight-second poll came round, so the marker lagged reality by up to eight
+seconds on the one screen somebody watches *because* they want to know where
+their food is now.
+
+**The poll stays as the floor** — a phone that loses its socket in a lift still
+gets a marker, just a slower one. A pushed position wins over the polled one
+because it is strictly newer.
+
+`acceptDriverPing` (pure, tested) decides what to believe, and both its rules
+are correctness rather than tidiness:
+
+- **An unlabelled ping is dropped, not trusted** — deliberately the opposite of
+  `useOrderUpdates`, which treats an event with no `orderId` as relevant. A
+  needless refetch is cheap; a marker in the wrong place is a customer watching
+  a stranger drive around on the screen they opened to find their own dinner.
+- **Coordinates that are not numbers are dropped.** These are `Decimal` columns
+  and a `Decimal` serialises to a JSON *string* — the exact shape that crashed
+  this screen inside render once already (see above).
+
+The server decides *when* a customer is told at all: only while the delivery is
+`PICKED_UP` or `OUT_FOR_DELIVERY`, the same window in which the driver may ring
+them. This app holds no copy of that rule either.
+
 ## Order tracking says how far away, not a made-up ETA
 
 `OrderTrackingScreen` showed a hard-coded **"~15 min"** to every customer on
