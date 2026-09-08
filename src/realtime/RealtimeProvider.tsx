@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 
 import { API_BASE_URL } from '../api/config';
 import { useAuth } from '../auth/AuthProvider';
+import { acceptDriverPing } from './driver-ping';
 
 /**
  * The server events a customer's socket can receive.
@@ -10,9 +11,23 @@ import { useAuth } from '../auth/AuthProvider';
  * A customer joins exactly one room — their own — so this only ever carries
  * their own orders. Nothing branch-facing or driver-facing reaches this app.
  */
-export type RealtimeEvent = 'order.transitioned';
+export type RealtimeEvent = 'order.transitioned' | 'driver.location';
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
+
+/**
+ * What the backend sends a **customer** with `driver.location`.
+ *
+ * Deliberately smaller than the copy branch staff receive: a position, a time,
+ * and the order it belongs to. No driver id, no branch id — see the backend's
+ * `CustomerDriverLocationPayload`.
+ */
+export interface DriverLocationEvent {
+  orderId?: string;
+  latitude?: number;
+  longitude?: number;
+  at?: string;
+}
 
 /** What the backend sends with `order.transitioned` (see its `realtime.service.ts`). */
 export interface OrderEvent {
@@ -132,6 +147,40 @@ export function useRealtime(): RealtimeContextValue {
   return (
     useContext(RealtimeContext) ?? { status: 'disconnected', subscribe: () => () => undefined }
   );
+}
+
+/**
+ * The driver's position for one order, pushed as it changes.
+ *
+ * The map used to move only when the screen's eight-second poll came round, so
+ * the marker lagged reality by up to eight seconds — on the one screen somebody
+ * watches precisely because they want to know where their food is *now*.
+ *
+ * Returns `null` until the first ping arrives, and the caller keeps using
+ * whatever the poll gave it: this is an accelerator, not a replacement. A phone
+ * that loses its socket in a lift still gets a marker, just a slower one.
+ *
+ * Filtered on `orderId` for the same reason `useOrderUpdates` is — a customer
+ * with two deliveries out must not see one driver's position on the other's
+ * map. An event with no `orderId` is **dropped** here rather than trusted,
+ * which is the opposite of the reload hook's choice and deliberately so: a
+ * needless refetch is cheap, a marker in the wrong place is a customer watching
+ * a stranger drive around.
+ */
+export function useDriverLocation(orderId: string): DriverLocationEvent | null {
+  const { subscribe } = useRealtime();
+  const [location, setLocation] = useState<DriverLocationEvent | null>(null);
+
+  useEffect(() => {
+    setLocation(null);
+    return subscribe('driver.location', (payload: DriverLocationEvent) => {
+      if (acceptDriverPing(payload, orderId)) {
+        setLocation(payload);
+      }
+    });
+  }, [subscribe, orderId]);
+
+  return location;
 }
 
 /**
