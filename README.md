@@ -140,6 +140,32 @@ Three rules it keeps:
 Both calls fail soft: a refund panel that cannot load must never cost somebody
 the sight of where their food is.
 
+### The driver marker moves on the news, not on the poll
+
+`useDriverLocation` (`src/realtime/`) subscribes to `driver.location` for the
+order on screen. The map used to move only when the screen's eight-second poll
+came round — so the marker lagged reality by up to eight seconds on the one
+screen somebody watches *because* they want to know where their food is now.
+
+**The poll stays as the floor.** A phone that loses its socket in a lift still
+gets a marker, just a slower one; the push only removes the wait. A pushed
+position wins over the polled one when both exist, because it is strictly newer.
+
+`acceptDriverPing` (pure, tested) decides what to believe, and its two rules are
+correctness rather than tidiness:
+
+- **An unlabelled ping is dropped, not trusted** — the opposite of what
+  `useOrderUpdates` does with an unlabelled event, and deliberately so. A
+  needless refetch is cheap; a marker in the wrong place is a customer watching
+  a stranger drive around on the screen they opened to find their own dinner.
+- **Coordinates that are not numbers are dropped.** These are `Decimal` columns
+  and a `Decimal` serialises to a JSON *string* — the exact shape that once
+  crashed this screen inside render.
+
+The server decides *when* a customer is told at all: only while the delivery is
+`PICKED_UP` or `OUT_FOR_DELIVERY`, the same window in which the driver may ring
+them. This app holds no copy of that rule.
+
 ### Two rules this app inherits from the backend
 
 1. **An animation is never proof of payment.** `PaymentStateView` shows success

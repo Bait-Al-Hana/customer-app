@@ -13,7 +13,7 @@ import { ORDER_STATUS, ORDER_TYPE, OrderStatus } from '../types/backend';
 import { statusMeta as metaFor } from '../features/order/order-status.model';
 import type { DeliveryTracking, RefundEligibility, RefundRequest } from '../api/types';
 import { RootStackParamList } from '../navigation/types';
-import { useOrderUpdates } from '../realtime/RealtimeProvider';
+import { useDriverLocation, useOrderUpdates } from '../realtime/RealtimeProvider';
 import { formatSar } from '../util/money';
 import { driverProgress, freshnessLabel } from '../util/driverProgress';
 import { pointOf } from '../util/branchChoice';
@@ -114,6 +114,11 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
    */
   useOrderUpdates(orderId, refreshNow);
 
+  // The driver's position, pushed as it changes rather than waited for. The
+  // poll below still runs and still fills the map on a cold start; this only
+  // removes the wait between a ping landing on the server and the marker moving.
+  const livePosition = useDriverLocation(orderId);
+
   const goHome = (): void => navigation.reset({ index: 0, routes: [{ name: 'Tabs' }] });
   const isActive = order && ACTIVE.includes(order.status);
   const statusMeta = order ? metaFor(order.status) : null;
@@ -172,7 +177,11 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
           {/* Live delivery: driver + ETA + map */}
           {order.type === ORDER_TYPE.DELIVERY && HAS_DELIVERY.includes(order.status) ? (
             <FadeIn translateY={8} delay={120}>
-              <DeliveryPanel tracking={tracking.data} orderNumber={order.orderNumber} />
+              <DeliveryPanel
+                tracking={tracking.data}
+                orderNumber={order.orderNumber}
+                livePosition={livePosition}
+              />
             </FadeIn>
           ) : null}
 
@@ -233,7 +242,16 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
 }
 
 /** The driver/ETA/map panel, shown while a delivery is on the way. */
-function DeliveryPanel({ tracking, orderNumber }: { tracking: DeliveryTracking | null; orderNumber: string }): React.JSX.Element {
+function DeliveryPanel({
+  tracking,
+  orderNumber,
+  livePosition,
+}: {
+  tracking: DeliveryTracking | null;
+  orderNumber: string;
+  /** A pushed position, newer than the polled one whenever it exists. */
+  livePosition?: { latitude?: number; longitude?: number } | null;
+}): React.JSX.Element {
   const theme = useTheme();
   // Read through `pointOf`, never straight off the payload. These are `Decimal`
   // columns and `Prisma.Decimal` serialises to a JSON string, so an older
@@ -241,10 +259,15 @@ function DeliveryPanel({ tracking, orderNumber }: { tracking: DeliveryTracking |
   // crashed the web map (`.toFixed` on a string, inside render — this screen's
   // error boundary in a browser) and, more quietly, made every distance and ETA
   // vanish while the driver was pinging every thirty seconds.
-  const driverPoint = pointOf({
-    latitude: tracking?.driver?.currentLatitude,
-    longitude: tracking?.driver?.currentLongitude,
-  });
+  // A pushed ping wins over the polled snapshot: it is strictly newer, and the
+  // poll is up to eight seconds behind. It still goes through `pointOf`, which
+  // costs nothing and means one place to trust rather than two.
+  const driverPoint =
+    pointOf({ latitude: livePosition?.latitude, longitude: livePosition?.longitude }) ??
+    pointOf({
+      latitude: tracking?.driver?.currentLatitude,
+      longitude: tracking?.driver?.currentLongitude,
+    });
   const addressPoint = pointOf(tracking?.addressSnapshot);
   const driverLat = driverPoint?.latitude ?? null;
   const driverLng = driverPoint?.longitude ?? null;
