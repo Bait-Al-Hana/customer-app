@@ -93,8 +93,9 @@ are mount-tested to prove every state renders without throwing. See
 `features/refund/` is the panel on the order screen. It offers **one** of three
 things, and the server decides which:
 
-- **Cancel order**, while the order engine still allows a customer to cancel
-  outright. This app already had a `cancelOrder` API method and **no screen
+- **Cancel order**, while **nothing has been paid**. Money is the gate, not
+  time: an unpaid order costs the branch nothing to drop, so it needs nobody's
+  approval. This app already had a `cancelOrder` API method and **no screen
   called it** — the feature existed and was unreachable.
 - **Ask to cancel this order / Ask for a refund**, once it does not. That files
   a `RefundRequest` the branch works through the admin panel. Before it, a
@@ -124,11 +125,17 @@ Three rules it keeps:
    order there is no online refund at all, and the panel says the branch will
    settle it in person rather than implying money has moved.
 
-4. **Cancelling and asking are on different clocks.** A customer has 10 minutes
-   from placing an order to ask the branch to cancel it; a refund on a delivered
-   order has its own window (currently none). Both are the server's rule — the
-   app renders `windowClosesAt` and the sentence that comes with it, and holds no
-   copy of either number.
+4. **Cancelling and asking are on different clocks.** 10 minutes from *placing*
+   to ask the branch to cancel; 10 minutes from *delivery* to ask for a refund.
+   Both are the server's rule — the app renders `windowClosesAt` and the sentence
+   that comes with it, and holds no copy of either number.
+
+5. **A paid order cannot be cancelled from here at all**, however early. Once
+   money is captured, cancelling means giving it back, which is the branch's
+   decision — so the panel offers the request instead, and the server refuses a
+   direct cancel even if this app asked for one. A reason is required on both
+   paths; the "(optional)" label the cancel field used to carry would have led
+   straight into a validation error the screen had promised wouldn't happen.
 
 Both calls fail soft: a refund panel that cannot load must never cost somebody
 the sight of where their food is.

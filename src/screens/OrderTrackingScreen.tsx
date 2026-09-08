@@ -211,7 +211,7 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
               eligibility={eligibility.data ?? null}
               requests={refundRequests.data ?? []}
               onCancelOrder={async (reason) => {
-                await api.cancelOrder(orderId, reason || undefined);
+                await api.cancelOrder(orderId, reason);
                 refreshNow();
               }}
               onRequest={async (reason) => {
