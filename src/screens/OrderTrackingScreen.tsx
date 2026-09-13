@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 
 import { useAuth } from '../auth/AuthProvider';
 import { AppText, Button, Card, Divider, PriceRow, Screen } from '../components';
@@ -191,12 +192,6 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
               <AppText variant="h3" style={{ marginBottom: 10 }}>
                 Order details
               </AppText>
-              {/* Guarded for the same reason `driver.user` is: the type
-                  promises an array, and a type is a promise about a local
-                  value rather than about what a server two deploys ahead
-                  actually sends. `.map` on an absent field throws inside
-                  render, which on this screen costs the customer the only
-                  view of where their food is. */}
               {(order.items ?? []).map((item) => (
                 <View key={item.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
                   <AppText variant="body" style={{ flex: 1 }} numberOfLines={1}>
@@ -212,9 +207,25 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
             </Card>
           </FadeIn>
 
-          {/* Cancelling, or saying something went wrong. Sits after the order
-              details because it is what you reach for having read them, and
-              before "Back to home" because that is the way out. */}
+          {/* ZATCA e-invoice QR code */}
+          {order.zatcaQrData ? (
+            <FadeIn translateY={8} delay={200}>
+              <Card elevated>
+                <AppText variant="h3" style={{ marginBottom: 8, textAlign: 'center' }}>
+                  E-Invoice
+                </AppText>
+                <View style={{ alignItems: 'center', marginBottom: 8 }}>
+                  <QRCode value={order.zatcaQrData} size={180} />
+                </View>
+                {order.zatcaInvoiceNumber ? (
+                  <AppText variant="caption" color="textMuted" center>
+                    Invoice #{order.zatcaInvoiceNumber}
+                  </AppText>
+                ) : null}
+              </Card>
+            </FadeIn>
+          ) : null}
+
           <FadeIn translateY={8} delay={220}>
             <RefundRequestPanel
               eligibility={eligibility.data ?? null}
