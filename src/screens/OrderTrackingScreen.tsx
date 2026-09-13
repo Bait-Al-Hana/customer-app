@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 
 import { useAuth } from '../auth/AuthProvider';
 import { Card, PrimaryButton, Screen } from '../components/ui';
@@ -109,6 +110,22 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
               <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{formatSar(order.totalMinor)}</Text>
             </View>
           </Card>
+
+          {order.zatcaQrData ? (
+            <Card>
+              <Text style={{ color: theme.colors.text, fontWeight: '700', marginBottom: 8, textAlign: 'center' }}>
+                E-Invoice
+              </Text>
+              <View style={{ alignItems: 'center', marginBottom: 8 }}>
+                <QRCode value={order.zatcaQrData} size={180} />
+              </View>
+              {order.zatcaInvoiceNumber ? (
+                <Text style={{ color: theme.colors.textMuted, textAlign: 'center', fontSize: 12 }}>
+                  Invoice #{order.zatcaInvoiceNumber}
+                </Text>
+              ) : null}
+            </Card>
+          ) : null}
 
           <PrimaryButton label="Back to home" onPress={() => navigation.replace('Branches')} />
         </ScrollView>

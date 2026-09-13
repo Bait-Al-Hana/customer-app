@@ -101,6 +101,10 @@ export interface Order {
   totalMinor: number;
   items: OrderItem[];
   placedAt: string;
+  zatcaQrData?: string | null;
+  zatcaInvoiceNumber?: string | null;
+  zatcaStatus?: string | null;
+  zatcaSubmittedAt?: string | null;
 }
 
 export interface Payment {
