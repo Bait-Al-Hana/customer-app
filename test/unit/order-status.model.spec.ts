@@ -1,4 +1,8 @@
-import { buildOrderTimeline, STATUS_META } from '../../src/features/order/order-status.model';
+import {
+  buildOrderTimeline,
+  STATUS_META,
+  statusMeta,
+} from '../../src/features/order/order-status.model';
 import { ORDER_STATUS, ORDER_TYPE, OrderStatus } from '../../src/types/backend';
 
 const ALL_STATUSES = Object.values(ORDER_STATUS) as OrderStatus[];
@@ -114,5 +118,76 @@ describe('buildOrderTimeline', () => {
       expect(STATUS_META[status]).toBeDefined();
       expect(STATUS_META[status].label.length).toBeGreaterThan(0);
     }
+  });
+});
+
+/**
+ * Statuses transcribed from the backend's Prisma `OrderStatus` enum.
+ *
+ * Deliberately a literal list and **not** derived from `ORDER_STATUS`. Every
+ * other test in this file iterates the app's own enum, which is exactly why
+ * none of them caught `AWAITING_ACCEPTANCE` going missing: a test that walks
+ * the client's list can only ever prove the client is consistent with itself.
+ * The failure was that the list was short, and the only way to see that is to
+ * compare it with something the client does not own.
+ *
+ * When the backend adds a status, add it here first — this test failing is the
+ * intended way to find out.
+ */
+const BACKEND_ORDER_STATUSES = [
+  'PENDING_PAYMENT',
+  'AWAITING_ACCEPTANCE',
+  'CONFIRMED',
+  'PREPARING',
+  'READY',
+  'DRIVER_ASSIGNED',
+  'PICKED_UP',
+  'OUT_FOR_DELIVERY',
+  'DELIVERED',
+  'PAYMENT_FAILED',
+  'CANCELLED',
+  'REFUND_PENDING',
+  'PARTIALLY_REFUNDED',
+  'REFUNDED',
+] as const;
+
+describe('the status list matches the backend', () => {
+  it('knows every status the backend can send', () => {
+    expect(Object.values(ORDER_STATUS).sort()).toEqual([...BACKEND_ORDER_STATUSES].sort());
+  });
+
+  /**
+   * AWAITING_ACCEPTANCE named explicitly, because it is the one that shipped
+   * broken: only a branch with autoAcceptOrders = false produces it, so every
+   * auto-accept branch anyone tested against ran fine.
+   */
+  it('renders a manual-accept branch’s post-payment status', () => {
+    const meta = statusMeta('AWAITING_ACCEPTANCE' as OrderStatus);
+    expect(meta.label).toBe('Sent to the branch');
+    expect(meta.tone).toBe('progress');
+
+    const timeline = buildOrderTimeline('AWAITING_ACCEPTANCE' as OrderStatus, ORDER_TYPE.DELIVERY);
+    expect(timeline.currentLabel).toBe('Sent to the branch');
+    // The customer has paid. The screen must not imply otherwise.
+    expect(timeline.phase).not.toBe('awaiting_payment');
+  });
+});
+
+describe('statusMeta', () => {
+  it('labels a status this build has never heard of, rather than throwing', () => {
+    // What a backend deploy ahead of an app release looks like on a phone that
+    // cannot be updated. Indexing STATUS_META directly returned undefined here,
+    // and the next property read unmounted the tree.
+    const meta = statusMeta('SOME_FUTURE_STATUS' as OrderStatus);
+    expect(meta.label).toBe('In progress');
+    expect(meta.tone).toBe('progress');
+  });
+
+  it('never claims an unknown status is unpaid', () => {
+    // The one direction that must not be got wrong: an order the customer has
+    // already paid for must never be described as awaiting payment.
+    const timeline = buildOrderTimeline('SOME_FUTURE_STATUS' as OrderStatus, ORDER_TYPE.DELIVERY);
+    expect(timeline.phase).not.toBe('awaiting_payment');
+    expect(timeline.currentLabel.toLowerCase()).not.toContain('payment');
   });
 });

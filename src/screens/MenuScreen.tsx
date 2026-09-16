@@ -1,24 +1,40 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { ScrollView, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
-import { Card, Screen } from '../components/ui';
+import { AppText, Chip, FoodListItem, Screen } from '../components';
+import { toFoodCard } from '../data/menu';
+import { menuPriceMinor } from '../util/menuPrice';
+import { useFavorites } from '../favorites/FavoritesProvider';
+import { FloatingCart } from '../components/FloatingCart';
 import { useAsync } from '../hooks/useAsync';
-import { CartBadge, EmptyState, ErrorState, PressableScale, Skeleton } from '../motion';
+import { EmptyState, ErrorState, Shimmer, Stagger } from '../motion';
 import { RootStackParamList } from '../navigation/types';
-import { formatSar } from '../util/money';
 import { useTheme } from '../theme/theme';
 import type { MenuProduct } from '../api/types';
 
-/** A branch menu: browse categories/products and add to cart. */
+/** A branch menu: sticky category chips, grouped food list, tap-through to detail. */
 export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'Menu'>): React.JSX.Element {
   const theme = useTheme();
   const { api } = useAuth();
-  const { cart, count, dispatch } = useCart();
-  const { branchId, branchName } = route.params;
+  const { cart, dispatch } = useCart();
+  const favorites = useFavorites();
+  const { branchId, branchName, categoryId } = route.params;
   const { data, loading, error, reload } = useAsync(() => api.menu(branchId), [branchId]);
+
+  const [activeCategory, setActiveCategory] = useState<string | null>(categoryId ?? null);
+  const scrollRef = useRef<ScrollView>(null);
+  const sectionOffsets = useRef<Record<string, number>>({});
+
+  const categories = useMemo(() => data?.categories ?? [], [data]);
+  const shown = useMemo(() => {
+    if (!activeCategory) {
+      return categories;
+    }
+    return categories.filter((c) => c.id === activeCategory);
+  }, [categories, activeCategory]);
 
   const add = (product: MenuProduct): void => {
     dispatch({
@@ -27,102 +43,77 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
       line: {
         productId: product.id,
         productName: product.name,
-        unitPriceMinor: product.priceMinor,
+        // The same price the card shows. A quick-add that stored the pickup
+        // price would make the cart estimate disagree with the menu the
+        // customer just read.
+        unitPriceMinor: menuPriceMinor(product),
         addonIds: [],
         addonNames: [],
       },
     });
   };
-
-  const cartButton = (
-    <PressableScale accessibilityRole="button" accessibilityLabel="View cart" onPress={() => navigation.navigate('Cart')}>
-      <View>
-        <Text style={{ fontSize: 24 }}>🛒</Text>
-        <View style={{ position: 'absolute', top: -6, right: -10 }}>
-          <CartBadge count={count} />
-        </View>
-      </View>
-    </PressableScale>
-  );
+  const openProduct = (product: MenuProduct): void => navigation.navigate('Product', { branchId, product });
 
   return (
-    <Screen title={branchName} onBack={() => navigation.goBack()} right={cartButton}>
+    <Screen title={branchName} onBack={() => navigation.goBack()}>
       {loading ? (
-        <View style={{ padding: 20, gap: 12 }}>
+        <View style={{ padding: 16, gap: 12 }}>
+          <Shimmer height={24} width="40%" radius={theme.radius.sm} />
           {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} height={72} radius={theme.radius.md} />
+            <Shimmer key={i} height={116} radius={theme.radius.lg} />
           ))}
         </View>
       ) : error ? (
-        <ErrorState title="Couldn’t load the menu" message={error.message} actionLabel="Retry" onAction={reload} />
-      ) : !data || data.categories.length === 0 ? (
+        <ErrorState title="Couldn't load the menu" message={error.message} actionLabel="Retry" onAction={reload} />
+      ) : !data || categories.length === 0 ? (
         <EmptyState title="Menu is empty" message="This branch has nothing available right now." />
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: count > 0 ? 96 : 24 }}>
-          {data.categories.map((category) => (
-            <View key={category.id} style={{ marginBottom: 20 }}>
-              <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800', marginBottom: 10 }}>
-                {category.name}
-              </Text>
-              <View style={{ gap: 10 }}>
-                {category.products.map((product) => (
-                  <Card key={product.id}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <View style={{ flex: 1, paddingRight: 12 }}>
-                        <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>{product.name}</Text>
-                        {product.description ? (
-                          <Text style={{ color: theme.colors.textMuted, marginTop: 2 }} numberOfLines={2}>
-                            {product.description}
-                          </Text>
-                        ) : null}
-                        <Text style={{ color: theme.colors.primary, fontWeight: '700', marginTop: 6 }}>
-                          {formatSar(product.priceMinor)}
-                        </Text>
+        <>
+          {/* Sticky category chips */}
+          <View style={{ paddingBottom: 8 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+              <Chip label="All" selected={!activeCategory} onPress={() => setActiveCategory(null)} />
+              {categories.map((c) => (
+                <Chip key={c.id} label={c.name} selected={activeCategory === c.id} onPress={() => setActiveCategory(c.id)} />
+              ))}
+            </ScrollView>
+          </View>
+
+          <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingTop: 8, paddingBottom: 140 }}>
+            {shown.map((category) => (
+              <View
+                key={category.id}
+                style={{ marginBottom: 24 }}
+                onLayout={(e) => {
+                  sectionOffsets.current[category.id] = e.nativeEvent.layout.y;
+                }}
+              >
+                <AppText variant="h2" style={{ marginBottom: 12 }}>
+                  {category.name}
+                </AppText>
+                <Stagger>
+                  {category.products.map((product) => {
+                    const card = toFoodCard(product);
+                    return (
+                      <View key={product.id} style={{ marginBottom: 10 }}>
+                        <FoodListItem
+                          data={card}
+                          onPress={() => openProduct(product)}
+                          onAdd={() => add(product)}
+                          favorite={favorites.isFavorite(product.id)}
+                          onToggleFavorite={() => favorites.toggle(card)}
+                        />
                       </View>
-                      <PressableScale
-                        accessibilityRole="button"
-                        accessibilityLabel={`Add ${product.name}`}
-                        onPress={() => add(product)}
-                        style={{
-                          backgroundColor: theme.colors.primary,
-                          width: 40,
-                          height: 40,
-                          borderRadius: 20,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Text style={{ color: theme.colors.onPrimary, fontSize: 24, fontWeight: '700' }}>+</Text>
-                      </PressableScale>
-                    </View>
-                  </Card>
-                ))}
+                    );
+                  })}
+                </Stagger>
               </View>
-            </View>
-          ))}
-        </ScrollView>
+            ))}
+          </ScrollView>
+        </>
       )}
 
-      {count > 0 && cart.branchId === branchId ? (
-        <View style={{ position: 'absolute', left: 16, right: 16, bottom: 20 }}>
-          <PressableScale
-            accessibilityRole="button"
-            onPress={() => navigation.navigate('Cart')}
-            style={{
-              backgroundColor: theme.colors.primary,
-              borderRadius: theme.radius.pill,
-              paddingVertical: 16,
-              paddingHorizontal: 20,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Text style={{ color: theme.colors.onPrimary, fontWeight: '800', fontSize: 16 }}>View cart</Text>
-            <Text style={{ color: theme.colors.onPrimary, fontWeight: '800', fontSize: 16 }}>{count} item{count === 1 ? '' : 's'}</Text>
-          </PressableScale>
-        </View>
-      ) : null}
+      {cart.branchId === branchId ? <FloatingCart /> : null}
     </Screen>
   );
 }

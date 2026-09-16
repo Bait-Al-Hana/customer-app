@@ -10,9 +10,14 @@
  */
 module.exports = {
   preset: 'jest-expo',
+  // Reanimated 4 sits on `react-native-worklets`, whose `.native` entry point
+  // installs native bindings at import time and throws under jest. The resolver
+  // the package ships strips the `.native` extensions for its own files, which
+  // is what makes the official mock importable at all.
+  resolver: 'react-native-worklets/jest/resolver',
   setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
   roots: ['<rootDir>/test/components'],
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|react-native-reanimated|react-native-gesture-handler))',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|react-native-reanimated|react-native-worklets|react-native-gesture-handler|moti|@motify))',
   ],
 };

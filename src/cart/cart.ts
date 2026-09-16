@@ -12,15 +12,23 @@
  */
 
 export interface CartLine {
-  /** Stable key for the line: product + sorted addon ids. */
+  /** Stable key for the line: product + chosen variant + sorted addon ids. */
   key: string;
   productId: string;
   productName: string;
-  /** Per-unit display price in minor units, from the menu (product + addons). */
+  /** Per-unit display price in minor units, from the menu (variant + addons). */
   unitPriceMinor: number;
   quantity: number;
   addonIds: string[];
   addonNames: string[];
+  /**
+   * The chosen variant (size). The backend accepts `productVariantId` on
+   * `OrderItemInput`; when set, the variant's price replaces the product's
+   * base price. Kept optional — a menu item with no variants is priced
+   * from its base.
+   */
+  variantId?: string;
+  variantName?: string;
 }
 
 export interface Cart {
@@ -36,9 +44,17 @@ export type CartAction =
   | { type: 'REMOVE'; key: string }
   | { type: 'CLEAR' };
 
-/** A stable line key so the same product+addons stacks instead of duplicating. */
-export function lineKey(productId: string, addonIds: readonly string[]): string {
-  return [productId, ...[...addonIds].sort()].join('|');
+/**
+ * A stable line key so the same product+variant+addons stacks instead of
+ * duplicating. `variantId` is optional and, when omitted, the key is exactly the
+ * previous product+addons form (kept backward compatible on purpose).
+ */
+export function lineKey(productId: string, addonIds: readonly string[], variantId?: string): string {
+  const parts = [productId, ...[...addonIds].sort()];
+  if (variantId) {
+    parts.push(`v:${variantId}`);
+  }
+  return parts.join('|');
 }
 
 export function cartReducer(state: Cart, action: CartAction): Cart {
@@ -47,7 +63,7 @@ export function cartReducer(state: Cart, action: CartAction): Cart {
       // Adding from a different branch replaces the cart — an order is always
       // for one branch, and mixing would be meaningless.
       const base = state.branchId === action.branchId ? state : { branchId: action.branchId, lines: [] };
-      const key = lineKey(action.line.productId, action.line.addonIds);
+      const key = lineKey(action.line.productId, action.line.addonIds, action.line.variantId);
       const qty = Math.max(1, action.quantity ?? 1);
       const existing = base.lines.find((l) => l.key === key);
       const lines = existing
@@ -88,7 +104,14 @@ export function estimatedTotalMinor(cart: Cart): number {
   return cart.lines.reduce((sum, l) => sum + l.unitPriceMinor * l.quantity, 0);
 }
 
-/** The cart as the order/quote API expects it: product ids, quantities, addons. */
-export function toOrderItems(cart: Cart): { productId: string; quantity: number; addonIds: string[] }[] {
-  return cart.lines.map((l) => ({ productId: l.productId, quantity: l.quantity, addonIds: l.addonIds }));
+/** The cart as the order/quote API expects it: product ids, quantities, addons, chosen variant. */
+export function toOrderItems(
+  cart: Cart,
+): { productId: string; productVariantId?: string; quantity: number; addonIds: string[] }[] {
+  return cart.lines.map((l) => ({
+    productId: l.productId,
+    ...(l.variantId ? { productVariantId: l.variantId } : {}),
+    quantity: l.quantity,
+    addonIds: l.addonIds,
+  }));
 }

@@ -73,7 +73,23 @@ export interface RequestOptions {
   /** Skip the bearer token (public endpoints). */
   public?: boolean;
   signal?: AbortSignal;
+  /** Extra headers. Used for `Idempotency-Key` on order placement. */
+  headers?: Record<string, string>;
+  /**
+   * Deadline for one attempt, in milliseconds. Defaults to
+   * `DEFAULT_TIMEOUT_MS`. Pass `0` to wait indefinitely.
+   *
+   * `fetch` has no timeout of its own: a request to a host that accepts the
+   * connection and then never answers stays pending forever, and the screen
+   * that awaited it keeps its spinner until the app is force-quit. A customer
+   * on a flaky mobile connection hits that regularly, so every request needs a
+   * deadline whether or not its caller thought to pass one.
+   */
+  timeoutMs?: number;
 }
+
+/** Long enough for a slow mobile network, short enough to fail visibly. */
+export const DEFAULT_TIMEOUT_MS = 20_000;
 
 export class ApiClient {
   constructor(
@@ -82,7 +98,9 @@ export class ApiClient {
   ) {}
 
   async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-    const doFetch = (): Promise<Response> => {
+    const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
+    const doFetch = async (): Promise<Response> => {
       const headers: Record<string, string> = { Accept: 'application/json' };
       if (options.body !== undefined) {
         headers['Content-Type'] = 'application/json';
@@ -91,19 +109,37 @@ export class ApiClient {
       if (token) {
         headers.Authorization = `Bearer ${token}`;
       }
-      return fetch(joinUrl(this.baseUrl, path), {
-        method: options.method ?? 'GET',
-        headers,
-        body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-        signal: options.signal,
-      });
+      Object.assign(headers, options.headers ?? {});
+
+      // A fresh timer per attempt — the 401 retry below gets its own full
+      // deadline rather than inheriting whatever was left of the first one.
+      const controller = timeoutMs > 0 ? new AbortController() : null;
+      const timer =
+        controller !== null ? setTimeout(() => controller.abort(), timeoutMs) : null;
+      // A caller-supplied signal still wins: aborting it aborts the attempt.
+      const onCallerAbort = (): void => controller?.abort();
+      options.signal?.addEventListener('abort', onCallerAbort);
+
+      try {
+        return await fetch(joinUrl(this.baseUrl, path), {
+          method: options.method ?? 'GET',
+          headers,
+          body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+          signal: controller ? controller.signal : options.signal,
+        });
+      } finally {
+        if (timer !== null) {
+          clearTimeout(timer);
+        }
+        options.signal?.removeEventListener('abort', onCallerAbort);
+      }
     };
 
     let response: Response;
     try {
       response = await doFetch();
-    } catch {
-      throw new ApiError({ statusCode: 0, code: 'NETWORK', message: 'No connection. Check your network and try again.' });
+    } catch (e) {
+      throw new ApiError({ statusCode: 0, code: 'NETWORK', message: networkErrorMessage(e) });
     }
 
     // One retry after a successful token refresh on 401.
@@ -112,8 +148,8 @@ export class ApiClient {
       if (refreshed) {
         try {
           response = await doFetch();
-        } catch {
-          throw new ApiError({ statusCode: 0, code: 'NETWORK', message: 'No connection. Check your network and try again.' });
+        } catch (e) {
+          throw new ApiError({ statusCode: 0, code: 'NETWORK', message: networkErrorMessage(e) });
         }
       }
     }
@@ -138,4 +174,18 @@ function safeParse(text: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+function networkErrorMessage(e: unknown): string {
+  const raw = e instanceof Error ? e.message : '';
+  if (/network request failed/i.test(raw)) {
+    return 'Could not reach the server. Check your internet connection and try again.';
+  }
+  if (/cors/i.test(raw) || /access-control/i.test(raw) || /blocked/i.test(raw)) {
+    return 'The server refused the request (CORS). Please contact support.';
+  }
+  if (/abort/i.test(raw) || /timeout/i.test(raw)) {
+    return 'The request timed out. Please try again.';
+  }
+  return 'Could not reach the server. Check your internet connection and try again.';
 }
