@@ -18,6 +18,9 @@ export function BranchesScreen({ navigation }: NativeStackScreenProps<RootStackP
 
   const signOutButton = (
     <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
+      <PressableScale accessibilityRole="button" accessibilityLabel="Offers" onPress={() => navigation.navigate('Offers')}>
+        <Text style={{ color: theme.colors.accent, fontWeight: '600' }}>Offers</Text>
+      </PressableScale>
       <PressableScale accessibilityRole="button" accessibilityLabel="My orders" onPress={() => navigation.navigate('Orders')}>
         <Text style={{ color: theme.colors.accent, fontWeight: '600' }}>Orders</Text>
       </PressableScale>

@@ -1,6 +1,6 @@
 import { OrderType, PaymentMethod } from '../types/backend';
 import { ApiClient } from './http';
-import { Address, AuthTokens, Branch, DeliveryTracking, Menu, Order, Payment, PriceQuote } from './types';
+import { Address, AuthTokens, Branch, CustomerConfig, DeliveryTracking, Menu, Order, Payment, PriceQuote } from './types';
 
 export interface AddressInput {
   label?: string;
@@ -53,6 +53,11 @@ export class Api {
 
   quote(input: { branchId: string; type: OrderType; items: OrderItemInput[] }): Promise<PriceQuote> {
     return this.http.request('/pricing/quote', { method: 'POST', body: input, public: true });
+  }
+
+  // --- Customer config (public) ----------------------------------------------
+  customerConfig(): Promise<CustomerConfig> {
+    return this.http.request('/customer/config', { public: true });
   }
 
   // --- Customer orders (authenticated) --------------------------------------

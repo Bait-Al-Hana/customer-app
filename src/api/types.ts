@@ -131,6 +131,26 @@ export interface Address {
   isDefault: boolean;
 }
 
+export interface Offer {
+  id: string;
+  code: string;
+  name: string;
+  nameAr: string | null;
+  description: string | null;
+  descriptionAr: string | null;
+  imageUrl: string | null;
+  discountType: 'PERCENTAGE' | 'FIXED';
+  discountValue: number;
+  maxDiscountMinor: number | null;
+  minOrderMinor: number | null;
+  startsAt: string | null;
+  endsAt: string | null;
+}
+
+export interface CustomerConfig {
+  offers: Offer[];
+}
+
 export interface DeliveryTracking {
   id: string;
   orderId: string;
