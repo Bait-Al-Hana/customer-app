@@ -110,6 +110,8 @@ export type ZatcaSubmissionState = 'PENDING' | 'REPORTED' | 'CLEARED' | 'FAILED'
 export interface TaxInvoice {
   orderNumber: string;
   referenceId: string;
+  branchName: string;
+  branchNameAr: string | null;
   isTaxInvoice: true;
   serialNumber: string;
   submissionStatus: ZatcaSubmissionState;

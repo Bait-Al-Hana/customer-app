@@ -66,6 +66,7 @@ export function InvoiceScreen({
           </Card>
 
           <Card>
+            <Row label="Branch" value={data.branchName} theme={theme} />
             <Row label="Order" value={`#${data.orderNumber}`} theme={theme} />
             <Row label="Reference" value={data.referenceId} theme={theme} />
             <Row label="Subtotal (excl. VAT)" value={formatSar(data.totalExclusiveMinor)} theme={theme} />
