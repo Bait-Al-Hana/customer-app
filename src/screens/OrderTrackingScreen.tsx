@@ -110,6 +110,13 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
             </View>
           </Card>
 
+          {order.paymentStatus === 'PAID' ? (
+            <PrimaryButton
+              label="View tax invoice"
+              onPress={() => navigation.navigate('Invoice', { orderId: order.id })}
+            />
+          ) : null}
+
           <PrimaryButton label="Back to home" onPress={() => navigation.replace('Branches')} />
         </ScrollView>
       ) : null}

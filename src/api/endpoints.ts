@@ -1,6 +1,16 @@
 import { OrderType, PaymentMethod } from '../types/backend';
 import { ApiClient } from './http';
-import { Address, AuthTokens, Branch, DeliveryTracking, Menu, Order, Payment, PriceQuote } from './types';
+import {
+  Address,
+  AuthTokens,
+  Branch,
+  DeliveryTracking,
+  Menu,
+  Order,
+  Payment,
+  PriceQuote,
+  TaxInvoice,
+} from './types';
 
 export interface AddressInput {
   label?: string;
@@ -78,6 +88,11 @@ export class Api {
 
   cancelOrder(id: string, reason?: string): Promise<Order> {
     return this.http.request(`/customer/orders/${id}/cancel`, { method: 'POST', body: { reason } });
+  }
+
+  /** The ZATCA tax invoice RestoPOS issued for this order (404 until issued). */
+  taxInvoice(id: string): Promise<TaxInvoice> {
+    return this.http.request(`/customer/orders/${id}/invoice`);
   }
 
   // --- Addresses (authenticated) --------------------------------------------

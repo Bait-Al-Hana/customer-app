@@ -103,6 +103,25 @@ export interface Order {
   placedAt: string;
 }
 
+/** ZATCA submission state of the customer's tax invoice. */
+export type ZatcaSubmissionState = 'PENDING' | 'REPORTED' | 'CLEARED' | 'FAILED';
+
+/** The ZATCA tax invoice RestoPOS issued for an order (read-only to the app). */
+export interface TaxInvoice {
+  orderNumber: string;
+  referenceId: string;
+  isTaxInvoice: true;
+  serialNumber: string;
+  submissionStatus: ZatcaSubmissionState;
+  /** TLV-encoded, base64 QR payload — rendered as the invoice QR. */
+  qr: string | null;
+  invoiceHash: string | null;
+  totalExclusiveMinor: number;
+  totalVatMinor: number;
+  totalInclusiveMinor: number;
+  issuedAt: string;
+}
+
 export interface Payment {
   id: string;
   orderId: string;
