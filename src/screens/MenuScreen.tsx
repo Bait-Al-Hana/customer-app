@@ -1,5 +1,6 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthProvider';
@@ -22,7 +23,19 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const { cart, dispatch } = useCart();
   const favorites = useFavorites();
   const { branchId, branchName, categoryId } = route.params;
-  const { data, loading, error, reload } = useAsync(() => api.menu(branchId), [branchId]);
+  const { data, loading, error, reload, refresh } = useAsync(() => api.menu(branchId), [branchId]);
+
+  // Catch the menu up each time the customer opens or returns to this branch —
+  // an owner who just changed a photo, price or availability sees it without
+  // closing the app. `refresh` is silent: the current menu stays on screen
+  // while it reloads, so returning never flashes skeletons. (Live push onto an
+  // already-open screen would need a menu-change socket channel the backend
+  // does not emit yet; this covers "without a manual reload".)
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
 
   const [activeCategory, setActiveCategory] = useState<string | null>(categoryId ?? null);
   const scrollRef = useRef<ScrollView>(null);
