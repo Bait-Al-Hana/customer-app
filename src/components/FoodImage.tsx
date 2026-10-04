@@ -1,7 +1,9 @@
 import React from 'react';
 import { Image, StyleProp, Text, View, ViewStyle } from 'react-native';
 
+import { API_BASE_URL } from '../api/config';
 import { useTheme } from '../theme/theme';
+import { resolveImageUrl } from '../util/imageUrl';
 
 /**
  * A food image that always renders something sensible.
@@ -27,7 +29,12 @@ export function FoodImage({
 }): React.JSX.Element {
   const theme = useTheme();
   const [failed, setFailed] = React.useState(false);
-  const showImage = !!uri && !failed;
+  // An uploaded image is stored as a relative /assets/<id> path, which an
+  // <Image> cannot load on its own — resolve it against the API base so an
+  // owner's uploaded photo shows instead of the glyph placeholder. A legacy
+  // absolute URL passes through unchanged.
+  const resolved = resolveImageUrl(uri, API_BASE_URL);
+  const showImage = !!resolved && !failed;
 
   return (
     <View
@@ -45,7 +52,7 @@ export function FoodImage({
     >
       {showImage ? (
         <Image
-          source={{ uri: uri as string }}
+          source={{ uri: resolved as string }}
           resizeMode="cover"
           onError={() => setFailed(true)}
           style={{ width: '100%', height: '100%' }}

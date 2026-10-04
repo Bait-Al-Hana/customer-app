@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
 import { Image, ScrollView, View } from 'react-native';
 
+import { API_BASE_URL } from '../api/config';
 import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
 import { AppText, Card, Screen } from '../components';
@@ -12,6 +13,7 @@ import { EmptyState, ErrorState, PressableScale, Skeleton, Toast } from '../moti
 import { MainTabParamList } from '../navigation/types';
 import type { CustomerConfig, Offer, Promotion } from '../api/types';
 import { useTheme } from '../theme/theme';
+import { resolveImageUrl } from '../util/imageUrl';
 import { formatSar } from '../util/money';
 import { promotionApplies, promotionHeadline, visiblePromotions } from '../util/promotion';
 
@@ -129,7 +131,9 @@ function OfferCard({
         // was a strip across the top of the card rather than the banner it was
         // made as. 16:9 gives it the full width of the card on any screen.
         <Image
-          source={{ uri: offer.imageUrl }}
+          // Uploaded artwork is a relative /assets/<id> path; resolve it
+          // against the API base or the owner's offer image never loads.
+          source={{ uri: resolveImageUrl(offer.imageUrl, API_BASE_URL) ?? undefined }}
           style={{
             width: '100%',
             aspectRatio: 16 / 9,
@@ -227,7 +231,8 @@ function PromotionCard({ promotion }: { promotion: Promotion }): React.JSX.Eleme
     <Card padded={false} elevated>
       {promotion.imageUrl ? (
         <Image
-          source={{ uri: promotion.imageUrl }}
+          // Same as the offer card: an uploaded path must be resolved.
+          source={{ uri: resolveImageUrl(promotion.imageUrl, API_BASE_URL) ?? undefined }}
           style={{
             width: '100%',
             aspectRatio: 16 / 9,
