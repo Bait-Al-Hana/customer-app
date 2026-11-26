@@ -47,7 +47,18 @@ export interface MenuProduct {
   description: string | null;
   imageUrl: string | null;
   priceMinor: number;
+  /** Delivery price (the pickup price plus the branch/product uplift). */
+  deliveryPriceMinor: number;
   taxClass: string;
+  /**
+   * Whether this branch currently sells the product. The backend only rejects
+   * an unavailable item at *placement*, so a client that ignores this flag lets
+   * a customer build a cart that fails at checkout with them standing there.
+   * Every cart-building path must honour it.
+   */
+  isAvailable: boolean;
+  /** When a timed stock-out ends (ISO-8601 UTC), or null — on sale, or off with no time promised. */
+  unavailableUntil: string | null;
   variants: { id: string; name: string; priceMinor: number; isDefault: boolean }[];
   modifierGroups: MenuModifierGroup[];
 }
@@ -78,13 +89,23 @@ export interface PriceQuote {
   vatRate: string;
 }
 
+export interface OrderItemModifier {
+  id: string;
+  /** Null when the add-on has since been deleted from the catalog. */
+  addonId: string | null;
+  addonName: string;
+}
+
 export interface OrderItem {
   id: string;
+  /** Null when the product has since been deleted from the catalog. */
+  productId: string | null;
   productName: string;
   variantName: string | null;
   quantity: number;
   unitPriceMinor: number;
   lineTotalMinor: number;
+  modifiers?: OrderItemModifier[];
 }
 
 export interface Order {
@@ -110,6 +131,46 @@ export interface Payment {
   method: string | null;
   amountMinor: number;
   gatewayName: string;
+}
+
+/**
+ * A published offer — an owner's public coupon, from `GET /customer/config`.
+ * The card the customer taps carries the very `code` the checkout honours, so
+ * there is no second discount path to keep in step with the pricing engine.
+ */
+export interface Offer {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FREE_DELIVERY';
+  /** Percentage points for PERCENTAGE; minor units for FIXED_AMOUNT; unused for FREE_DELIVERY. */
+  discountValue: number;
+  maxDiscountMinor?: number;
+  /** Minimum basket (minor units) the offer needs, when the coupon sets one. */
+  minSpendMinor?: number;
+  validUntil: string;
+}
+
+/** The slice of `GET /customer/config` this app reads. */
+export interface CustomerConfig {
+  offers: Offer[];
+}
+
+/**
+ * The authenticated cart quote (`POST /customer/orders/quote`).
+ *
+ * Unlike the public `/pricing/quote`, this evaluates a coupon for *this*
+ * customer and returns the real delivery fee for a chosen address. The price
+ * breakdown is nested under `quote`; a bad code never takes the totals down
+ * with it — it comes back as `couponError` with the base price intact.
+ */
+export interface CustomerQuote {
+  quote: PriceQuote;
+  coupon: { code: string; couponId: string; name: string; discountMinor: number } | null;
+  couponError: string | null;
+  promotion: { promotionId: string; name: string; discountMinor: number } | null;
 }
 
 export interface AuthTokens {

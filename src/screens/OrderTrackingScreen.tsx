@@ -7,7 +7,8 @@ import { Card, PrimaryButton, Screen } from '../components/ui';
 import { OrderStatusTracker } from '../features/order/OrderStatusTracker';
 import { useAsync } from '../hooks/useAsync';
 import { AppMap, DEFAULT_REGION, MapMarker } from '../maps/AppMap';
-import { ErrorState, Skeleton } from '../motion';
+import { useAnimatedCoordinate } from '../maps/marker-animation';
+import { ErrorState, Skeleton, useReducedMotion } from '../motion';
 import { ORDER_STATUS, ORDER_TYPE, OrderStatus } from '../types/backend';
 import type { DeliveryTracking } from '../api/types';
 import { RootStackParamList } from '../navigation/types';
@@ -41,6 +42,15 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
     [order?.type, tick],
   );
 
+  // Glide the driver pin between the 8-second polls instead of letting it jump.
+  // The position arrives on the poll; this only animates the value we already
+  // have, and snaps under reduced motion.
+  const reduceMotion = useReducedMotion();
+  const dLat = tracking.data?.driver?.currentLatitude ?? null;
+  const dLng = tracking.data?.driver?.currentLongitude ?? null;
+  const driverTarget = dLat !== null && dLng !== null ? { latitude: dLat, longitude: dLng } : null;
+  const animatedDriver = useAnimatedCoordinate(driverTarget, { durationMs: POLL_MS, reduceMotion });
+
   // Poll while the order is still moving. `tick` drives useAsync's reload via deps.
   useEffect(() => {
     if (!order || !ACTIVE.includes(order.status)) {
@@ -68,21 +78,23 @@ export function OrderTrackingScreen({ route, navigation }: NativeStackScreenProp
 
           {(() => {
             const d = tracking.data;
-            const driverLat = d?.driver?.currentLatitude ?? null;
-            const driverLng = d?.driver?.currentLongitude ?? null;
             const addrLat = d?.addressSnapshot?.latitude ?? null;
             const addrLng = d?.addressSnapshot?.longitude ?? null;
-            if (order.type !== ORDER_TYPE.DELIVERY || (driverLat === null && addrLat === null)) {
+            if (order.type !== ORDER_TYPE.DELIVERY || (animatedDriver === null && addrLat === null)) {
               return null;
             }
             const markers: MapMarker[] = [];
-            if (driverLat !== null && driverLng !== null) {
-              markers.push({ id: 'driver', latitude: driverLat, longitude: driverLng, kind: 'driver', title: d?.driver?.user.fullName ?? 'Driver' });
+            if (animatedDriver !== null) {
+              markers.push({ id: 'driver', latitude: animatedDriver.latitude, longitude: animatedDriver.longitude, kind: 'driver', title: d?.driver?.user.fullName ?? 'Driver' });
             }
             if (addrLat !== null && addrLng !== null) {
               markers.push({ id: 'dest', latitude: addrLat, longitude: addrLng, kind: 'customer', title: 'Delivery address' });
             }
-            const focus = markers[0];
+            // Centre on the driver's *target*, not the animated value, so the
+            // map holds still while only the pin glides between polls.
+            const focus =
+              driverTarget ??
+              (addrLat !== null && addrLng !== null ? { latitude: addrLat, longitude: addrLng } : null);
             return (
               <View style={{ height: 220, borderRadius: theme.radius.lg, overflow: 'hidden' }}>
                 <AppMap

@@ -80,4 +80,39 @@ describe('cart reducer', () => {
   it('lineKey is order-independent for addons', () => {
     expect(lineKey('p1', ['a2', 'a1'])).toBe(lineKey('p1', ['a1', 'a2']));
   });
+
+  it('applies and removes a coupon, upper-casing the code', () => {
+    let cart: Cart = cartReducer(EMPTY_CART, addBurger());
+    cart = cartReducer(cart, { type: 'APPLY_COUPON', code: ' save20 ' });
+    expect(cart.couponCode).toBe('SAVE20');
+    cart = cartReducer(cart, { type: 'REMOVE_COUPON' });
+    expect(cart.couponCode).toBeNull();
+  });
+
+  it('keeps the coupon across a branch switch (server validates it)', () => {
+    let cart: Cart = cartReducer(EMPTY_CART, addBurger());
+    cart = cartReducer(cart, { type: 'APPLY_COUPON', code: 'SAVE20' });
+    cart = cartReducer(cart, addBurger({ branchId: 'b2' }));
+    expect(cart.branchId).toBe('b2');
+    expect(cart.couponCode).toBe('SAVE20');
+  });
+
+  it('drops the coupon when the last line is removed', () => {
+    let cart: Cart = cartReducer(EMPTY_CART, addBurger());
+    cart = cartReducer(cart, { type: 'APPLY_COUPON', code: 'SAVE20' });
+    cart = cartReducer(cart, { type: 'REMOVE', key: first(cart).key });
+    expect(cart.couponCode).toBeNull();
+    expect(cart.branchId).toBeNull();
+  });
+
+  it('REPLACE swaps the whole cart (reorder)', () => {
+    const replacement: Cart = {
+      branchId: 'b9',
+      couponCode: null,
+      lines: [{ key: lineKey('p9', []), productId: 'p9', productName: 'Wrap', unitPriceMinor: 2000, quantity: 2, addonIds: [], addonNames: [] }],
+    };
+    const cart = cartReducer(cartReducer(EMPTY_CART, addBurger()), { type: 'REPLACE', cart: replacement });
+    expect(cart).toEqual(replacement);
+    expect(cartCount(cart)).toBe(2);
+  });
 });

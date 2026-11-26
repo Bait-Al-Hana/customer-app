@@ -1,6 +1,17 @@
 import { OrderType, PaymentMethod } from '../types/backend';
 import { ApiClient } from './http';
-import { Address, AuthTokens, Branch, DeliveryTracking, Menu, Order, Payment, PriceQuote } from './types';
+import {
+  Address,
+  AuthTokens,
+  Branch,
+  CustomerConfig,
+  CustomerQuote,
+  DeliveryTracking,
+  Menu,
+  Order,
+  Payment,
+  PriceQuote,
+} from './types';
 
 export interface AddressInput {
   label?: string;
@@ -53,6 +64,30 @@ export class Api {
 
   quote(input: { branchId: string; type: OrderType; items: OrderItemInput[] }): Promise<PriceQuote> {
     return this.http.request('/pricing/quote', { method: 'POST', body: input, public: true });
+  }
+
+  /**
+   * Public config — branding, offers, promotions. This app reads only `offers`
+   * (the owner's published coupons) for the menu's Offers strip.
+   */
+  customerConfig(): Promise<CustomerConfig> {
+    return this.http.request('/customer/config', { public: true });
+  }
+
+  // --- Customer cart quote (authenticated) ----------------------------------
+  /**
+   * Prices a cart for the signed-in customer, honouring a coupon code and the
+   * chosen delivery address. The authoritative total shown at checkout. A bad
+   * coupon does not fail the call — the base price comes back with `couponError`.
+   */
+  quoteForCustomer(input: {
+    branchId: string;
+    type: OrderType;
+    items: OrderItemInput[];
+    couponCode?: string;
+    customerAddressId?: string;
+  }): Promise<CustomerQuote> {
+    return this.http.request('/customer/orders/quote', { method: 'POST', body: input });
   }
 
   // --- Customer orders (authenticated) --------------------------------------

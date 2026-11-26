@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, TextInput, View } from 'react-native';
 
 import { ApiError } from '../api/http';
 import { Address } from '../api/types';
@@ -37,11 +37,28 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
   const [sheetOpen, setSheetOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
+  const [codeDraft, setCodeDraft] = useState('');
 
-  const { data: quote, loading, error, reload } = useAsync(
-    () => api.quote({ branchId, type, items }),
-    [branchId, JSON.stringify(items), type],
+  const isDelivery = type === ORDER_TYPE.DELIVERY;
+  const couponCode = cart.couponCode;
+
+  // The authenticated quote: it evaluates the coupon for this customer and, for
+  // delivery, prices the real fee for the chosen address. Re-runs when the
+  // cart, type, address or applied coupon changes.
+  const { data: result, loading, error, reload } = useAsync(
+    () =>
+      api.quoteForCustomer({
+        branchId,
+        type,
+        items,
+        couponCode: couponCode ?? undefined,
+        customerAddressId: isDelivery ? addressId ?? undefined : undefined,
+      }),
+    [branchId, JSON.stringify(items), type, couponCode, isDelivery ? addressId : null],
   );
+  const quote = result?.quote ?? null;
+  const couponError = result?.couponError ?? null;
+  const appliedCoupon = result?.coupon ?? null;
 
   // Addresses, reloaded whenever the screen regains focus (e.g. after adding one).
   const addresses = useAsync<Address[]>(() => api.listAddresses(), []);
@@ -55,8 +72,21 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
     }
   }, [addresses.data, type, addressId]);
 
-  const isDelivery = type === ORDER_TYPE.DELIVERY;
   const needsAddress = isDelivery && !addressId;
+
+  const applyCode = (): void => {
+    const code = codeDraft.trim();
+    if (code.length === 0) {
+      return;
+    }
+    dispatch({ type: 'APPLY_COUPON', code });
+    setCodeDraft('');
+  };
+
+  const removeCode = (): void => {
+    dispatch({ type: 'REMOVE_COUPON' });
+    setCodeDraft('');
+  };
 
   const placeOrder = async (): Promise<void> => {
     if (!branchId || needsAddress) {
@@ -70,6 +100,7 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
         type,
         paymentMethod: method,
         items,
+        couponCode: couponCode ?? undefined,
         customerAddressId: isDelivery ? addressId ?? undefined : undefined,
       });
       dispatch({ type: 'CLEAR' });
@@ -168,6 +199,69 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
             </PressableScale>
           </Card>
         ) : null}
+
+        {/* Promo code */}
+        <Card>
+          <Text style={{ color: theme.colors.textMuted, fontSize: 13, fontWeight: '600', marginBottom: 8 }}>Promo code</Text>
+          {couponCode ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ backgroundColor: theme.colors.surfaceAlt, borderRadius: theme.radius.sm, paddingVertical: 4, paddingHorizontal: 8 }}>
+                    <Text style={{ color: theme.colors.text, fontWeight: '800', letterSpacing: 1 }}>{couponCode}</Text>
+                  </View>
+                  {appliedCoupon ? (
+                    <Text style={{ color: theme.colors.success, fontWeight: '700', fontSize: 12 }}>
+                      ✓ −{formatSar(appliedCoupon.discountMinor)}
+                    </Text>
+                  ) : null}
+                </View>
+                {couponError ? (
+                  <Text style={{ color: theme.colors.danger, fontSize: 12, marginTop: 6 }}>{couponError}</Text>
+                ) : null}
+              </View>
+              <PressableScale accessibilityRole="button" accessibilityLabel="Remove promo code" onPress={removeCode} style={{ paddingLeft: 12 }}>
+                <Text style={{ color: theme.colors.danger, fontWeight: '700' }}>Remove</Text>
+              </PressableScale>
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <TextInput
+                value={codeDraft}
+                onChangeText={setCodeDraft}
+                placeholder="Enter a code"
+                placeholderTextColor={theme.colors.textMuted}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                accessibilityLabel="Promo code"
+                onSubmitEditing={applyCode}
+                style={{
+                  flex: 1,
+                  backgroundColor: theme.colors.surfaceAlt,
+                  borderRadius: theme.radius.md,
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                  fontSize: 16,
+                  color: theme.colors.text,
+                }}
+              />
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel="Apply promo code"
+                disabled={codeDraft.trim().length === 0}
+                onPress={applyCode}
+                style={{
+                  backgroundColor: codeDraft.trim().length === 0 ? theme.colors.border : theme.colors.primary,
+                  borderRadius: theme.radius.md,
+                  paddingHorizontal: 18,
+                  paddingVertical: 12,
+                }}
+              >
+                <Text style={{ color: theme.colors.onPrimary, fontWeight: '800' }}>Apply</Text>
+              </PressableScale>
+            </View>
+          )}
+        </Card>
 
         <Card>
           <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 16, marginBottom: 12 }}>Order total</Text>
