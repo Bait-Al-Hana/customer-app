@@ -54,8 +54,14 @@ export class Api {
   }
 
   // --- Catalog (public) -----------------------------------------------------
+  /**
+   * The public customer branch list. Deliberately `/customer/branches`, not
+   * `/branches` — the latter is the staff resource (it carries `code`/`status`
+   * and is not public), so a customer hitting it is refused. This projection
+   * carries the branch's phone and its live open/closed schedule state.
+   */
   listBranches(): Promise<Branch[]> {
-    return this.http.request('/branches', { public: true });
+    return this.http.request('/customer/branches', { public: true });
   }
 
   menu(branchId: string): Promise<Menu> {

@@ -4,11 +4,16 @@ import { ScrollView, Text, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthProvider';
 import { Card, Screen } from '../components/ui';
+import { branchOpenLabel, OpenTone } from '../features/branches/branch-open';
 import { useAsync } from '../hooks/useAsync';
 import { EmptyState, ErrorState, PressableScale, Skeleton, Stagger } from '../motion';
 import { RootStackParamList } from '../navigation/types';
 import { formatSar } from '../util/money';
 import { useTheme } from '../theme/theme';
+
+function openToneColor(theme: ReturnType<typeof useTheme>, tone: OpenTone): string {
+  return tone === 'open' ? theme.colors.success : tone === 'paused' ? theme.colors.warning : theme.colors.danger;
+}
 
 /** Home: choose a branch to order from. */
 export function BranchesScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'Branches'>): React.JSX.Element {
@@ -42,30 +47,32 @@ export function BranchesScreen({ navigation }: NativeStackScreenProps<RootStackP
       ) : (
         <ScrollView contentContainerStyle={{ padding: 20, gap: 12 }}>
           <Stagger>
-            {data.map((branch) => (
-              <PressableScale
-                key={branch.id}
-                accessibilityRole="button"
-                onPress={() => navigation.navigate('Menu', { branchId: branch.id, branchName: branch.name })}
-              >
-                <Card>
-                  <Text style={{ color: theme.colors.text, fontSize: 17, fontWeight: '700' }}>{branch.name}</Text>
-                  <Text style={{ color: theme.colors.textMuted, marginTop: 4 }}>
-                    {[branch.district, branch.city].filter(Boolean).join(', ')}
-                  </Text>
-                  <View style={{ flexDirection: 'row', marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
-                    {!branch.isAcceptingOrders ? (
-                      <Text style={{ color: theme.colors.danger, fontWeight: '600' }}>Closed now</Text>
-                    ) : (
-                      <>
-                        <Text style={{ color: theme.colors.textMuted }}>Delivery {formatSar(branch.deliveryFeeMinor)}</Text>
-                        <Text style={{ color: theme.colors.textMuted }}>· Min {formatSar(branch.minOrderMinor)}</Text>
-                      </>
-                    )}
-                  </View>
-                </Card>
-              </PressableScale>
-            ))}
+            {data.map((branch) => {
+              const open = branchOpenLabel(branch);
+              return (
+                <PressableScale
+                  key={branch.id}
+                  accessibilityRole="button"
+                  onPress={() => navigation.navigate('Menu', { branchId: branch.id, branchName: branch.name })}
+                >
+                  <Card>
+                    <Text style={{ color: theme.colors.text, fontSize: 17, fontWeight: '700' }}>{branch.name}</Text>
+                    <Text style={{ color: theme.colors.textMuted, marginTop: 4 }}>
+                      {[branch.district, branch.city].filter(Boolean).join(', ')}
+                    </Text>
+                    <View style={{ flexDirection: 'row', marginTop: 8, gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <Text style={{ color: openToneColor(theme, open.tone), fontWeight: '700' }}>{open.text}</Text>
+                      {open.canOrder ? (
+                        <>
+                          <Text style={{ color: theme.colors.textMuted }}>· Delivery {formatSar(branch.deliveryFeeMinor)}</Text>
+                          <Text style={{ color: theme.colors.textMuted }}>· Min {formatSar(branch.minOrderMinor)}</Text>
+                        </>
+                      ) : null}
+                    </View>
+                  </Card>
+                </PressableScale>
+              );
+            })}
           </Stagger>
         </ScrollView>
       )}

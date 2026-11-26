@@ -9,6 +9,8 @@ export interface Branch {
   id: string;
   name: string;
   nameAr: string | null;
+  /** The branch's own published number, for the customer app's Help screen. */
+  phone: string | null;
   addressLine: string;
   district: string | null;
   city: string;
@@ -16,11 +18,26 @@ export interface Branch {
   longitude: number | null;
   acceptsDelivery: boolean;
   acceptsPickup: boolean;
+  /** The manual "accepting orders" switch — distinct from the schedule below. */
   isAcceptingOrders: boolean;
   acceptsCashOnDelivery: boolean;
   deliveryFeeMinor: number;
   minOrderMinor: number;
   prepTimeMinutes: number | null;
+  /**
+   * Whether the branch is open **by its own schedule and timezone**, right now.
+   * This is the schedule running on its own — not the manual `isAcceptingOrders`
+   * switch. A branch can be on-schedule-open yet manually paused, or the
+   * reverse, so the two are never conflated: only the schedule knows when it
+   * opens again, and promising "opens at 17:00" for a manual pause is a promise
+   * nobody made.
+   */
+  isOpenNow: boolean;
+  /** When the branch next opens / closes, "HH:MM" local, or null. */
+  opensAt: string | null;
+  closesAt: string | null;
+  /** A note the owner attached to a schedule override (e.g. "Eid holiday"), or null. */
+  closedNote: string | null;
 }
 
 export interface MenuAddon {
