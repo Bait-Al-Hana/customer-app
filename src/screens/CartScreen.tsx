@@ -5,7 +5,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { useCart } from '../cart/CartProvider';
 import { estimatedTotalMinor } from '../cart/cart';
 import { Card, PrimaryButton, Screen } from '../components/ui';
-import { EmptyState, PressableScale, QuantityStepper } from '../motion';
+import { AnimatedNumber, EmptyState, PressableScale, QuantityStepper } from '../motion';
 import { ORDER_TYPE } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
 import { formatSar } from '../util/money';
@@ -62,7 +62,11 @@ export function CartScreen({ navigation }: NativeStackScreenProps<RootStackParam
       <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
           <Text style={{ color: theme.colors.textMuted }}>Estimated subtotal</Text>
-          <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{formatSar(estimatedTotalMinor(cart))}</Text>
+          <AnimatedNumber
+            value={estimatedTotalMinor(cart)}
+            format={formatSar}
+            style={{ color: theme.colors.text, fontWeight: '700' }}
+          />
         </View>
         <Text style={{ color: theme.colors.textMuted, fontSize: 12, marginBottom: 12 }}>
           Final total, VAT and any delivery fee are confirmed at checkout.

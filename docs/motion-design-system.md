@@ -130,6 +130,21 @@ purpose in-source.
 | `QuantityStepper` | +/- control with an animated value. |
 | `Toast` | Transient, non-blocking confirmation banner; auto-dismisses. |
 | `EmptyState` / `ErrorState` | Calm, actionable dead-ends with a gentle entrance. |
+| `FloatAway` | A "+1" that drifts up on a repeated action (add-to-cart). Pure reinforcement on top of the badge; renders nothing under reduced motion. |
+| `AnimatedNumber` | A total that pops on change. Shows the exact formatted value (never a tweened midpoint); the pop collapses to nothing under reduced motion. |
+| `Confetti` | A one-shot celebratory burst for the payment-confirmed moment. **A deliberate, scoped exception to "nothing animates for decoration" — see below.** |
+
+**The `Confetti` exception.** Confetti is decoration: it communicates no state
+the payment view does not already carry in words, colour and a glyph. It is
+included as an explicitly-scoped celebratory accent for the single
+payment-confirmed moment, departing from the brief with the owner's knowledge.
+It is kept safe by the same gates everything else obeys — **suppressed entirely
+under reduced motion**, `pointerEvents="none"` so it never blocks interaction,
+and it **plays once and stops** (no loop, the thing the brief most warns
+against). It is not a general-purpose effect; one confirmed-payment moment is
+the whole remit. Haptics ([`util/haptics.ts`](../src/util/haptics.ts)) are a
+sibling accent under the same rule: best-effort, never load-bearing, a no-op on
+web, reinforcing a result the UI already confirms.
 
 ### Hero components
 

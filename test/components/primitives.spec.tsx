@@ -3,11 +3,14 @@ import React from 'react';
 import { Text } from 'react-native';
 
 import {
+  AnimatedNumber,
   BottomSheet,
   CartBadge,
+  Confetti,
   EmptyState,
   ErrorState,
   FadeIn,
+  FloatAway,
   PressableScale,
   QuantityStepper,
   Skeleton,
@@ -17,6 +20,8 @@ import {
 } from '../../src/motion';
 
 const wrap = (ui: React.ReactElement) => render(<MotionProvider>{ui}</MotionProvider>);
+
+const formatSar = (minor: number): string => `SAR ${(minor / 100).toFixed(2)}`;
 
 describe('motion primitives (mount)', () => {
   it('mounts FadeIn and Stagger without throwing', () => {
@@ -68,5 +73,22 @@ describe('motion primitives (mount)', () => {
         </BottomSheet>,
       ),
     ).not.toThrow();
+  });
+
+  it('mounts FloatAway and re-renders on a trigger change without throwing', () => {
+    const view = wrap(<FloatAway trigger={0} />);
+    expect(() => view.rerender(<MotionProvider><FloatAway trigger={1} /></MotionProvider>)).not.toThrow();
+  });
+
+  it('renders the exact formatted value in AnimatedNumber, and pops on change', () => {
+    const view = wrap(<AnimatedNumber value={3250} format={formatSar} />);
+    expect(view.getByText('SAR 32.50')).toBeTruthy();
+    view.rerender(<MotionProvider><AnimatedNumber value={4000} format={formatSar} /></MotionProvider>);
+    expect(view.getByText('SAR 40.00')).toBeTruthy();
+  });
+
+  it('mounts Confetti active and inactive without throwing', () => {
+    expect(() => wrap(<Confetti active />)).not.toThrow();
+    expect(() => wrap(<Confetti active={false} />)).not.toThrow();
   });
 });

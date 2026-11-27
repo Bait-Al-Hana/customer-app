@@ -10,10 +10,11 @@ import { useCart } from '../cart/CartProvider';
 import { toOrderItems } from '../cart/cart';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
-import { BottomSheet, ErrorState, PressableScale, Skeleton, Toast } from '../motion';
+import { AnimatedNumber, BottomSheet, ErrorState, PressableScale, Skeleton, Toast } from '../motion';
 import { ORDER_TYPE, OrderType, PAYMENT_METHOD, PaymentMethod } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
 import { formatSar } from '../util/money';
+import { hapticSuccess } from '../util/haptics';
 import { useTheme } from '../theme/theme';
 
 const METHOD_LABELS: Record<string, string> = {
@@ -73,6 +74,7 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
         customerAddressId: isDelivery ? addressId ?? undefined : undefined,
       });
       dispatch({ type: 'CLEAR' });
+      hapticSuccess();
       if (method === PAYMENT_METHOD.CASH_ON_DELIVERY) {
         navigation.replace('OrderTracking', { orderId: order.id });
       } else {
@@ -186,7 +188,14 @@ export function CheckoutScreen({ route, navigation }: NativeStackScreenProps<Roo
               {quote.deliveryFeeMinor > 0 ? row('Delivery', formatSar(quote.deliveryFeeMinor)) : null}
               {row('VAT (incl.)', formatSar(quote.vatMinor))}
               <View style={{ height: 1, backgroundColor: theme.colors.border, marginVertical: 6 }} />
-              {row('Total', formatSar(quote.totalMinor), true)}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text style={{ color: theme.colors.text, fontWeight: '800' }}>Total</Text>
+                <AnimatedNumber
+                  value={quote.totalMinor}
+                  format={formatSar}
+                  style={{ color: theme.colors.text, fontWeight: '800' }}
+                />
+              </View>
             </>
           ) : null}
         </Card>

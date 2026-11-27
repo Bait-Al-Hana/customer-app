@@ -6,7 +6,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { Card, Screen } from '../components/ui';
 import { STATUS_META } from '../features/order/order-status.model';
 import { useAsync } from '../hooks/useAsync';
-import { EmptyState, ErrorState, PressableScale, Skeleton } from '../motion';
+import { EmptyState, ErrorState, PressableScale, Skeleton, Stagger } from '../motion';
 import { RootStackParamList } from '../navigation/types';
 import { formatSar } from '../util/money';
 import { StatusTone } from '../features/order/order-status.model';
@@ -45,22 +45,37 @@ export function OrdersScreen({ navigation }: NativeStackScreenProps<RootStackPar
         <EmptyState title="No orders yet" message="Your orders will show up here." />
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
-          {orders.map((order) => {
-            const meta = STATUS_META[order.status];
-            return (
-              <PressableScale key={order.id} accessibilityRole="button" onPress={() => navigation.navigate('OrderTracking', { orderId: order.id })}>
-                <Card>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{order.orderNumber}</Text>
-                    <View style={{ backgroundColor: toneColor(theme, meta.tone), borderRadius: theme.radius.pill, paddingVertical: 3, paddingHorizontal: 10 }}>
-                      <Text style={{ color: theme.colors.onPrimary, fontSize: 12, fontWeight: '700' }}>{meta.label}</Text>
+          <Stagger translateY={10}>
+            {orders.map((order) => {
+              const meta = STATUS_META[order.status];
+              return (
+                <Card key={order.id} style={{ marginBottom: 10 }}>
+                  <PressableScale
+                    accessibilityRole="button"
+                    accessibilityLabel={`Order ${order.orderNumber}, ${meta.label}`}
+                    onPress={() => navigation.navigate('OrderTracking', { orderId: order.id })}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{order.orderNumber}</Text>
+                      <View style={{ backgroundColor: toneColor(theme, meta.tone), borderRadius: theme.radius.pill, paddingVertical: 3, paddingHorizontal: 10 }}>
+                        <Text style={{ color: theme.colors.onPrimary, fontSize: 12, fontWeight: '700' }}>{meta.label}</Text>
+                      </View>
                     </View>
-                  </View>
-                  <Text style={{ color: theme.colors.textMuted, marginTop: 6 }}>{formatSar(order.totalMinor)}</Text>
+                    <Text style={{ color: theme.colors.textMuted, marginTop: 6 }}>{formatSar(order.totalMinor)}</Text>
+                  </PressableScale>
+
+                  <View style={{ height: 1, backgroundColor: theme.colors.border, marginTop: 12, marginBottom: 10 }} />
+                  <PressableScale
+                    accessibilityRole="button"
+                    accessibilityLabel={`Order again from the same branch as ${order.orderNumber}`}
+                    onPress={() => navigation.navigate('Menu', { branchId: order.branchId })}
+                  >
+                    <Text style={{ color: theme.colors.accent, fontWeight: '700' }}>Order again</Text>
+                  </PressableScale>
                 </Card>
-              </PressableScale>
-            );
-          })}
+              );
+            })}
+          </Stagger>
         </ScrollView>
       )}
     </Screen>

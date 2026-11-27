@@ -7,7 +7,7 @@ export type RootStackParamList = {
   Otp: { phone: string };
   // Main flow
   Branches: undefined;
-  Menu: { branchId: string; branchName: string };
+  Menu: { branchId: string; branchName?: string };
   Cart: undefined;
   Checkout: { type: OrderType };
   AddAddress: undefined;

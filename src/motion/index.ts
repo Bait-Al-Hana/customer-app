@@ -25,3 +25,6 @@ export { CartBadge } from './components/CartBadge';
 export { QuantityStepper } from './components/QuantityStepper';
 export { Toast } from './components/Toast';
 export { EmptyState, ErrorState } from './components/StateView';
+export { FloatAway } from './components/FloatAway';
+export { AnimatedNumber } from './components/AnimatedNumber';
+export { Confetti } from './components/Confetti';

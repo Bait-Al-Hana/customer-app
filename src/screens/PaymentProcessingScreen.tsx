@@ -6,8 +6,10 @@ import { useAuth } from '../auth/AuthProvider';
 import { PrimaryButton, Screen } from '../components/ui';
 import { PaymentStateView } from '../features/payment/PaymentStateView';
 import { paymentVisualForServerStatus } from '../features/payment/payment-state.model';
+import { Confetti } from '../motion';
 import { PAYMENT_METHOD, PAYMENT_STATUS, PaymentStatus } from '../types/backend';
 import { RootStackParamList } from '../navigation/types';
+import { hapticSuccess } from '../util/haptics';
 import { useTheme } from '../theme/theme';
 
 const POLL_MS = 2500;
@@ -41,7 +43,8 @@ export function PaymentProcessingScreen({
         const settled = paymentVisualForServerStatus(payment.status).settled;
         if (settled) {
           if (payment.status === PAYMENT_STATUS.PAID) {
-            timer = setTimeout(() => mounted && navigation.replace('OrderTracking', { orderId }), 1200);
+            hapticSuccess();
+            timer = setTimeout(() => mounted && navigation.replace('OrderTracking', { orderId }), 1800);
           }
           return; // stop polling once settled
         }
@@ -91,6 +94,7 @@ export function PaymentProcessingScreen({
           ) : null}
         </View>
       </View>
+      {status === PAYMENT_STATUS.PAID ? <Confetti /> : null}
     </Screen>
   );
 }
