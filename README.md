@@ -17,6 +17,11 @@ rules and never computes a payable amount itself.
 > not yet expose to this app (promos, offers, loyalty, ratings) is isolated,
 > typed mock data ready to swap for real endpoints. See
 > [`docs/customer-ui-ux.md`](./docs/customer-ui-ux.md).
+>
+> Recent additions: an **English / العربية** language choice with right-to-left
+> support, an **add-to-cart flight** animation, and an **installable web PWA**
+> (manifest + home-screen icons). See the matching sections in
+> [`CLAUDE.md`](./CLAUDE.md).
 
 ---
 
