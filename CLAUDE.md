@@ -85,6 +85,55 @@ this repo's git history — it must be rotated in the Google console, and the
 replacement set in the build env (and in EAS secrets), never committed. Without
 a key the map panels degrade to the "map unavailable" card; they do not crash.
 
+## The web build is an installable PWA (public/)
+
+`public/` holds the web shell and PWA assets, and **`expo export --platform web`
+copies everything in it to the build root (`dist/`)**. `public/index.html` is the
+HTML template: Expo renders into it and injects the hashed JS bundle, the CSS and
+the favicon link, so the file must keep the `<div id="root">` and the
+`expo-reset` style — it adds the PWA `<head>` tags Expo does not generate
+(manifest link, `theme-color`, `apple-touch-icon`, the apple-mobile-web-app
+metas). This was verified by exporting and reading `dist/index.html`: the
+manifest link and the injected `_expo/static/js/web/...js` script both land.
+
+**Why it exists:** before this, a web visitor who chose "Add to Home Screen" got a
+bare screenshot with no name and the browser's default glyph — Expo generates a
+`favicon.ico` (the browser-tab icon) from `web.favicon` but **no web manifest and
+no home-screen icons at all**. `public/manifest.json` + the `icon-192`,
+`icon-512`, maskable-512 and `apple-touch-icon` PNGs fix the install experience:
+a named, branded "Bait Al Hana" app.
+
+**The icons are generated from `assets/icon.png`** by
+`scripts/generate-web-icons.py` (PIL); the maskable one keeps the art inside the
+centre ~72% so Android/Chrome's crop does not clip it, on a white ground so the
+corners never go black. Note the standing
+caveat from "Release configuration" below: `icon.png` is itself the **stopgap**
+4:1 wordmark squeezed into a square, so these PWA icons are legible-at-best, not
+final — replacing the source artwork is what makes them good, and regenerating is
+one command.
+
+`vercel.json` serves `dist` and rewrites everything to `/index.html` (SPA), so the
+manifest and icons are reachable at their root paths.
+
+## Add-to-cart flight (motion)
+
+Adding an item sends a small brand-coloured mark arcing from the pressed "+"
+into the floating cart. `src/motion/CartFlightProvider.tsx` owns it: one
+full-screen, non-interactive overlay near the top of the tree, and `useCartFlight()`
+exposes `fly(point)`. `AddButton` measures its own centre with `measureInWindow`
+on press and launches the flight; `FloatingCart` gives a small bump as the count
+grows, so the mark visibly *lands*. Three things it keeps:
+
+- **It is decorative, never the signal.** The add is already confirmed by the
+  button's spring-and-check and the cart badge, so under reduced motion `fly` is a
+  **no-op** and nothing is lost.
+- **It never throws or costs the add.** `useCartFlight()` returns a no-op without a
+  provider (tests, previews), and the `measureInWindow` call is guarded — a
+  missing measurement just skips the flight. The `onPress` runs regardless.
+- **It crosses components, which is why it is an overlay provider** rather than a
+  per-button animation: the mark travels from a menu card down to the cart bar,
+  which a view clipped to the card could not do.
+
 ## The endpoint contract is tested
 
 `test/unit/endpoints.spec.ts` asserts the **path** and the **auth flag** of
