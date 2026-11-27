@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { AppText, OrderCard, Screen } from '../components';
 import { statusMeta } from '../features/order/order-status.model';
 import { useAsync } from '../hooks/useAsync';
+import { useLanguage } from '../i18n';
 import { EmptyState, ErrorState, PressableScale, Shimmer, Stagger } from '../motion';
 import { ORDER_STATUS, OrderStatus } from '../types/backend';
 import type { Branch, Order } from '../api/types';
@@ -37,6 +38,7 @@ function dateLabel(iso: string): string {
 export function OrdersScreen(): React.JSX.Element {
   const theme = useTheme();
   const { api } = useAuth();
+  const { t, tn } = useLanguage();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [tab, setTab] = useState<'active' | 'past'>('active');
 
@@ -49,7 +51,10 @@ export function OrdersScreen(): React.JSX.Element {
   const past = orders.filter((o) => !ACTIVE_STATUSES.includes(o.status));
   const list = tab === 'active' ? active : past;
 
-  const branchName = (branchId: string): string => branchesReq.data?.find((b) => b.id === branchId)?.name ?? 'Bait Al Hana';
+  const branchName = (branchId: string): string => {
+    const b = branchesReq.data?.find((x) => x.id === branchId);
+    return b ? tn(b.name, b.nameAr) : 'Bait Al Hana';
+  };
   const reorder = (order: Order): void => nav.navigate('Menu', { branchId: order.branchId, branchName: branchName(order.branchId) });
 
   const seg = (key: 'active' | 'past', label: string, n: number) => {
@@ -70,10 +75,10 @@ export function OrdersScreen(): React.JSX.Element {
   };
 
   return (
-    <Screen title="My orders">
+    <Screen title={t('orders.title')}>
       <View style={{ flexDirection: 'row', gap: 4, margin: 16, marginBottom: 8, padding: 4, borderRadius: theme.radius.lg, backgroundColor: theme.colors.surfaceAlt }}>
-        {seg('active', 'Active', active.length)}
-        {seg('past', 'Past', past.length)}
+        {seg('active', t('orders.tab.active'), active.length)}
+        {seg('past', t('orders.tab.past'), past.length)}
       </View>
 
       {loading ? (
@@ -106,7 +111,7 @@ export function OrdersScreen(): React.JSX.Element {
                   statusTone={meta.tone}
                   onPress={() => nav.navigate('OrderTracking', { orderId: o.id })}
                   onReorder={tab === 'past' ? () => reorder(o) : undefined}
-                  actionLabel={tab === 'active' ? 'Track' : 'View'}
+                  actionLabel={tab === 'active' ? t('common.track') : t('common.view')}
                 />
               );
             })}

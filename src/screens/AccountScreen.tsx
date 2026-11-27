@@ -10,6 +10,8 @@ import { useFavorites } from '../favorites/FavoritesProvider';
 import { AppText, Button, Card, Divider, Screen } from '../components';
 import { ChevronRight } from '../components/icons';
 import { useAsync } from '../hooks/useAsync';
+import { useLanguage } from '../i18n';
+import type { Lang } from '../i18n';
 import { PressableScale, Toast } from '../motion';
 import { MainTabParamList, RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
@@ -39,6 +41,7 @@ export function AccountScreen(): React.JSX.Element {
   const tabNav = useNavigation<BottomTabScreenProps<MainTabParamList>['navigation']>();
   const favorites = useFavorites();
   const { count } = useCart();
+  const { t, lang, setLanguage } = useLanguage();
   const [toast, setToast] = useState<string | null>(null);
   const profile = useAsync(() => api.getProfile(), []);
   const reloadProfile = profile.reload;
@@ -47,45 +50,68 @@ export function AccountScreen(): React.JSX.Element {
 
   const sections: { title: string; rows: Row[] }[] = [
     {
-      title: 'Orders & activity',
+      title: t('account.section.activity'),
       rows: [
-        { glyph: '🧾', label: 'My orders', onPress: () => tabNav.navigate('Orders') },
-        { glyph: '🔔', label: 'Notifications', onPress: () => rootNav.navigate('Notifications') },
-        { glyph: '❤️', label: 'Favorites', hint: favorites.count > 0 ? `${favorites.count}` : undefined, onPress: () => rootNav.navigate('Favorites') },
-        { glyph: '⭐', label: 'Rewards', onPress: () => rootNav.navigate('Loyalty') },
-        { glyph: '🎁', label: 'Offers & coupons', onPress: () => tabNav.navigate('Offers') },
+        { glyph: '🧾', label: t('account.row.myOrders'), onPress: () => tabNav.navigate('Orders') },
+        { glyph: '🔔', label: t('account.row.notifications'), onPress: () => rootNav.navigate('Notifications') },
+        { glyph: '❤️', label: t('account.row.favorites'), hint: favorites.count > 0 ? `${favorites.count}` : undefined, onPress: () => rootNav.navigate('Favorites') },
+        { glyph: '⭐', label: t('account.row.rewards'), onPress: () => rootNav.navigate('Loyalty') },
+        { glyph: '🎁', label: t('account.row.offers'), onPress: () => tabNav.navigate('Offers') },
       ],
     },
     {
-      title: 'Preferences',
+      title: t('account.section.preferences'),
       rows: [
-        { glyph: '📍', label: 'Saved addresses', onPress: () => rootNav.navigate('Addresses') },
-        { glyph: '💳', label: 'Payment methods', onPress: () => rootNav.navigate('PaymentMethods') },
+        { glyph: '📍', label: t('account.row.addresses'), onPress: () => rootNav.navigate('Addresses') },
+        { glyph: '💳', label: t('account.row.payments'), onPress: () => rootNav.navigate('PaymentMethods') },
         {
           glyph: '🔔',
-          label: 'Notification settings',
+          label: t('account.row.notificationSettings'),
           onPress: () => rootNav.navigate('NotificationSettings'),
         },
       ],
     },
     {
-      title: 'Support & legal',
+      title: t('account.section.support'),
       rows: [
-        { glyph: '💬', label: 'Help & support', onPress: () => rootNav.navigate('Help') },
-        { glyph: '🔒', label: 'Privacy policy', onPress: () => rootNav.navigate('Legal', { document: 'privacy' }) },
-        { glyph: '📄', label: 'Terms of service', onPress: () => rootNav.navigate('Legal', { document: 'terms' }) },
+        { glyph: '💬', label: t('account.row.help'), onPress: () => rootNav.navigate('Help') },
+        { glyph: '🔒', label: t('account.row.privacy'), onPress: () => rootNav.navigate('Legal', { document: 'privacy' }) },
+        { glyph: '📄', label: t('account.row.terms'), onPress: () => rootNav.navigate('Legal', { document: 'terms' }) },
         // Apple requires an app that creates accounts to offer deletion from
         // inside it (Guideline 5.1.1(v)), and a reviewer looks for it here.
         // It sits below the legal rows rather than beside "My orders": it is
         // rare, irreversible, and does not belong next to something pressed
         // every week.
-        { glyph: '🗑️', label: 'Delete my account', onPress: () => rootNav.navigate('DeleteAccount') },
+        { glyph: '🗑️', label: t('account.row.deleteAccount'), onPress: () => rootNav.navigate('DeleteAccount') },
       ],
     },
   ];
 
+  const languageOption = (value: Lang, label: string) => {
+    const on = lang === value;
+    return (
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityState={{ selected: on }}
+        accessibilityLabel={label}
+        onPress={() => setLanguage(value)}
+        style={{
+          flex: 1,
+          paddingVertical: 12,
+          borderRadius: theme.radius.md,
+          alignItems: 'center',
+          backgroundColor: on ? theme.colors.primary : theme.colors.surfaceSunken,
+        }}
+      >
+        <AppText variant="body" weight="700" color={on ? 'onPrimary' : 'text'}>
+          {label}
+        </AppText>
+      </PressableScale>
+    );
+  };
+
   return (
-    <Screen title="Account">
+    <Screen title={t('account.title')}>
       <Toast visible={!!toast} message={toast ?? ''} tone="neutral" onHide={() => setToast(null)} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 120 }}>
         {/* Profile header — tap to edit name / view phone */}
@@ -97,7 +123,7 @@ export function AccountScreen(): React.JSX.Element {
               </View>
               <View style={{ flex: 1 }}>
                 <AppText variant="h2" style={{ fontSize: 19 }}>
-                  {profile.data?.fullName?.trim() || 'Welcome back'}
+                  {profile.data?.fullName?.trim() || t('account.welcome')}
                 </AppText>
                 <AppText variant="bodySmall" color="textMuted" style={{ marginTop: 2 }}>
                   {profile.data?.phone ?? 'بيت الهناء'}
@@ -108,10 +134,27 @@ export function AccountScreen(): React.JSX.Element {
           </PressableScale>
           {count > 0 ? (
             <View style={{ marginTop: 14 }}>
-              <Button label={`You have ${count} item${count === 1 ? '' : 's'} in your cart`} variant="secondary" onPress={() => rootNav.navigate('Cart')} />
+              <Button label={t('account.cartItems', { count })} variant="secondary" onPress={() => rootNav.navigate('Cart')} />
             </View>
           ) : null}
         </Card>
+
+        {/* Language — the switch is here because Account is where a customer
+            looks for preferences, and it re-renders the whole app at once. */}
+        <View>
+          <AppText variant="overline" color="textMuted" style={{ marginBottom: 8, marginLeft: 4 }}>
+            {t('language.title')}
+          </AppText>
+          <Card>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {languageOption('en', t('language.english'))}
+              {languageOption('ar', t('language.arabic'))}
+            </View>
+            <AppText variant="caption" color="textMuted" style={{ marginTop: 10 }}>
+              {t('language.restartNote')}
+            </AppText>
+          </Card>
+        </View>
 
         {sections.map((section) => (
           <View key={section.title}>
@@ -146,7 +189,7 @@ export function AccountScreen(): React.JSX.Element {
           </View>
         ))}
 
-        <Button label="Log out" variant="danger" onPress={() => signOut()} />
+        <Button label={t('account.logout')} variant="danger" onPress={() => signOut()} />
         {/* The build marker. A customer never reads it; the person diagnosing
             a report does, and until it existed "is this the fixed build?" was
             unanswerable — which makes a stale bundle and a live bug look

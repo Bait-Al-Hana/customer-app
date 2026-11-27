@@ -9,6 +9,7 @@ import { glyphFor } from '../components/FoodImage';
 import { ratingCountFor, ratingFor } from '../data/ratings';
 import { toFoodCard } from '../data/menu';
 import { useFavorites } from '../favorites/FavoritesProvider';
+import { useLanguage } from '../i18n';
 import { QuantityStepper, PressableScale } from '../motion';
 import { RootStackParamList } from '../navigation/types';
 import type { MenuModifierGroup } from '../api/types';
@@ -23,6 +24,7 @@ export function ProductScreen({ route, navigation }: NativeStackScreenProps<Root
   const { branchId, product } = route.params;
   const { dispatch, notes, setNotes } = useCart();
   const favorites = useFavorites();
+  const { t, tn } = useLanguage();
 
   const hasVariants = product.variants && product.variants.length > 0;
   const defaultVariant = hasVariants ? product.variants.find((v) => v.isDefault) ?? product.variants[0] : null;
@@ -106,7 +108,7 @@ export function ProductScreen({ route, navigation }: NativeStackScreenProps<Root
     navigation.goBack();
   };
 
-  const card = toFoodCard(product);
+  const card = toFoodCard(product, undefined, tn);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -128,7 +130,7 @@ export function ProductScreen({ route, navigation }: NativeStackScreenProps<Root
         </View>
 
         <View style={{ padding: 16 }}>
-          <AppText variant="h1">{product.name}</AppText>
+          <AppText variant="h1">{tn(product.name, product.nameAr)}</AppText>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 }}>
             <Rating value={ratingFor(product.id)} count={ratingCountFor(product.id)} size={15} />
             <AppText variant="price" color="primary">
@@ -144,9 +146,9 @@ export function ProductScreen({ route, navigation }: NativeStackScreenProps<Root
           {/* Variants (size) */}
           {hasVariants ? (
             <ChoiceGroup
-              title="Choose size"
+              title={t('product.chooseSize')}
               required
-              hint="Required · pick 1"
+              hint={t('product.requiredPick1')}
             >
               {product.variants.map((v) => {
                 const active = v.id === variantId;
@@ -173,11 +175,13 @@ export function ProductScreen({ route, navigation }: NativeStackScreenProps<Root
             const single = g.maxSelections === 1;
             const hint = single
               ? g.isRequired
-                ? 'Required · pick 1'
-                : 'Optional · pick 1'
-              : `${g.isRequired ? 'Required' : 'Optional'} · up to ${g.maxSelections}`;
+                ? t('product.requiredPick1')
+                : t('product.optionalPick1')
+              : g.isRequired
+                ? t('product.requiredUpTo', { n: g.maxSelections })
+                : t('product.optionalUpTo', { n: g.maxSelections });
             return (
-              <ChoiceGroup key={g.id} title={g.name} required={g.isRequired} hint={hint}>
+              <ChoiceGroup key={g.id} title={tn(g.name, g.nameAr)} required={g.isRequired} hint={hint}>
                 {g.addons.map((a) => {
                   const active = chosen.includes(a.id);
                   const atCap = !single && !active && chosen.length >= g.maxSelections;
@@ -187,8 +191,8 @@ export function ProductScreen({ route, navigation }: NativeStackScreenProps<Root
                       single={single}
                       selected={active}
                       disabled={atCap}
-                      label={a.name}
-                      trailing={a.priceMinor > 0 ? `+ ${formatSar(a.priceMinor)}` : 'Free'}
+                      label={tn(a.name, a.nameAr)}
+                      trailing={a.priceMinor > 0 ? `+ ${formatSar(a.priceMinor)}` : t('product.free')}
                       onPress={() => toggleAddon(g, a.id)}
                     />
                   );
@@ -200,12 +204,12 @@ export function ProductScreen({ route, navigation }: NativeStackScreenProps<Root
           {/* Special instructions */}
           <View style={{ marginTop: 20 }}>
             <AppText variant="h3" style={{ marginBottom: 10 }}>
-              Special instructions
+              {t('product.specialInstructions')}
             </AppText>
             <TextField
               value={instructions}
               onChangeText={setInstructions}
-              placeholder="e.g. no onions, extra spicy…"
+              placeholder={t('product.instructionsPlaceholder')}
               maxLength={200}
               multiline
             />
@@ -232,7 +236,13 @@ export function ProductScreen({ route, navigation }: NativeStackScreenProps<Root
         </View>
         <View style={{ flex: 1 }}>
           <Button
-            label={canAdd ? `Add to cart · ${formatSar(total)}` : `Select ${unmetRequired[0]?.name ?? 'options'}`}
+            label={
+              canAdd
+                ? t('product.addToCart', { price: formatSar(total) })
+                : t('product.selectOption', {
+                    name: unmetRequired[0] ? tn(unmetRequired[0].name, unmetRequired[0].nameAr) : t('product.options'),
+                  })
+            }
             onPress={add}
             disabled={!canAdd}
           />

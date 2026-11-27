@@ -34,11 +34,21 @@ export function flattenProducts(menu: Menu | null | undefined): FlatProduct[] {
   return out;
 }
 
-/** Maps a product to the card shape, attaching a stable placeholder rating. */
-export function toFoodCard(p: MenuProduct, tag?: string): FoodCardData {
+/**
+ * Maps a product to the card shape, attaching a stable placeholder rating.
+ *
+ * `tn` is the optional name resolver from the language context: when passed, the
+ * card shows the Arabic name where the backend has one. Omitting it (e.g. in a
+ * pure test) keeps the English name — the card never depends on React.
+ */
+export function toFoodCard(
+  p: MenuProduct,
+  tag?: string,
+  tn?: (name: string | null | undefined, nameAr: string | null | undefined) => string,
+): FoodCardData {
   return {
     id: p.id,
-    name: p.name,
+    name: tn ? tn(p.name, p.nameAr) : p.name,
     description: p.description,
     // Delivery price. The app shows delivery prices only (owner, 2026-09-04)
     // and this is the single place that decision is applied to a card.

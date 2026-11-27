@@ -2,6 +2,55 @@
 
 Expo React Native customer ordering app.
 
+## Arabic and right-to-left (i18n)
+
+`src/i18n/` adds an English / العربية choice (Account → Language, persisted via
+`deviceStore`). The backend already serves every branch, category, product and
+add-on name in Arabic (`nameAr`); before this the app **received and discarded
+all of it** and was English-only. Now:
+
+- **`strings.ts` is pure and tested** (`test/unit/i18n.spec.ts`) — no React, no
+  React Native, so it runs in the fast logic suite. It holds the translation
+  dictionary and three helpers: `translate(lang, key, vars)`,
+  `localizedName(lang, name, nameAr)` and `resolveLang`. The same split as every
+  other pure/RN boundary in this repo (`buildInfo`, `branchChoice`): the rules
+  are tested, the React layer just holds the current language.
+- **Fallback is layered and never blank.** `translate` falls back requested
+  language → English → the key itself, so a not-yet-translated string reads in
+  English rather than vanishing, and an unknown key reads as its own name
+  (visible in testing, never a crash). `localizedName` falls back to the other
+  language's name rather than rendering empty — showing *something real* always
+  beats a gap.
+- **`LanguageProvider` flips copy and content names immediately; full layout
+  mirroring needs a restart.** Text direction and Arabic content switch the
+  instant the toggle is pressed (`AppText` reads `isRTL` from the context, not
+  from `I18nManager`). But RN mirrors *layout* (flex rows, `start`/`end`) only
+  through `I18nManager`, which cannot re-mirror an already-laid-out tree — so the
+  provider sets `I18nManager.forceRTL` for the **next launch** and the Account
+  note says so. Do not try to "fix" this with a forced reload: there is no
+  `expo-updates` here, and a half-mirrored session is worse than an honest note.
+- **`useLanguage()` never throws without a provider** (English, LTR default),
+  exactly like `useMotion`, so every component and the screen tests (which mount
+  without it) stay renderable.
+
+**v1 coverage, stated honestly.** Content names (`nameAr`) are localized across
+the live browse surfaces — Home rails + categories, Menu chips/headings/items,
+Product detail (name, groups, add-ons), Search (results + category chips, and
+the filter matches `nameAr`). Core UI strings are translated on the tab bar,
+Account (in full), Menu, Product and Orders. **Not yet covered, and it degrades
+to English rather than breaking:** many secondary screens' UI strings
+(Checkout, Cart, Offers, Loyalty, Help, the auth flow, empty/section headers),
+and names that the app stored denormalized at action time (cart lines, and the
+`productName` on already-placed order items) — those keep the name captured when
+they were created. Variant names have no `nameAr` in the API, so they stay
+English until the backend adds one. Adding a screen is one dictionary entry per
+string; the framework is complete.
+
+**Not device-verified.** Per "Device testing is now the gate" below, RTL layout
+and Arabic shaping are exactly the kind of thing that only shows on a handset;
+typecheck, lint and the Node tests all pass for an app whose mirroring looks
+wrong in a real build.
+
 ## Client-demo decisions (locked)
 
 **Read `../backend/DEMO_DECISIONS.md` before touching payments, invoicing,

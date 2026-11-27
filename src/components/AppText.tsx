@@ -1,6 +1,7 @@
 import React from 'react';
-import { I18nManager, StyleProp, Text, TextProps, TextStyle } from 'react-native';
+import { StyleProp, Text, TextProps, TextStyle } from 'react-native';
 
+import { useLanguage } from '../i18n';
 import { TypographyToken, useTheme } from '../theme/theme';
 
 export interface AppTextProps extends TextProps {
@@ -23,8 +24,10 @@ export interface AppTextProps extends TextProps {
  * Every piece of copy goes through here so size, weight and line-height come
  * from the one typography ramp in `theme.ts` — screens never re-declare a
  * `fontSize`. Colour is a theme token by default, so text stays theme-correct in
- * light and dark without per-call-site work. RTL alignment follows
- * `I18nManager`, which is the groundwork for full Arabic support.
+ * light and dark without per-call-site work. RTL alignment follows the chosen
+ * language from `LanguageProvider`, so switching to Arabic re-aligns and
+ * re-shapes text immediately — without waiting for the app restart that full
+ * layout mirroring (`I18nManager`) needs.
  */
 export function AppText({
   variant = 'body',
@@ -35,6 +38,7 @@ export function AppText({
   ...rest
 }: AppTextProps): React.JSX.Element {
   const theme = useTheme();
+  const { isRTL } = useLanguage();
   const resolved =
     color in theme.colors ? theme.colors[color as keyof typeof theme.colors] : (color as string);
   return (
@@ -44,8 +48,9 @@ export function AppText({
         theme.type[variant],
         { color: resolved },
         weight ? { fontWeight: weight } : null,
-        center ? { textAlign: 'center' } : null,
-        I18nManager.isRTL ? { writingDirection: 'rtl' } : null,
+        // Center wins when asked; otherwise Arabic reads right-aligned.
+        center ? { textAlign: 'center' } : isRTL ? { textAlign: 'right' } : null,
+        isRTL ? { writingDirection: 'rtl' } : null,
         style,
       ]}
     />
