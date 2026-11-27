@@ -76,7 +76,10 @@ export function CartFlightProvider({ children }: { children: React.ReactNode }):
         pointerEvents="none"
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
-        style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
+        // High stacking order so the mark paints above the navigator and tab
+        // bar — on react-native-web especially, without this the dot can render
+        // behind page content and look like "nothing happened".
+        style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, zIndex: 9999, elevation: 9999 }}
       >
         {flights.map((f) => (
           <FlightDot key={f.id} from={f} onDone={() => remove(f.id)} />
