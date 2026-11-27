@@ -1,8 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 
 import { useCart } from '../cart/CartProvider';
 import { estimatedTotalMinor } from '../cart/cart';
@@ -31,15 +31,26 @@ export function FloatingCart({ bottomOffset = 0 }: { bottomOffset?: number }): R
 
   const shown = count > 0;
   const progress = useSharedValue(shown ? 1 : 0);
+  // A little bump each time the count grows — the moment the flying mark lands.
+  const bump = useSharedValue(1);
+  const prevCount = useRef(count);
 
   useEffect(() => {
     progress.value = reduceMotion ? (shown ? 1 : 0) : withSpring(shown ? 1 : 0, spring('standard'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown]);
 
+  useEffect(() => {
+    if (!reduceMotion && count > prevCount.current) {
+      bump.value = withSequence(withSpring(1.06, spring('emphasized')), withSpring(1, spring('soft')));
+    }
+    prevCount.current = count;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count]);
+
   const style = useAnimatedStyle(() => ({
     opacity: reduceMotion ? progress.value : withTiming(progress.value, { duration: 120 }),
-    transform: [{ translateY: (1 - progress.value) * 80 }],
+    transform: [{ translateY: (1 - progress.value) * 80 }, { scale: bump.value }],
   }));
 
   if (count === 0) {

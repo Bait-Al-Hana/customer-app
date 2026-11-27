@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 
-import { useMotion, PressableScale } from '../motion';
+import { useMotion, PressableScale, useCartFlight } from '../motion';
 import { useTheme } from '../theme/theme';
 import { AppText } from './AppText';
 
@@ -27,8 +27,10 @@ export function AddButton({
 }): React.JSX.Element {
   const theme = useTheme();
   const { spring } = useMotion();
+  const { fly } = useCartFlight();
   const scale = useSharedValue(1);
   const [checked, setChecked] = useState(false);
+  const circleRef = useRef<View>(null);
 
   useEffect(() => {
     if (!checked) {
@@ -43,11 +45,24 @@ export function AddButton({
   const handle = (): void => {
     scale.value = withSequence(withSpring(0.86, spring('emphasized')), withSpring(1, spring('soft')));
     setChecked(true);
+    // Launch the "fly into the cart" mark from this button's centre. Guarded:
+    // measureInWindow is absent in some environments (tests), and a missing
+    // flight costs nothing — the check and the cart badge still confirm the add.
+    try {
+      circleRef.current?.measureInWindow?.((x, y, w, h) => {
+        if (typeof x === 'number' && typeof y === 'number') {
+          fly({ x: x + w / 2, y: y + h / 2 });
+        }
+      });
+    } catch {
+      // ignore — purely decorative
+    }
     onPress();
   };
 
   return (
     <PressableScale accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={handle}>
+      <View ref={circleRef} collapsable={false}>
       <Animated.View
         style={[
           {
@@ -74,6 +89,7 @@ export function AddButton({
           </View>
         )}
       </Animated.View>
+      </View>
     </PressableScale>
   );
 }

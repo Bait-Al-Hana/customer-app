@@ -9,7 +9,7 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { CartProvider } from './src/cart/CartProvider';
 import { FavoritesProvider } from './src/favorites/FavoritesProvider';
 import { FulfilmentProvider } from './src/fulfilment/FulfilmentProvider';
-import { MotionProvider } from './src/motion';
+import { CartFlightProvider, MotionProvider } from './src/motion';
 import { LaunchScreen } from './src/launch/LaunchScreen';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { RealtimeProvider } from './src/realtime/RealtimeProvider';
@@ -37,6 +37,9 @@ export default function App(): React.JSX.Element {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <MotionProvider>
+            {/* Owns the "fly into the cart" overlay; above the navigator so a
+                dot launched from a menu card can travel to the cart bar. */}
+            <CartFlightProvider>
             <AuthProvider>
               {/* Inside AuthProvider — it needs the session's token — and above
                   the navigator, so one socket serves every screen. */}
@@ -56,6 +59,7 @@ export default function App(): React.JSX.Element {
               </CartProvider>
               </RealtimeProvider>
             </AuthProvider>
+            </CartFlightProvider>
           </MotionProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
