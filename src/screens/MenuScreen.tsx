@@ -11,6 +11,7 @@ import { menuPriceMinor } from '../util/menuPrice';
 import { useFavorites } from '../favorites/FavoritesProvider';
 import { FloatingCart } from '../components/FloatingCart';
 import { useAsync } from '../hooks/useAsync';
+import { useLanguage } from '../i18n';
 import { EmptyState, ErrorState, Shimmer, Stagger } from '../motion';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/theme';
@@ -22,6 +23,7 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const { api } = useAuth();
   const { cart, dispatch } = useCart();
   const favorites = useFavorites();
+  const { t, tn } = useLanguage();
   const { branchId, branchName, categoryId } = route.params;
   const { data, loading, error, reload, refresh } = useAsync(() => api.menu(branchId), [branchId]);
 
@@ -68,7 +70,7 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const openProduct = (product: MenuProduct): void => navigation.navigate('Product', { branchId, product });
 
   return (
-    <Screen title={branchName} onBack={() => navigation.goBack()}>
+    <Screen title={tn(data?.branch.name ?? branchName, data?.branch.nameAr)} onBack={() => navigation.goBack()}>
       {loading ? (
         <View style={{ padding: 16, gap: 12 }}>
           <Shimmer height={24} width="40%" radius={theme.radius.sm} />
@@ -85,9 +87,9 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
           {/* Sticky category chips */}
           <View style={{ paddingBottom: 8 }}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
-              <Chip label="All" selected={!activeCategory} onPress={() => setActiveCategory(null)} />
+              <Chip label={t('menu.categoryAll')} selected={!activeCategory} onPress={() => setActiveCategory(null)} />
               {categories.map((c) => (
-                <Chip key={c.id} label={c.name} selected={activeCategory === c.id} onPress={() => setActiveCategory(c.id)} />
+                <Chip key={c.id} label={tn(c.name, c.nameAr)} selected={activeCategory === c.id} onPress={() => setActiveCategory(c.id)} />
               ))}
             </ScrollView>
           </View>
@@ -102,11 +104,11 @@ export function MenuScreen({ route, navigation }: NativeStackScreenProps<RootSta
                 }}
               >
                 <AppText variant="h2" style={{ marginBottom: 12 }}>
-                  {category.name}
+                  {tn(category.name, category.nameAr)}
                 </AppText>
                 <Stagger>
                   {category.products.map((product) => {
-                    const card = toFoodCard(product);
+                    const card = toFoodCard(product, undefined, tn);
                     return (
                       <View key={product.id} style={{ marginBottom: 10 }}>
                         <FoodListItem

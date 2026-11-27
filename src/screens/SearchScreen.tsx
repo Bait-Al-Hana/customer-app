@@ -9,6 +9,7 @@ import { AppText, Chip, FoodListItem, Screen, SearchBar, SectionHeader } from '.
 import { POPULAR_SEARCHES } from '../data/content';
 import { flattenProducts, toFoodCard } from '../data/menu';
 import { useFavorites } from '../favorites/FavoritesProvider';
+import { useLanguage } from '../i18n';
 import { useAsync } from '../hooks/useAsync';
 import { EmptyState, Skeleton } from '../motion';
 import { RootStackParamList } from '../navigation/types';
@@ -24,6 +25,7 @@ export function SearchScreen(): React.JSX.Element {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { dispatch } = useCart();
   const favorites = useFavorites();
+  const { t, tn } = useLanguage();
 
   const [query, setQuery] = useState('');
   const [recents, setRecents] = useState<string[]>([]);
@@ -44,6 +46,7 @@ export function SearchScreen(): React.JSX.Element {
     return all.filter(
       (f) =>
         f.product.name.toLowerCase().includes(trimmed) ||
+        (f.product.nameAr ?? '').toLowerCase().includes(trimmed) ||
         (f.product.description ?? '').toLowerCase().includes(trimmed) ||
         f.categoryName.toLowerCase().includes(trimmed),
     );
@@ -82,7 +85,7 @@ export function SearchScreen(): React.JSX.Element {
   const categories = menuReq.data?.categories ?? [];
 
   return (
-    <Screen title="Search">
+    <Screen title={t('tab.search')}>
       <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
         <SearchBar value={query} onChangeText={setQuery} autoFocus onClear={() => setQuery('')} />
       </View>
@@ -114,9 +117,10 @@ export function SearchScreen(): React.JSX.Element {
               <View>
                 <SectionHeader title="Browse categories" />
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {categories.map((c) => (
-                    <Chip key={c.id} label={c.name} onPress={() => runSearch(c.name)} />
-                  ))}
+                  {categories.map((c) => {
+                    const label = tn(c.name, c.nameAr);
+                    return <Chip key={c.id} label={label} onPress={() => runSearch(label)} />;
+                  })}
                 </View>
               </View>
             ) : null}
@@ -141,7 +145,7 @@ export function SearchScreen(): React.JSX.Element {
               {results.length} result{results.length === 1 ? '' : 's'}
             </AppText>
             {results.map((f) => {
-              const card = toFoodCard(f.product);
+              const card = toFoodCard(f.product, undefined, tn);
               return (
                 <FoodListItem
                   key={f.product.id}

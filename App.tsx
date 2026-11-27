@@ -9,6 +9,7 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { CartProvider } from './src/cart/CartProvider';
 import { FavoritesProvider } from './src/favorites/FavoritesProvider';
 import { FulfilmentProvider } from './src/fulfilment/FulfilmentProvider';
+import { LanguageProvider } from './src/i18n';
 import { CartFlightProvider, MotionProvider } from './src/motion';
 import { LaunchScreen } from './src/launch/LaunchScreen';
 import { RootNavigator } from './src/navigation/RootNavigator';
@@ -36,6 +37,10 @@ export default function App(): React.JSX.Element {
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
+          {/* Above everything that renders copy: holds the chosen language, so
+              one switch re-renders the whole app in Arabic (and flips text
+              direction) at once. */}
+          <LanguageProvider>
           <MotionProvider>
             {/* Owns the "fly into the cart" overlay; above the navigator so a
                 dot launched from a menu card can travel to the cart bar. */}
@@ -61,6 +66,7 @@ export default function App(): React.JSX.Element {
             </AuthProvider>
             </CartFlightProvider>
           </MotionProvider>
+          </LanguageProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>

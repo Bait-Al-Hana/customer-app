@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '../components/AppText';
 import { HomeIcon, IconProps, ReceiptIcon, SearchIcon, TagIcon, UserIcon } from '../components/icons';
+import { useLanguage } from '../i18n';
+import type { StringKey } from '../i18n';
 import { useMotion, PressableScale } from '../motion';
 import { useTheme } from '../theme/theme';
 import { MainTabParamList } from './types';
@@ -18,12 +20,12 @@ const ICONS: Record<keyof MainTabParamList, (p: IconProps) => React.JSX.Element>
   Account: UserIcon,
 };
 
-const LABELS: Record<keyof MainTabParamList, string> = {
-  Home: 'Home',
-  Search: 'Search',
-  Orders: 'Orders',
-  Offers: 'Offers',
-  Account: 'Account',
+const LABEL_KEYS: Record<keyof MainTabParamList, StringKey> = {
+  Home: 'tab.home',
+  Search: 'tab.search',
+  Orders: 'tab.orders',
+  Offers: 'tab.offers',
+  Account: 'tab.account',
 };
 
 /**
@@ -38,6 +40,7 @@ const LABELS: Record<keyof MainTabParamList, string> = {
  */
 export function TabBar({ state, navigation }: BottomTabBarProps): React.JSX.Element {
   const theme = useTheme();
+  const { t } = useLanguage();
   const { spring } = useMotion();
   const insets = useSafeAreaInsets();
   const [barWidth, setBarWidth] = useState(0);
@@ -86,6 +89,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps): React.JSX.Elem
         const focused = state.index === index;
         const name = route.name as keyof MainTabParamList;
         const Icon = ICONS[name];
+        const label = t(LABEL_KEYS[name]);
         const color = focused ? theme.colors.primary : theme.colors.textMuted;
 
         const onPress = (): void => {
@@ -100,13 +104,13 @@ export function TabBar({ state, navigation }: BottomTabBarProps): React.JSX.Elem
             key={route.key}
             accessibilityRole="button"
             accessibilityState={{ selected: focused }}
-            accessibilityLabel={LABELS[name]}
+            accessibilityLabel={label}
             onPress={onPress}
             style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 4 }}
           >
             <Icon color={color} size={24} filled={focused} />
             <AppText variant="caption" weight={focused ? '700' : '500'} style={{ color, fontSize: 11 }}>
-              {LABELS[name]}
+              {label}
             </AppText>
           </PressableScale>
         );

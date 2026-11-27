@@ -12,6 +12,7 @@ import { glyphFor } from '../components/FoodImage';
 import { popularProducts, toFoodCard } from '../data/menu';
 import { useFavorites } from '../favorites/FavoritesProvider';
 import { useFulfilment } from '../fulfilment/FulfilmentProvider';
+import { useLanguage } from '../i18n';
 import { useAsync } from '../hooks/useAsync';
 import { BottomSheet, EmptyState, ErrorState, PressableScale, Skeleton, Toast } from '../motion';
 import { MainTabParamList, RootStackParamList } from '../navigation/types';
@@ -39,6 +40,7 @@ import { branchAvailability } from '../util/branchOpen';
  */
 export function HomeScreen(): React.JSX.Element {
   const theme = useTheme();
+  const { tn } = useLanguage();
   const { api } = useAuth();
   const rootNav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const tabNav = useNavigation<BottomTabScreenProps<MainTabParamList>['navigation']>();
@@ -189,7 +191,7 @@ export function HomeScreen(): React.JSX.Element {
                   {categories.map((c) => (
                     <CategoryCard
                       key={c.id}
-                      name={c.name}
+                      name={tn(c.name, c.nameAr)}
                       imageUrl={c.imageUrl}
                       glyph={glyphFor(c.name)}
                       onPress={() => openMenu(c.id)}
@@ -593,6 +595,7 @@ function PopularRail({
 }): React.JSX.Element | null {
   const theme = useTheme();
   const favorites = useFavorites();
+  const { tn } = useLanguage();
 
   if (!loading && products.length === 0) {
     return null;
@@ -616,7 +619,7 @@ function PopularRail({
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
           {products.map((p) => {
-            const card = toFoodCard(p);
+            const card = toFoodCard(p, undefined, tn);
             return (
               <FoodCard
                 key={p.id}
@@ -659,6 +662,7 @@ function MenuGrid({
 }): React.JSX.Element | null {
   const theme = useTheme();
   const favorites = useFavorites();
+  const { tn } = useLanguage();
 
   // 16pt page margins, 12pt gutter. Floored so a rounding remainder never
   // pushes the second column off the screen on a narrow phone.
@@ -690,7 +694,7 @@ function MenuGrid({
               </View>
             ))
           : products.map((p) => {
-              const card = toFoodCard(p);
+              const card = toFoodCard(p, undefined, tn);
               return (
                 <FoodCard
                   key={p.id}
