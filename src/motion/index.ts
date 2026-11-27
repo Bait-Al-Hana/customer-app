@@ -11,6 +11,7 @@ export * from './reduced-motion';
 
 // Runtime
 export { MotionProvider, useMotion } from './MotionProvider';
+export { CartFlightProvider, useCartFlight } from './CartFlightProvider';
 export { useReducedMotion } from './useReducedMotion';
 export { SCREEN_TRANSITIONS, screenTransition } from './transitions';
 export type { ScreenTransition } from './transitions';
