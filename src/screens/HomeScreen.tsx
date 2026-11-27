@@ -6,15 +6,14 @@ import { ScrollView, useWindowDimensions, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthProvider';
 import { useCart } from '../cart/CartProvider';
-import { AppText, Card, CategoryCard, FoodCard, Screen, SearchBar, SectionHeader } from '../components';
+import { AppText, Card, FoodCard, Screen, SearchBar, SectionHeader } from '../components';
 import { BellIcon, ChevronRight, PinIcon } from '../components/icons';
-import { glyphFor } from '../components/FoodImage';
 import { popularProducts, toFoodCard } from '../data/menu';
 import { useFavorites } from '../favorites/FavoritesProvider';
 import { useFulfilment } from '../fulfilment/FulfilmentProvider';
 import { useLanguage } from '../i18n';
 import { useAsync } from '../hooks/useAsync';
-import { BottomSheet, EmptyState, ErrorState, PressableScale, Skeleton, Toast } from '../motion';
+import { BottomSheet, EmptyState, ErrorState, PressableScale, Skeleton, Stagger, Toast } from '../motion';
 import { MainTabParamList, RootStackParamList } from '../navigation/types';
 import type { Address, Branch, MenuProduct } from '../api/types';
 import { ORDER_TYPE, OrderType } from '../types/backend';
@@ -158,24 +157,10 @@ export function HomeScreen(): React.JSX.Element {
               <ModeSwitch mode={mode} onChange={setMode} />
             </View>
 
-            <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-              <BranchCard
-                branch={branch}
-                mode={mode}
-                distanceKm={resolved.distanceKm}
-                needsAddress={resolved.needsAddress}
-                onChange={resolved.changeable ? () => setPicking(true) : undefined}
-                onAddAddress={() => rootNav.navigate('Addresses')}
-              />
-            </View>
-
             {menuReq.loading ? (
-              <View style={{ flexDirection: 'row', gap: 16, paddingHorizontal: 16, paddingTop: 24 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 16, paddingTop: 24 }}>
                 {[0, 1, 2, 3].map((i) => (
-                  <View key={i} style={{ alignItems: 'center', gap: 8 }}>
-                    <Skeleton width={68} height={68} radius={theme.radius.lg} />
-                    <Skeleton width={50} height={12} />
-                  </View>
+                  <Skeleton key={i} width={96} height={42} radius={theme.radius.md} />
                 ))}
               </View>
             ) : categories.length > 0 ? (
@@ -183,21 +168,31 @@ export function HomeScreen(): React.JSX.Element {
                 <View style={{ paddingHorizontal: 16 }}>
                   <SectionHeader title="Categories" actionLabel="See menu" onAction={() => openMenu()} />
                 </View>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-                >
-                  {categories.map((c) => (
-                    <CategoryCard
-                      key={c.id}
-                      name={tn(c.name, c.nameAr)}
-                      imageUrl={c.imageUrl}
-                      glyph={glyphFor(c.name)}
-                      onPress={() => openMenu(c.id)}
-                    />
-                  ))}
-                </ScrollView>
+                {/* Text boxes (not icons), staggered in on load. */}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 16 }}>
+                  <Stagger translateY={10}>
+                    {categories.map((c) => (
+                      <PressableScale
+                        key={c.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={tn(c.name, c.nameAr)}
+                        onPress={() => openMenu(c.id)}
+                        style={{
+                          paddingVertical: 12,
+                          paddingHorizontal: 18,
+                          borderRadius: theme.radius.md,
+                          backgroundColor: theme.colors.surface,
+                          borderWidth: 1,
+                          borderColor: theme.colors.border,
+                        }}
+                      >
+                        <AppText variant="bodySmall" weight="700">
+                          {tn(c.name, c.nameAr)}
+                        </AppText>
+                      </PressableScale>
+                    ))}
+                  </Stagger>
+                </View>
               </View>
             ) : null}
 
@@ -301,115 +296,6 @@ function ModeSwitch({ mode, onChange }: { mode: OrderType; onChange: (mode: Orde
 }
 
 /** Which branch this order comes from, and whether that is the customer's call. */
-function BranchCard({
-  branch,
-  mode,
-  distanceKm,
-  needsAddress,
-  onChange,
-  onAddAddress,
-}: {
-  branch: Branch | null;
-  mode: OrderType;
-  distanceKm: number | null;
-  needsAddress: boolean;
-  onChange?: () => void;
-  onAddAddress: () => void;
-}): React.JSX.Element {
-  const theme = useTheme();
-
-  if (!branch) {
-    return (
-      <Card>
-        <AppText variant="h3" style={{ fontSize: 15 }}>
-          {mode === ORDER_TYPE.DELIVERY ? 'No branch delivers yet' : 'No branch offers pickup'}
-        </AppText>
-        <AppText variant="caption" color="textMuted" style={{ marginTop: 4 }}>
-          Try the other option, or check back soon.
-        </AppText>
-      </Card>
-    );
-  }
-
-  const where = [branch.district, branch.city].filter(Boolean).join(', ');
-  const subtitle =
-    mode === ORDER_TYPE.DELIVERY
-      ? needsAddress
-        ? 'Add your address and we’ll deliver from your nearest branch'
-        : distanceKm !== null
-          ? `Your nearest branch · about ${distanceKm} km away`
-          : 'Your nearest branch'
-      : where || 'Collect at the counter';
-
-  return (
-    <Card elevated>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <View
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            backgroundColor: theme.colors.primarySoft,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <AppText style={{ fontSize: 20 }}>{mode === ORDER_TYPE.DELIVERY ? '🛵' : '🏪'}</AppText>
-        </View>
-        <View style={{ flex: 1 }}>
-          <AppText variant="h3" style={{ fontSize: 16 }} numberOfLines={1}>
-            {branch.name}
-          </AppText>
-          {/* Two different things close a branch — staff pausing orders, and
-              the schedule running on its own — and only one of them can say
-              when it opens again. `branchAvailability` picks the sentence. */}
-          <AppText
-            variant="caption"
-            color={branchAvailability(branch).open ? 'textMuted' : 'danger'}
-            numberOfLines={2}
-            style={{ marginTop: 2 }}
-          >
-            {branchAvailability(branch).open ? subtitle : branchAvailability(branch).label}
-          </AppText>
-        </View>
-        {onChange ? (
-          <PressableScale accessibilityRole="button" accessibilityLabel="Change branch" onPress={onChange}>
-            <AppText variant="bodySmall" weight="700" color="primary">
-              Change
-            </AppText>
-          </PressableScale>
-        ) : null}
-      </View>
-
-      {mode === ORDER_TYPE.DELIVERY && needsAddress ? (
-        <View style={{ marginTop: 12 }}>
-          <PressableScale accessibilityRole="button" accessibilityLabel="Add your delivery address" onPress={onAddAddress}>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 8,
-                borderRadius: theme.radius.md,
-                borderWidth: 1.5,
-                borderStyle: 'dashed',
-                borderColor: theme.colors.primary,
-                paddingVertical: 10,
-                paddingHorizontal: 12,
-              }}
-            >
-              <PinIcon color={theme.colors.primary} size={16} />
-              <AppText variant="bodySmall" weight="700" color="primary" style={{ flex: 1 }}>
-                Add your address
-              </AppText>
-              <ChevronRight color={theme.colors.primary} size={16} />
-            </View>
-          </PressableScale>
-        </View>
-      ) : null}
-    </Card>
-  );
-}
-
 /** The owner's branches, for the customer to collect from. */
 function BranchPicker({
   visible,
